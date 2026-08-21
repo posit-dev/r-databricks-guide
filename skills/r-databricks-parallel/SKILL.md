@@ -127,20 +127,20 @@ and still open; it needs a multi-worker cluster to test.
     plain partition path used **4**, same cluster, same session.
   - `[verified: ran it on 2026-08-20]` Reproduced independently on a different workload
     (703 groups, one simulation per group): partition path **4 processes in 15.6 s**,
-    `group_by =` **1 process in 33.0 s** — **2.1× slower for an identical, correct result**.
+    `group_by =` **1 process in 33.0 s**, **2.1× slower for an identical, correct result**.
 
   Two runs on different work is a pattern rather than a one-off, so treat this as a rule:
   **do not reach for `group_by =` because the unit of work is naturally a group.** Partition
   instead, and let each worker loop over the rows in its slice. Mapping one group per unit of
   work is the intuitive expression and it serialises the job.
 
-  The mechanism remains unexplained `[unresolved]`, and the failure is **silent** — the answer
+  The mechanism remains unexplained `[unresolved]`, and the failure is **silent**: the answer
   is correct either way, so nothing surfaces except wall-clock time. **Return `Sys.getpid()`
   from the worker function and count distinct values** before believing work was distributed.
   It is one column and it is the only cheap way to see this.
 - **`columns =` must be a Spark DDL string under `databricks_connect`, not the documented
   named list.** `[verified: ran it on 2026-08-20]` `columns = list(id = "character", m =
-  "double")` — the form `?spark_apply` documents — fails with a bare
+  "double")`, the form `?spark_apply` documents, fails with a bare
   `Error: non-character argument`. A named character vector fails with
   `PySparkTypeError: [NOT_DATATYPE_OR_STR] Argument 'returnType' should be a DataType or str`.
   **The working form is `columns = "id string, m double"`.** Omitting `columns` entirely also

@@ -77,7 +77,7 @@ value.** This is truncation, not corruption. It was tested with an all-distinct 
 truncation look like a clean prefix, so it cannot settle the question. A byte-count check
 *is* therefore enough to detect it.
 
-`[inference — not proven here]` The exact modulo, and `k` × 1,024 payloads surviving, is
+`[inference: not proven here]` The exact modulo, and `k` × 1,024 payloads surviving, is
 consistent with a length counter wrapping in a 1,024-byte buffer. Black-box evidence only;
 nothing here inspects driver internals.
 

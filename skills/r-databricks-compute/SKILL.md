@@ -63,13 +63,13 @@ own legacy field, may still show the old name:
 | Standard | `DATA_SECURITY_MODE_STANDARD` | `USER_ISOLATION` | **Notebooks refused; client connection works** |
 | Auto | `DATA_SECURITY_MODE_AUTO` | — | Resolves to Standard unless ML runtime, GPU, or DBR below 14.3 |
 
-Standard access mode refuses R **notebooks** outright — `[documented: read it on
+Standard access mode refuses R **notebooks** outright, `[documented: read it on
 2026-08-18]`. Do not generalise that to "Standard refuses R": a client connection to a
 Standard cluster is a different path and works. `[verified: ran it on 2026-08-19]`
 `spark_connect()` reached a Standard cluster (DBR 14.3) and `spark_apply()` shipped a UDF
 to a Databricks Python worker there; it then failed on an `rpy2`/R-version fault, **not**
 on an access-mode refusal. That result is "access mode not implicated", nothing
-stronger — the run never got far enough to test whether `spark_apply()` fully works on
+stronger: the run never got far enough to test whether `spark_apply()` fully works on
 Standard, which remains `[unresolved]` (see `r-databricks-parallel`).
 
 - **Dedicated means one cluster per person.** Workspace admin does not override the
