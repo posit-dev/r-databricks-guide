@@ -1,0 +1,25 @@
+# Credentials and per-user configuration. Never commit.
+.Renviron
+
+# Quarto build output
+/_site/
+/.quarto/
+/_freeze/
+
+# R
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+renv/library/
+renv/local/
+renv/cellar/
+renv/lock/
+renv/python/
+renv/sandbox/
+renv/staging/
+
+# Working design documents. Local only: they carry personal annotation and
+# references to the engagement that produced the findings, neither of which
+# belongs in a public repo. See docs/README.md.
+/docs/

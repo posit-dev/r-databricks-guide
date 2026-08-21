@@ -1,0 +1,25 @@
+project:
+  type: website
+  output-dir: _site
+  # Execute every document from the project root rather than its own folder, so
+  # .Renviron (which supplies DATABRICKS_PATH) is read from the working
+  # directory at R startup.
+  execute-dir: project
+  render:
+    - index.qmd
+
+website:
+  title: "R on Databricks"
+  description: "A working guide for R users whose data lives in Databricks."
+  navbar:
+    left:
+      - href: index.qmd
+        text: Start here
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    df-print: default
+    code-copy: true
+    code-overflow: wrap

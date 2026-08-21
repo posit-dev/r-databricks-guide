@@ -1,0 +1,15 @@
+---
+title: "R on Databricks"
+subtitle: "A working guide for getting your analysis running"
+---
+
+You are fluent in R. Your data is in Databricks, and that was not your choice. Most of
+what is written about Spark is aimed at someone administering a platform rather than
+someone trying to finish an analysis.
+
+This guide is for the second person.
+
+::: {.callout-note appearance="simple"}
+**Under construction.** The structure of this guide is being designed. Nothing below
+this line yet.
+:::

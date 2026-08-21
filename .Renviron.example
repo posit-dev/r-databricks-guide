@@ -1,0 +1,15 @@
+# Copy to .Renviron and fill in your own values, then restart R.
+# .Renviron is gitignored: it must never be committed.
+
+# The HTTP path of your SQL warehouse. Databricks shows it under
+# SQL Warehouses > your warehouse > Connection details.
+DATABRICKS_PATH="/sql/1.0/warehouses/<your-warehouse-id>"
+
+# The Unity Catalog catalog and schema your tables live in.
+DATABRICKS_CATALOG="<your-catalog>"
+DATABRICKS_SCHEMA="<your-schema>"
+
+# Only needed for anything that runs R on cluster compute. Dedicated access
+# mode is one cluster per person, so this value is yours alone: never commit it
+# and never hard-code it in a document.
+DATABRICKS_CLUSTER_ID="<your-cluster-id>"
