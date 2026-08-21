@@ -1,6 +1,6 @@
 ---
 name: r-databricks-compute
-description: Starting, stopping and inspecting Databricks clusters and SQL warehouses from R with brickster, without surprise billing. Covers the check-before-start rule, access modes and which ones permit R, cluster library installation, and why a colleague's dedicated cluster returns HTTP 403. Load before any operation that could start compute.
+description: Starting, stopping and inspecting Databricks clusters and SQL warehouses from R with brickster, without surprise billing. Covers the check-before-start rule, access modes and which ones permit R, cluster library installation, getting binary rather than source packages onto a cluster, and why a colleague's dedicated cluster returns HTTP 403. Load before any operation that could start compute.
 ---
 
 # Compute lifecycle: clusters and warehouses
@@ -104,6 +104,48 @@ brickster::db_libs_install(
 )
 brickster::wait_for_lib_installs(cluster_id = Sys.getenv("DATABRICKS_CLUSTER_ID"))
 ```
+
+## Getting binary packages, not a fifteen-minute compile
+
+A package with compiled code will build from source on the cluster unless the binary
+repository is addressed in the one way it recognises, and the fallback is **silent**: the
+same command against the same mirror either takes seconds or spends a quarter of an hour
+per node. Two conditions must both hold. `[verified: ran it on 2026-08-21]`
+
+1. **Use the distribution-specific repository URL**,
+   `https://p3m.dev/cran/__linux__/<codename>/latest`. The generic `https://p3m.dev/cran/latest`
+   is correct in a project using `renv`, which rewrites it per distribution;
+   `install.packages` does no such rewriting, so the generic URL serves sources.
+2. **Set `HTTPUserAgent` so it keeps the leading `R/<version>` token.** The repository
+   reads that token to decide whether a client may have binaries. An interactive R session
+   sends `R/4.5.1 R (4.5.1 ...)`, but a **child `Rscript` process sends only
+   `R (4.5.1 ...)`** on at least some runtime images. Anything scripted, an init script
+   above all, is that child process.
+
+```r
+codename <- system(". /etc/os-release && echo $VERSION_CODENAME", intern = TRUE)
+options(
+  repos = c(P3M = sprintf("https://p3m.dev/cran/__linux__/%s/latest", codename)),
+  HTTPUserAgent = sprintf(
+    "R/%s R (%s)", getRversion(),
+    paste(getRversion(), R.version$platform, R.version$arch, R.version$os)
+  )
+)
+```
+
+**Getting condition 1 right and condition 2 wrong is indistinguishable from getting both
+wrong**, which is what makes this expensive to diagnose. Measured on one runtime: with the
+correct URL but the default child-process user agent, an init script installing `sf` and
+`terra` logged `installing *source* package` and took **873 s then 843 s** across two
+boots; with the user agent set, **63 s**.
+
+Check what arrived rather than trusting the wall clock. `packageDescription(p)$Built`
+naming the runtime's own R version means it compiled locally; a binary names the version
+and date it was built under.
+
+Binaries are keyed to distribution **and** R minor version, so a runtime with no matching
+build legitimately falls back to source. That is worth confirming before assuming the user
+agent is at fault.
 
 ## Never hard-code a cluster or warehouse ID
 
