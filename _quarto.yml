@@ -54,14 +54,20 @@ website:
         menu:
           - href: example/index.qmd
             text: The question, and the data
+          - href: example/ingest.qmd
+            text: Getting the data into Databricks
           - href: example/connecting.qmd
             text: Getting connected and finding the tables
           - href: example/reducing.qmd
             text: Exploring and reducing the big table
           - href: example/spatial.qmd
             text: The spatial join
+          - href: example/parallel.qmd
+            text: Using the cores you already have
           - href: example/simulation.qmd
-            text: The simulation
+            text: Simulating from a summary
+          - href: example/bootstrap.qmd
+            text: When the simulation carries the geometry
           - href: example/results.qmd
             text: Results, figures, and the record
     right:
@@ -103,16 +109,26 @@ website:
       style: floating
       contents:
         - example/index.qmd
+        - example/ingest.qmd
         - example/connecting.qmd
         - example/reducing.qmd
         - example/spatial.qmd
+        - example/parallel.qmd
         - example/simulation.qmd
+        - example/bootstrap.qmd
         - example/results.qmd
     - title: "For your admin"
       style: floating
       contents:
         - admin/index.qmd
         - admin/geospatial-setup.qmd
+
+# Freeze every document by default. Re-execution then happens only when a
+# document's own source changes, which keeps a whole-site render from touching
+# Databricks at all. The cluster-backed pages carry a stronger guard on top of
+# this: see the `eval` gate in example/parallel.qmd and its siblings.
+execute:
+  freeze: true
 
 format:
   html:

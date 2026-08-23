@@ -67,6 +67,38 @@ report "no em-dashes in prose" \
      | "$GREP" -vE "$PROSE_EXEMPT" \
      | "$GREP" -vE '\|[[:space:]]*—[[:space:]]*\|')"
 
+# --- rendered output -------------------------------------------------------
+#
+# The checks above scan only what git tracks, which is a real blind spot: an
+# identifier can reach the web without ever appearing in a tracked file. A
+# chunk that queries the environment and prints the result puts the catalog
+# name into _site/*.html and into the _freeze/ cache, and both are gitignored,
+# so nothing above would see it. That is how a real cluster id and the catalog
+# name once reached rendered pages.
+#
+# _site/ is what gets published, so it is scanned when it exists. It is build
+# output, so its absence is not a failure: a clean clone has not rendered yet.
+BUILT=""
+for d in _site _freeze; do
+  [ -d "$d" ] && BUILT="$BUILT $d"
+done
+
+if [ -n "$BUILT" ]; then
+  # shellcheck disable=SC2086
+  built() { "$GREP" -rIl "$@" $BUILT 2>/dev/null; }
+
+  report "rendered output carries no personal identifier" \
+    "$(built -iE "$IDENT")"
+
+  report "rendered output carries no warehouse or cluster id" \
+    "$(built -E '/sql/1\.0/warehouses/[0-9a-f]{8,}|[0-9]{4}-[0-9]{6}-[a-z0-9]{8}')"
+
+  report "rendered output carries no catalog name" \
+    "$(built -E 'uk_water_quality')"
+else
+  printf 'skip: rendered output not scanned (_site/ absent; run quarto render)\n'
+fi
+
 if [ "$fail" -eq 0 ]; then
   printf '\nAll checks passed.\n'
 else

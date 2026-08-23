@@ -39,6 +39,12 @@ h2 {
 
 a:hover { text-decoration: underline; }
 
+// Kept in step with site.scss: code sits at 0.75em so an annotated pipeline
+// fits the 42rem measure without wrapping. See the note there for the sums.
+pre code, pre code.sourceCode, .sourceCode pre code {
+  font-size: 0.75em;
+}
+
 code:not(.sourceCode) {
   background-color: rgba($link-color, 0.12);
   padding: 0.1em 0.3em;

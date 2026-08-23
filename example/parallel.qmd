@@ -1,0 +1,164 @@
+---
+title: "Using the cores you already have"
+subtitle: "Stage four: the machine you are sitting at, before any of the rest of it"
+execute:
+  freeze: true
+---
+
+::: {.callout-note appearance="simple"}
+
+**Draft.** The code runs and the argument holds; the prose has not been copy-edited.
+
+:::
+
+The three stages before this one were about moving data. From here on the data has stopped being the problem and the repeats have started being the problem. This page is the first step and deliberately the least ambitious one: the cores in the session you are already sitting in.
+
+It is a stage of its own because the choice of backend is made once and everything after it inherits the answer. Folded into the simulation, it would look like a detail of that simulation, and it is not.
+
+```{r}
+#| label: setup
+#| message: false
+library(dplyr)
+library(tibble)
+library(purrr)
+library(glue)
+library(cli)
+library(parallel)
+
+catchment_panel <- readRDS("catchment_panel.rds")
+```
+
+## The repeats are the cost now, not the crossing
+
+The table shrank by three orders of magnitude on [Exploring and reducing the big table](reducing.qmd), and what came back fits comfortably in the session.
+
+```{r}
+#| label: size
+panel_kb <- as.numeric(object.size(catchment_panel)) / 1024
+
+cli_alert_info(
+  "{nrow(catchment_panel)} catchments, {round(panel_kb)} KB"
+)
+```
+
+Nothing after this point is limited by how much data can move. Everything after this point is limited by how many times a small computation has to run.
+
+That changes which question is useful. Up to here it was where the `collect()` line sits. From here it is how many cores are turning.
+
+## What the shape has to be
+
+The test, stated once and used by both simulation stages that follow: **if repeat 200 needs nothing that repeat 199 produced, the work is this shape.** Almost all simulation, bootstrapping and resampling is.
+
+Both stages that follow satisfy it, which is why this page can settle the backend for both.
+
+## Try `furrr` first, and watch what happens
+
+`furrr::future_map()` over a `future::plan()` is the natural first reach. It is one line of change from `purrr::map()`, and on a laptop it is the right answer.
+
+```{r}
+#| label: furrr-check
+c(future = "future", furrr = "furrr") |>
+  map_lgl(\(p) requireNamespace(p, quietly = TRUE))
+```
+
+Whether those are present depends on your session. Installing them is ordinary here and costs a minute.
+
+That is the whole story locally. It is not the story on the cluster, and the next section is where the difference bites.
+
+## The one thing that does not travel
+
+This is the finding that shapes the rest of the example, and the reason this page comes before the simulations rather than inside one.
+
+Asked on the cluster's own workers, the answer is:
+
+| package | on the worker? |
+|---|---|
+| `dplyr` | yes |
+| `sf` | yes |
+| `parallel` | yes |
+| `furrr` | **no** |
+
+`future` and `furrr` are not in the runtime bundle. A plan that depends on them has nothing to load on the far side, and putting them there is an init-script change rather than an `install.packages()` call, which means asking someone and waiting. Base `parallel` is present in every context, including the worker.
+
+So the two are not interchangeable, and the difference is not about which is better R:
+
+- **In your own session**, `furrr` once installed, because the ergonomics are better and the change from serial is one line.
+- **Inside anything that might run on the cluster**, `parallel::mclapply()`, because it is there.
+
+This is a fact about the runtime as it stands, not a permanent property. An administrator can change it, and [Packages](../ref/packages.qmd) is where that conversation belongs.
+
+## `mclapply()`, and why forking is the right default here
+
+The version this example carries forward.
+
+```{r}
+#| label: cores
+n_cores <- max(1L, detectCores() - 1L)
+n_cores
+```
+
+Two facts worth stating and neither worth dwelling on. Forking is available because this is Linux, and it is cheaper than the alternative because workers share memory with the parent rather than each taking a full copy. `plan(multisession)`, and the equivalent socket cluster in `parallel`, is what to reach for on Windows and what not to reach for here.
+
+Here is the shape, on a deliberately trivial unit of work so the mechanism is visible rather than buried:
+
+```{r}
+#| label: mclapply-shape
+slow_square <- function(x) {
+  Sys.sleep(0.05)
+  x^2
+}
+
+serial <- system.time(
+  map_dbl(1:24, slow_square)
+)
+
+forked <- system.time(
+  unlist(mclapply(1:24, slow_square, mc.cores = n_cores))
+)
+
+tibble(
+  run = c("serial", glue("mclapply, {n_cores} cores")),
+  seconds = c(serial[["elapsed"]], forked[["elapsed"]])
+)
+```
+
+Both numbers come from one run in a session of this size, and neither is a benchmark. The point is the ratio being roughly the core count, not the seconds.
+
+## Memory goes down, not up
+
+Worth a short section because it removes a worry that would otherwise be carried into the next two stages.
+
+```{r}
+#| label: memory
+before <- gc(reset = TRUE)
+
+invisible(mclapply(
+  1:24,
+  \(i) sum(runif(2e5)),
+  mc.cores = n_cores
+))
+
+peak_mb <- sum(gc()[, "max used"] * c(8, 8)) / 2^20
+round(peak_mb, 1)
+```
+
+Across forked workers, peak memory in the parent does not climb the way it would if each worker took a full copy, because each holds only its slice and the fork is copy-on-write. This is the opposite of the big-table case, and it means the arithmetic from [Work with a table that will not fit in your session](../howdoi/big-table.qmd) does not transfer here.
+
+## Getting the worker count wrong is cheap
+
+Short, and included to prevent an agonising decision. The penalty for a wrong count is mild and the fix is one number, so a reasonable guess and a re-run beats calculating it. Leaving one core free, as above, is a habit rather than a rule.
+
+## What this decides for the rest of the example
+
+The backend is settled here, and the next two pages lean on it rather than repeating it.
+
+- [Simulating from a summary](simulation.qmd) uses `furrr` locally and finishes there.
+- [When the simulation carries the geometry](bootstrap.qmd) is the one that needs `parallel`, because its worker function has to run somewhere else.
+
+## Next
+
+[Simulating from a summary](simulation.qmd).
+
+---
+
+This page rests on: `future` and `furrr` are absent from the cluster runtime bundle while `sf`, `dplyr` and base `parallel` are present on the workers, confirmed by asking the workers directly; forked parallel workers do not multiply peak memory in the parent, because the fork is copy-on-write; whether a `future` multicore plan behaves correctly under a Spark executor is untested.

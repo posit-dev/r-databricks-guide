@@ -1,32 +1,326 @@
 ---
 title: "The spatial join"
 subtitle: "Stage three: putting the measurements and the places together"
+execute:
+  freeze: true
 ---
 
 ::: {.callout-note appearance="simple"}
 
-**Not yet written.** The structure below is settled; the prose is not.
+**Draft.** The code runs and the argument holds; the prose has not been copy-edited.
 
 :::
 
+The station statistics from the last page have no geography on them. This page gives them one, by putting each station and each storm overflow inside a catchment, and it is the first point where the two connection paths stop being interchangeable.
+
+```{r}
+#| label: setup
+#| message: false
+library(DBI)
+library(dplyr)
+library(tibble)
+library(purrr)
+library(glue)
+library(cli)
+library(sf)
+library(ggplot2)
+
+catalog <- Sys.getenv("DATABRICKS_CATALOG")
+schema <- Sys.getenv("DATABRICKS_SCHEMA")
+
+con <- dbConnect(
+  odbc::databricks(),
+  httpPath = Sys.getenv("DATABRICKS_PATH"),
+  DefaultStringColumnLength = 65535
+)
+
+tbl_name <- function(table) {
+  glue("{catalog}.{schema}.{table}")
+}
+
+per_station <- readRDS("per_station.rds")
+```
+
 ## Deciding which side to do it on
 
-The choice, made explicitly and with reasons, between joining server-side and bringing geometry back to `sf`. Both work. This example should pick one, say why, and note what the other would have cost, since the reader's situation may differ.
+Both sides can do this. Databricks has spatial SQL, and `sf` is right here in the session. The choice is not about capability.
+
+This example brings the geometry back and joins in `sf`, for three reasons worth stating because your situation may differ:
+
+- The geometry is small. Four thousand catchment polygons is a few tens of megabytes, which is nothing.
+- The result of the join feeds a bootstrap that has to run in R anyway, so the polygons have to arrive at some point regardless.
+- `sf` is the thing she already knows. Server-side spatial SQL is another dialect to learn for no gain at this size.
+
+What the other route would cost, if your polygons were national coverage at full resolution rather than catchments: the geometry never enters the session, and you get back only the join keys. That is the right answer when the geometry is large and the result is small, which is the opposite of the case here.
+
+## Getting the polygons back at all
+
+Geometry is stored as `BINARY`, and ODBC does not carry a `BINARY` column intact. That was established on [Getting connected and finding the tables](connecting.qmd), and it decides the shape of the next few lines rather than being a footnote.
+
+There are two ways around it. Encode server-side to text and decode here, which works over ODBC, or open a `brickster` connection and take the bytes directly. This page does the first, because the same query then works on either connection.
+
+```{r}
+#| label: fetch-catchments
+catchment_rows <- glue("
+  SELECT
+    water_body_id,
+    water_body_name,
+    ecological_class,
+    overall_water_body_class,
+    water_body_area_m2,
+    base64(geom_wkb) AS geom_b64
+  FROM {tbl_name('wfd_catchments')}
+  WHERE geom_wkb IS NOT NULL
+") |>
+  dbGetQuery(conn = con) |>
+  as_tibble()
+
+nrow(catchment_rows)
+```
 
 ## Setting the CRS
 
-Geometry arrives as WKB with no embedded SRID, so `st_srid` returns 0 and the number has to come from you. The failure mode is what makes this worth a section: a missing CRS does not error, it produces wrong areas or a join that matches nothing.
+WKB carries no SRID, so nothing in the bytes says which coordinate system they are in. `sf` will happily build geometry without one and every distance and area you compute afterwards will be wrong, silently.
+
+The number has to come from you. These are British National Grid, EPSG:27700.
+
+```{r}
+#| label: decode
+catchments <- catchment_rows$geom_b64 |>
+  map(jsonlite::base64_dec) |>
+  structure(class = "WKB") |>
+  st_as_sfc(EWKB = FALSE, crs = 27700) |>
+  st_sf(
+    catchment_rows |> select(-geom_b64),
+    geometry = _
+  )
+
+st_crs(catchments)$epsg
+```
+
+The check that this worked is not that it parsed. The catchment table carries its own area column, recorded before any of this, so the decoded geometry can be compared against something independent.
+
+```{r}
+#| label: area-check
+declared <- sum(catchments$water_body_area_m2, na.rm = TRUE)
+measured <- sum(as.numeric(st_area(catchments)))
+err <- abs(measured - declared) / declared
+
+cli_alert_info(
+  "area differs from declared by {round(100 * err, 4)}%"
+)
+```
+
+## The two point layers
+
+The overflows are longitude and latitude, which is a different CRS again. They have to be transformed before they can meet the catchments.
+
+```{r}
+#| label: overflows
+overflows <- glue("
+  SELECT overflow_id, company, longitude, latitude
+  FROM {tbl_name('storm_overflows')}
+  WHERE longitude IS NOT NULL
+    AND latitude IS NOT NULL
+") |>
+  dbGetQuery(conn = con) |>
+  as_tibble() |>
+  st_as_sf(
+    coords = c("longitude", "latitude"),
+    crs = 4326
+  ) |>
+  st_transform(27700)
+
+nrow(overflows)
+```
+
+The stations are already easting and northing, so they need no transform, only a declaration of what they are.
+
+```{r}
+#| label: stations
+stations <- glue("
+  SELECT station_id, station_name, easting, northing
+  FROM {tbl_name('hydrology_stations')}
+  WHERE easting IS NOT NULL
+    AND northing IS NOT NULL
+") |>
+  dbGetQuery(conn = con) |>
+  as_tibble() |>
+  st_as_sf(
+    coords = c("easting", "northing"),
+    crs = 27700
+  )
+
+nrow(stations)
+```
+
+Mixing these up is the classic failure, and it does not error. A longitude of -2 read as an easting of -2 metres puts the point in the sea off Africa, and the join simply matches nothing.
 
 ## The join itself
 
+```{r}
+#| label: join
+overflow_catchment <- overflows |>
+  st_join(catchments, join = st_within)
+
+station_catchment <- stations |>
+  st_join(catchments, join = st_within)
+```
+
 ## Checking the result is plausible
 
-Row counts before and after, and an eyeball plot. A join that silently matches nothing looks exactly like a join that matched everything, in the shape of the output.
+A join that matched nothing and a join that matched everything produce output of the same shape, so the count is the check.
+
+```{r}
+#| label: match-rate
+matched <- sum(!is.na(overflow_catchment$water_body_id))
+
+cli_alert_info(
+  "{matched} of {nrow(overflows)} overflows fell inside \\
+   a catchment ({round(100 * matched / nrow(overflows))}%)"
+)
+```
+
+Not 100%, and that is the right answer rather than a problem. River catchments do not cover the coast, and an outfall that discharges to tidal water is genuinely outside all of them.
+
+The eyeball check is worth the two lines it costs.
+
+```{r}
+#| label: plot
+#| fig-width: 5
+#| fig-height: 6
+#| fig-alt: "Storm overflow locations across England, coloured by whether the point fell inside a river catchment polygon. Unmatched points lie around the coast."
+ggplot() +
+  geom_sf(
+    data = catchments,
+    fill = "grey95",
+    colour = NA
+  ) +
+  geom_sf(
+    data = overflow_catchment,
+    aes(colour = is.na(water_body_id)),
+    size = 0.25,
+    alpha = 0.6
+  ) +
+  scale_colour_manual(
+    values = c("#447099", "#EE6331"),
+    labels = c("in a catchment", "unmatched"),
+    name = NULL
+  ) +
+  theme_void() +
+  theme(legend.position = "bottom")
+```
+
+The unmatched points sit around the coastline, which is what should happen. Had they been scattered through the middle of the country, the CRS would be the first suspect.
 
 ## Confirming the two sides agree
 
-The server-side answer against R's, on a sample, as described in [Check that you get the same answer wherever it ran](../howdoi/check-the-answer.qmd). This is where the recipe there gets its second, structurally different case, which is what that page currently lacks.
+The join ran in `sf`. The same question can be put to the server, and the two answers should broadly agree. This is the check from [Check that you get the same answer wherever it ran](../howdoi/check-the-answer.qmd), applied to a spatial predicate rather than an aggregate.
+
+The missing-SRID problem reappears here, on the other side of the wire. `st_geomfromwkb()` returns geometry with SRID 0 for exactly the reason `sf` needed a CRS argument, and the server refuses to compare SRID 0 against 27700 rather than guessing. `st_setsrid()` is what asserts it.
+
+```{r}
+#| label: cross-check
+r_side <- overflow_catchment |>
+  st_drop_geometry() |>
+  filter(!is.na(water_body_id)) |>
+  count(water_body_id, name = "n_r")
+
+server_side <- glue("
+  SELECT
+    c.water_body_id,
+    count(*) AS n_sql
+  FROM {tbl_name('storm_overflows')} o
+  JOIN {tbl_name('wfd_catchments')} c
+    ON st_contains(
+         -- st_setsrid is not optional: WKB carries no
+         -- SRID, so st_geomfromwkb returns 0 and the
+         -- server refuses to compare it against 27700.
+         st_setsrid(st_geomfromwkb(c.geom_wkb), 27700),
+         st_transform(
+           st_point(o.longitude, o.latitude, 4326),
+           27700
+         )
+       )
+  GROUP BY c.water_body_id
+") |>
+  dbGetQuery(conn = con) |>
+  as_tibble()
+
+comparison <- full_join(
+  r_side,
+  server_side,
+  by = "water_body_id"
+)
+
+comparison |>
+  summarise(
+    catchments = n(),
+    agree = sum(n_r == n_sql, na.rm = TRUE),
+    differ = sum(n_r != n_sql, na.rm = TRUE),
+    total_r = sum(n_r, na.rm = TRUE),
+    total_sql = sum(n_sql, na.rm = TRUE)
+  )
+```
+
+The totals differ by a handful of points out of thirteen thousand. That is not a bug in either side: `st_within` and `st_contains` resolve a point sitting exactly on a shared boundary differently, and a catchment edge is shared by two polygons. It matters here only because it is the kind of difference worth expecting and quantifying rather than discovering later.
+
+## What goes forward
+
+The analysis needs one row per catchment: how many overflows it contains, and what the flow variability of its stations looks like.
+
+```{r}
+#| label: assemble
+overflow_counts <- overflow_catchment |>
+  st_drop_geometry() |>
+  filter(!is.na(water_body_id)) |>
+  count(water_body_id, name = "n_overflows")
+
+station_flow <- station_catchment |>
+  st_drop_geometry() |>
+  filter(!is.na(water_body_id)) |>
+  inner_join(per_station, by = "station_id") |>
+  summarise(
+    .by = water_body_id,
+    n_stations = n(),
+    median_cv = median(cv, na.rm = TRUE)
+  )
+
+catchment_panel <- catchments |>
+  st_drop_geometry() |>
+  select(
+    water_body_id,
+    water_body_name,
+    ecological_class,
+    water_body_area_m2
+  ) |>
+  left_join(overflow_counts, by = "water_body_id") |>
+  inner_join(station_flow, by = "water_body_id") |>
+  mutate(
+    n_overflows = coalesce(n_overflows, 0L),
+    area_km2 = water_body_area_m2 / 1e6,
+    overflow_density = n_overflows / area_km2
+  )
+
+catchment_panel
+```
+
+```{r}
+#| label: save
+saveRDS(catchment_panel, "catchment_panel.rds")
+saveRDS(catchments, "catchments.rds")
+saveRDS(overflows, "overflows.rds")
+```
+
+```{r}
+#| label: cleanup
+dbDisconnect(con)
+```
 
 ## Next
 
-[The simulation](simulation.qmd).
+[Using the cores you already have](parallel.qmd).
+
+---
+
+This page rests on: catchment geometry is stored as `BINARY` and must be base64-encoded server-side to travel over ODBC; WKB carries no SRID, so the CRS must be supplied and is EPSG:27700 for this data; decoded catchment area agrees with the table's declared area column to within thousandths of a percent; storm overflow locations are EPSG:4326 and need transforming before they will join; about 92% of overflows fall inside a river catchment, the remainder being coastal.

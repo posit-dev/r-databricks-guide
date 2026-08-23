@@ -1,34 +1,226 @@
 ---
 title: "Exploring and reducing the big table"
 subtitle: "Stage two: getting from tens of millions of rows to something you can hold"
+execute:
+  freeze: true
 ---
 
 ::: {.callout-note appearance="simple"}
 
-**Not yet written.** The structure below is settled; the prose is not.
+**Draft.** The code runs and the argument holds; the prose has not been copy-edited.
 
 :::
 
+Thirty-two million rows go in and about a thousand come back. The whole of this page is about where that reduction happens, because it decides whether the analysis is possible at all.
+
+```{r}
+#| label: setup
+#| message: false
+library(DBI)
+library(dplyr)
+library(dbplyr)
+library(tibble)
+library(glue)
+library(cli)
+
+catalog <- Sys.getenv("DATABRICKS_CATALOG")
+schema <- Sys.getenv("DATABRICKS_SCHEMA")
+
+con <- dbConnect(
+  odbc::databricks(),
+  httpPath = Sys.getenv("DATABRICKS_PATH"),
+  DefaultStringColumnLength = 65535
+)
+
+tbl_name <- function(table) {
+  glue("{catalog}.{schema}.{table}")
+}
+
+wq_tbl <- function(table) {
+  tbl(con, I(tbl_name(table)))
+}
+```
+
 ## Looking before reducing
 
-The exploratory pass, done server-side. Counts, ranges, missingness, distribution across sites and years. The point to make concrete: this is ordinary `dplyr`, and it is running somewhere else, and she can tell which by where `collect()` is.
+Everything in this section is ordinary `dplyr`. None of it loads the table, and you can tell which by where `collect()` is: there isn't one yet.
 
-## Where the line falls in this pipeline
+```{r}
+#| label: lazy
+readings <- wq_tbl("hydrology_readings")
+measures <- wq_tbl("hydrology_measures")
+```
 
-The annotated pipeline, as on [Work with a table that will not fit in your session](../howdoi/big-table.qmd), but for this specific analysis rather than as an illustration. Showing the reduction factor is the useful part: how many rows before, how many after, and what that means for what is about to happen.
+Start with the shape of the thing. This runs on the warehouse and returns three numbers.
+
+```{r}
+#| label: extent
+readings |>
+  summarise(
+    rows = n(),
+    first_day = min(date),
+    last_day = max(date)
+  ) |>
+  collect()
+```
+
+Ten years of daily data. Before trusting any of it, look at what the quality flag says, because a mean over unchecked values is not the mean you want.
+
+```{r}
+#| label: quality
+readings |>
+  count(quality, sort = TRUE) |>
+  collect()
+```
+
+About four fifths is `Good`. The rest is not junk, but it is not comparable either, and filtering to `Good` is a decision this analysis makes explicitly rather than by accident.
+
+The readings table does not say what it is measuring. That lives on the measures table, which is small.
+
+```{r}
+#| label: parameters
+measures |>
+  count(parameter_name, period_name, sort = TRUE) |>
+  head(8) |>
+  collect()
+```
 
 ## A step that has to move
 
-At least one point where the obvious ordering is wrong and the fix is to move a step above or below the line. This is the thing the task pages cannot show, and the reason to keep it rather than present a pipeline that was right first time.
+The analysis wants daily mean flow per station. The obvious way to write that is to filter the readings first and join afterwards, which is the wrong order:
+
+```r
+readings |>
+  filter(quality == "Good") |>
+  inner_join(measures, by = join_by(measure == notation)) |>
+  filter(parameter == "flow", period == 86400L)
+```
+
+That is not wrong in its answer, it is wrong in where the work lands. The join runs against every `Good` row in the table before anything narrows it to flow. Selecting the measures first means the join has roughly a thousand rows on one side instead of twenty-six million.
+
+The rule generalises: **filter the small side before the join, not the large side after it.**
 
 ## Reaching a function `dbplyr` will not translate
 
-The `dplyr::sql()` escape hatch, in context. Worth including if the analysis genuinely needs it, and worth cutting if it does not: a manufactured example here would undermine the section's whole claim.
+Picking daily mean flow needs a match on the end of `value_statistic`, and the natural R way to write that does not survive the trip:
+
+```r
+filter(measures, grepl("mean", value_statistic))
+```
+
+`dbplyr` translates a great deal, and `grepl()` is not part of it. The query reaches the server with `grepl` still in it and fails there, not here, with `UNRESOLVED_ROUTINE`. That is the signature of a translation gap rather than a mistake in your logic.
+
+The escape hatch is `dplyr::sql()`, which passes a fragment through untouched. You are writing Spark SQL at that point, so the dialect is theirs and not R's.
+
+```{r}
+#| label: flow-measures
+flow_measures <- measures |>
+  filter(
+    parameter == "flow",
+    period == 86400L,
+    sql("value_statistic LIKE '%/mean'")
+  )
+
+flow_measures |>
+  summarise(measures = n()) |>
+  collect()
+```
+
+## Where the line falls in this pipeline
+
+Here is the whole reduction, with the one line that matters marked. Everything above `collect()` runs on Databricks; everything below runs in your session.
+
+```{r}
+#| label: reduce
+per_station <- readings |>
+  inner_join(
+    flow_measures,
+    by = join_by(measure == notation)
+  ) |>
+  filter(
+    quality == "Good",
+    !is.na(value),
+    value >= 0
+  ) |>
+  summarise(
+    .by = station_id,
+    n_days = n(),
+    mean_flow = mean(value, na.rm = TRUE),
+    sd_flow = sd(value, na.rm = TRUE)
+  ) |>
+  filter(n_days >= 1000) |>
+  # <== everything above this line ran on Databricks
+  collect() |>
+  mutate(cv = sd_flow / mean_flow)
+
+per_station
+```
+
+The `mutate()` sits below the line deliberately. It could run either side, and putting it in the session keeps the SQL to the part that has to be SQL.
+
+`n_days >= 1000` drops stations with less than about three years of record. That is a judgement about what a variability estimate is worth, not a technical constraint.
 
 ## What came back
 
-The reduced object, its size in the session, and a sanity check against the server-side counts.
+```{r}
+#| label: reduction
+cli_alert_info(
+  "{nrow(per_station)} stations, \\
+   {round(as.numeric(object.size(per_station)) / 1024)} KB"
+)
+```
+
+Thirty-two and a half million rows became about a thousand, and a few hundred kilobytes. Everything after this page is ordinary R on an ordinary data frame.
+
+The coefficient of variation is the number the rest of the example uses. A station with a CV near zero has a steady flow; a high CV means a river that is mostly low and occasionally in flood.
+
+```{r}
+#| label: cv
+per_station |>
+  summarise(
+    median_cv = median(cv, na.rm = TRUE),
+    min_cv = min(cv, na.rm = TRUE),
+    max_cv = max(cv, na.rm = TRUE)
+  )
+```
+
+## Checking the reduction against the server
+
+The count came back as a single number, so it is worth confirming that number was computed over what you think it was.
+
+```{r}
+#| label: crosscheck
+server_side <- readings |>
+  inner_join(
+    flow_measures,
+    by = join_by(measure == notation)
+  ) |>
+  filter(quality == "Good", !is.na(value), value >= 0) |>
+  summarise(
+    rows = n(),
+    stations = n_distinct(station_id)
+  ) |>
+  collect()
+
+server_side
+```
+
+The station count here is higher than the thousand-odd that came back, and that difference is the `n_days >= 1000` filter rather than anything going wrong.
+
+```{r}
+#| label: save
+saveRDS(per_station, "per_station.rds")
+```
+
+```{r}
+#| label: cleanup
+dbDisconnect(con)
+```
 
 ## Next
 
 [The spatial join](spatial.qmd).
+
+---
+
+This page rests on: the readings table holds about 32.5 million rows spanning 2015 to 2024; roughly 80% of readings carry quality `Good`; `grepl()` has no Spark SQL translation and fails server-side with `UNRESOLVED_ROUTINE`, so `dplyr::sql()` is needed to match on `value_statistic`; filtering the measures table before the join rather than the readings table after it is what keeps the join small; the reduction yields about a thousand stations and a few hundred kilobytes.

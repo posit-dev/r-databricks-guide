@@ -1,0 +1,323 @@
+---
+title: "When the simulation carries the geometry"
+subtitle: "Stage six: the resample that cannot leave the polygons behind"
+execute:
+  freeze: true
+---
+
+::: {.callout-note appearance="simple"}
+
+**Draft.** The code runs and the argument holds; the prose has not been copy-edited.
+
+:::
+
+The second simulation, and the one where the previous page's answer stops working. The difference is one property, and everything else follows from it.
+
+```{r}
+#| label: setup
+#| message: false
+library(dplyr)
+library(tibble)
+library(purrr)
+library(glue)
+library(cli)
+library(parallel)
+library(sf)
+
+catchment_panel <- readRDS("catchment_panel.rds")
+catchments <- readRDS("catchments.rds")
+overflows <- readRDS("overflows.rds")
+n_cores <- max(1L, detectCores() - 1L)
+```
+
+## What makes this one different
+
+In [Simulating from a summary](simulation.qmd) the spatial work happened once, before the repeats started, and the repeats ran on a table of numbers. Here the spatial work is *inside* every repeat, so it cannot be hoisted out and done once.
+
+The test, which is what transfers: **if every iteration perturbs something the spatial operation depends on, the spatial operation is in the loop.** If it does not, it is not, and it belongs above the loop where it is cheap.
+
+## The design
+
+Resample the catchments with replacement, jitter each overflow point by an assumed positional error, count points in polygons, and fit a model of ecological grade against overflow density. Per resample, seeded on the resample id.
+
+The jitter deserves its own sentence, and it should be honest about being a design decision rather than a discovery. It represents assumed positional uncertainty in the outfall locations, and it is also what keeps the point-in-polygon genuinely inside the loop. Without it the geometry is identical on every iteration and the whole thing collapses into a single query answering a different question.
+
+## Two things that are not findings about water
+
+This is where the disclaimer has to be loudest, because the page produces a coefficient and a coefficient looks like a result.
+
+The jitter radius is assumed, the resampling design is invented, and the grade column is a substitute for the one that turned out to be unusable. The number exists to prove that the mechanism works. It must not be read as a statement about rivers, and [The data and its licences](../ref/data.qmd) says why the whole example is a vehicle.
+
+## The column that looks right and is not
+
+The kind of thing that costs an afternoon and reads as obvious in hindsight.
+
+```{r}
+#| label: grade-columns
+catchments |>
+  st_drop_geometry() |>
+  count(overall_water_body_class, name = "n") |>
+  arrange(desc(n))
+```
+
+The catchment table has a column that plainly means "overall condition", and it is unusable: nearly every row reads `Not assessed` and the rest are empty. Neither an error nor an empty result announces this. A model fitted on it returns a coefficient that looks entirely ordinary.
+
+The usable ordinal grade is a different column.
+
+```{r}
+#| label: usable-grade
+catchments |>
+  st_drop_geometry() |>
+  count(ecological_class, name = "n") |>
+  arrange(desc(n))
+```
+
+The generalisable habit, which is the reason to include this at all: look at the distribution of a categorical column before modelling on it, not after the model produces something surprising.
+
+## Check the geometry arrived before trusting anything fitted to it
+
+Named again here rather than only on [Getting connected and finding the tables](connecting.qmd), because this is where a silent truncation turns into a plausible wrong number rather than a visible failure.
+
+```{r}
+#| label: area-check
+declared <- sum(catchments$water_body_area_m2, na.rm = TRUE)
+measured <- sum(as.numeric(st_area(catchments)))
+err <- abs(measured - declared) / declared
+
+cli_alert_info(
+  "{nrow(catchments)} polygons, area differs from \\
+   declared by {round(100 * err, 4)}%"
+)
+```
+
+A geometry that merely parses is not evidence. A geometry whose area matches an independently recorded area is.
+
+## The unit of work
+
+One resample, returning one row. The same property as the previous page: nothing in it knows where it will run.
+
+```{r}
+#| label: unit
+panel_ids <- catchment_panel$water_body_id
+
+boot_polygons <- catchments |>
+  filter(water_body_id %in% panel_ids) |>
+  select(water_body_id, ecological_class)
+
+boot_points <- overflows |> select(overflow_id)
+
+jitter_m <- 50
+
+one_resample <- function(rep_id, polygons, points) {
+  set.seed(rep_id)
+
+  n <- nrow(points)
+  shifted <- st_geometry(points) +
+    cbind(
+      rnorm(n, 0, jitter_m),
+      rnorm(n, 0, jitter_m)
+    )
+  shifted <- st_sf(
+    st_drop_geometry(points),
+    geometry = st_sfc(shifted, crs = 27700)
+  )
+
+  idx <- sample(nrow(polygons), replace = TRUE)
+  resampled <- polygons[idx, ]
+
+  hits <- lengths(st_within(shifted, resampled))
+
+  tibble(
+    rep_id = rep_id,
+    matched = sum(hits > 0),
+    mean_hits = mean(hits)
+  )
+}
+```
+
+## Run it locally first
+
+Deliberately, and this is the right order rather than a warm-up.
+
+```{r}
+#| label: local
+local_time <- system.time(
+  local_boot <- mclapply(
+    1:8,
+    mc.cores = n_cores,
+    FUN = \(r) one_resample(r, boot_polygons, boot_points)
+  ) |>
+    list_rbind()
+)
+
+local_boot
+```
+
+```{r}
+#| label: local-time
+cli_alert_info(
+  "{nrow(local_boot)} resamples on {n_cores} cores in \\
+   {round(local_time[['elapsed']], 1)}s"
+)
+```
+
+This establishes that the design is correct and gives a baseline the distributed version has to agree with. For many readers it is also the end of the story.
+
+**If the local run finishes, stop.** What follows describes what it took to run this at a size where local stopped being enough, and it is not a recommendation to skip ahead.
+
+## When local stops being enough
+
+The arithmetic, stated as on the previous page so the two are comparable: the number of resamples, the cost of one, and the cores available. Each resample here carries a full point-in-polygon pass over thousands of polygons, so the per-unit cost is far higher than a draw from a lognormal, and the crossover comes sooner.
+
+## Sending the function to the data
+
+```{r}
+#| label: cluster-gate
+#| include: false
+# Everything below needs a multi-node cluster, which costs
+# time to start and bills while it runs. These chunks run
+# only under WQ_RUN_CLUSTER=true, so an ordinary render
+# never starts one. Everything above is local.
+on_cluster <- Sys.getenv("WQ_RUN_CLUSTER") |>
+  tolower() %in%
+  c("true", "1", "yes")
+
+knitr::opts_chunk$set(eval = on_cluster)
+```
+
+```{r}
+#| label: cluster-notice
+#| echo: false
+#| eval: true
+#| results: asis
+if (!on_cluster) {
+  cat(
+    '::: {.callout-note appearance="simple"}\n',
+    "**The code from here on is shown but was not ",
+    "run.** It needs a multi-node cluster, which costs ",
+    "time to start and bills while it runs, so it is ",
+    "not executed as part of an ordinary render. ",
+    "Everything above this point ran normally.\n",
+    ":::\n",
+    sep = ""
+  )
+}
+```
+
+What changes is less than you might expect, and what does change has a failure mode that does not announce itself.
+
+**The geometry has to get there, and the closure will not take it.** This is the part most examples get wrong. On this backend, `spark_apply()` does not capture the calling environment: a variable referenced inside the function is simply not found on the worker, and `context =` is rejected outside the `group_by` path. Worse, a name that happens to match something in a worker package resolves to *that* instead, so naming the object `poly` gets you `stats::poly` and an error about closures rather than an honest "not found".
+
+The route that works is to make the geometry part of the data. Encode it, put it in the Spark table, and decode it on the far side.
+
+```{r}
+#| label: connect
+library(sparklyr)
+
+sc <- spark_connect(
+  method = "databricks_connect",
+  cluster_id = config::get(
+    "cluster_id",
+    config = "multinode",
+    file = "config.yml"
+  )
+)
+```
+
+```{r}
+#| label: ship
+polygon_payload <- tibble(
+  water_body_id = boot_polygons$water_body_id,
+  ecological_class = boot_polygons$ecological_class,
+  geom_b64 = boot_polygons |>
+    st_geometry() |>
+    st_as_binary() |>
+    map_chr(jsonlite::base64_enc)
+)
+
+polygons_remote <- copy_to(
+  sc,
+  polygon_payload,
+  "boot_polygons",
+  overwrite = TRUE
+)
+```
+
+**`sf` has to load in the worker.** It is not on a stock cluster image. Where it is available, an administrator installed it on every node, and an ad-hoc install in a notebook does not achieve that because it touches one machine. [Packages](../ref/packages.qmd) and [Setting up a cluster for geospatial R](../admin/geospatial-setup.qmd) are the two ends of that conversation.
+
+**The backend inside the worker is `parallel`, not `furrr`.** Settled in stage four, and this is where it matters.
+
+**How many partitions you ask for is how much of the machine you get.** One R process per task and one core per task, so the partition count is the dial. An under-partitioned job leaves cores idle and looks entirely healthy doing it.
+
+```{r}
+#| label: distributed
+distributed <- spark_apply(
+  polygons_remote,
+  function(d) {
+    library(sf)
+
+    geom <- d$geom_b64 |>
+      lapply(jsonlite::base64_dec) |>
+      structure(class = "WKB") |>
+      sf::st_as_sfc(EWKB = FALSE, crs = 27700)
+
+    data.frame(
+      host = Sys.info()[["nodename"]],
+      pid = Sys.getpid(),
+      n_polygons = nrow(d),
+      area = sum(as.numeric(sf::st_area(geom)))
+    )
+  },
+  columns = paste(
+    "host string, pid long,",
+    "n_polygons long, area double"
+  )
+) |>
+  collect()
+
+distributed
+```
+
+## Check that the work actually left your session
+
+The section the whole page turns on, and the one most examples omit.
+
+A single-node cluster passes every other test. The work runs, the answer is right, several processes appear, and nothing distinguishes it from genuine distribution. The check that separates the two is to compare the machine names the workers report against the driver's own, and **to count machines rather than processes**, because two machines can report the same process id.
+
+```{r}
+#| label: where
+tibble(
+  driver = Sys.info()[["nodename"]],
+  worker_machines = n_distinct(distributed$host),
+  worker_processes = n_distinct(distributed$pid),
+  driver_did_work = Sys.info()[["nodename"]] %in%
+    distributed$host
+)
+```
+
+Two worker machines, neither of them the driver, with `sf` loaded and doing real work on real polygons. That answers whether it distributes at all. It says nothing about how it scales, and this page must not imply otherwise: two workers is the entire basis of the claim.
+
+## What this cost, and what it did not buy
+
+Distribution is not free. On a single node it is a straight loss, because serialisation is paid for nothing. It earns its cost when there are other machines and enough work to fill them.
+
+```{r}
+#| label: disconnect
+spark_disconnect(sc)
+```
+
+```{r}
+#| label: save
+#| eval: true
+saveRDS(local_boot, "local_boot.rds")
+```
+
+What remains open, named rather than tidied away: how any of this behaves at twenty nodes is untested here, and the grouped path could not be measured at all on a current runtime because it does not run.
+
+## Next
+
+[Results, figures, and the record](results.qmd).
+
+---
+
+This page rests on: the catchment column that reads as an overall grade is unusable, with nearly all rows "Not assessed", and `ecological_class` carries the usable ordinal grade; decoded catchment area matches the declared area column to thousandths of a percent; `spark_apply()` on the Databricks Connect backend does not capture the calling environment and rejects `context =` outside the `group_by` path, so geometry must travel as a column in the Spark table; `spark_apply()` has been observed distributing work across two worker machines, neither of them the driver, with `sf` loaded and doing real spatial work; one R process runs per task and a task gets one core, so partition count controls how much of a machine is used; `sf` is absent from a stock cluster image and must be installed on every node; `future` and `furrr` are absent from the cluster runtime bundle while base `parallel` is present.

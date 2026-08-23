@@ -1,36 +1,258 @@
 ---
-title: "The simulation"
-subtitle: "Stage four: the part where the repeats are the expensive bit"
+title: "Simulating from a summary"
+subtitle: "Stage five: a thousand synthetic years per station, on the cores you have"
+execute:
+  freeze: true
 ---
 
 ::: {.callout-note appearance="simple"}
 
-**Not yet written.** The structure below is settled; the prose is not.
+**Draft.** The code runs and the argument holds; the prose has not been copy-edited.
 
 :::
 
+The first simulation in this example, and the one that does not need a cluster. It is the ordinary shape: the data shrank server-side, what came back is a summary, and the expensive part is repeating a small computation many times over that summary.
+
+```{r}
+#| label: setup
+#| message: false
+library(dplyr)
+library(tibble)
+library(purrr)
+library(glue)
+library(cli)
+library(parallel)
+library(ggplot2)
+
+per_station <- readRDS("per_station.rds")
+n_cores <- max(1L, detectCores() - 1L)
+```
+
 ## What is being simulated, and why
 
-Stated in her terms, briefly. The statistics need no explanation; what needs explaining is only where the repeats happen.
+The question is how often a station's daily flow drops below a low-flow threshold, and how uncertain that number is given only ten years of record.
+
+Ten years gives one observed answer per station and no sense of its spread. Simulating many synthetic decades from each station's fitted distribution gives the spread, which is what turns a number into a number with an interval on it.
+
+This is a demonstration of mechanism, not a hydrological finding. The distributional choice below is convenient rather than defended.
+
+## The summary the simulation runs on
+
+Everything needed is already in the session, and it is small.
+
+```{r}
+#| label: input
+sim_input <- per_station |>
+  filter(
+    !is.na(mean_flow),
+    !is.na(sd_flow),
+    mean_flow > 0,
+    sd_flow > 0
+  ) |>
+  select(station_id, n_days, mean_flow, sd_flow, cv)
+
+nrow(sim_input)
+```
+
+## Fitting the distribution
+
+Daily flow is positive and right-skewed, so a lognormal is the obvious first reach. Its two parameters follow from the mean and standard deviation already computed server-side, which means no second pass over the readings.
+
+```{r}
+#| label: fit
+lognormal_pars <- function(mean_x, sd_x) {
+  sigma2 <- log1p((sd_x / mean_x)^2)
+  list(
+    meanlog = log(mean_x) - sigma2 / 2,
+    sdlog = sqrt(sigma2)
+  )
+}
+
+sim_input <- sim_input |>
+  mutate(
+    pars = map2(mean_flow, sd_flow, lognormal_pars),
+    meanlog = map_dbl(pars, "meanlog"),
+    sdlog = map_dbl(pars, "sdlog")
+  ) |>
+  select(-pars)
+
+sim_input |>
+  select(station_id, mean_flow, sd_flow, meanlog, sdlog)
+```
+
+## The unit of work
+
+One station, one function, returning one row. Nothing in it knows how it will be called, which is the property that lets the same function run serially, across cores, or on a cluster.
+
+```{r}
+#| label: unit
+n_draws <- 1000
+n_days <- 365
+
+simulate_station <- function(station_id,
+                             meanlog,
+                             sdlog,
+                             threshold_q = 0.1,
+                             n_draws = 1000,
+                             n_days = 365) {
+  set.seed(abs(utf8ToInt(substr(station_id, 1, 1)) * 7919))
+
+  threshold <- qlnorm(threshold_q, meanlog, sdlog)
+
+  spells <- map_int(seq_len(n_draws), \(i) {
+    year <- rlnorm(n_days, meanlog, sdlog)
+    sum(year < threshold)
+  })
+
+  tibble(
+    station_id = station_id,
+    threshold = threshold,
+    mean_days = mean(spells),
+    lower = quantile(spells, 0.025, names = FALSE),
+    upper = quantile(spells, 0.975, names = FALSE)
+  )
+}
+```
 
 ## Serially first
 
-The version that is slow and obviously correct, kept because everything after it has to agree with it.
+The version that is slow and obviously correct, kept because everything after it has to agree with it. This is the version to debug, not a stepping stone to be discarded.
+
+```{r}
+#| label: serial
+small <- sim_input |> slice_head(n = 50)
+
+serial_time <- system.time(
+  serial_result <- small |>
+    pmap(\(station_id, meanlog, sdlog, ...) {
+      simulate_station(station_id, meanlog, sdlog)
+    }) |>
+    list_rbind()
+)
+
+serial_result
+```
 
 ## Across the cores you have
 
-One line changed, using `future::plan(multicore)`. The timing quoted with the session size, as a single run rather than a benchmark.
+The change from the serial version is one line: `pmap()` becomes an `mclapply()` over the same function. [Using the cores you already have](parallel.qmd) settled why it is `parallel` here rather than `furrr`.
 
-## Was that enough?
+```{r}
+#| label: parallel
+run_all <- function(input, cores) {
+  rows <- seq_len(nrow(input))
 
-The honest checkpoint. If the analysis finishes here, the section should say so and stop, rather than reaching for the cluster to complete a demonstration. Doing that in a worked example is more persuasive than asserting it on a task page.
+  mclapply(rows, mc.cores = cores, FUN = \(i) {
+    simulate_station(
+      input$station_id[i],
+      input$meanlog[i],
+      input$sdlog[i]
+    )
+  }) |>
+    list_rbind()
+}
 
-## If it was not enough
+parallel_time <- system.time(
+  sim_result <- run_all(sim_input, n_cores)
+)
 
-Where `spark_apply()` comes in, what the call looks like for this analysis, and the caveats carried from [What changes when the data is not on your laptop](../concepts/index.qmd) rather than restated: two workers observed, nothing claimed about scaling, and the `columns` argument omitted so the example works from either context.
+nrow(sim_result)
+```
 
-If the replicates do spatial work, `sf` has to load in the worker too, which depends on the library situation described in [Packages](../ref/packages.qmd). If it is not available, this stage of the example does not run, and the page should say that plainly rather than assume.
+The two runs are not the same size, so they are not comparable as timings. Both are single runs in a session with `r n_cores` cores available, quoted so the numbers mean something rather than as a benchmark.
+
+```{r}
+#| label: timings
+tibble(
+  run = c(
+    glue("serial, {nrow(small)} stations"),
+    glue("mclapply, {nrow(sim_input)} stations")
+  ),
+  seconds = c(
+    serial_time[["elapsed"]],
+    parallel_time[["elapsed"]]
+  )
+)
+```
+
+The parallel run has to agree with the serial one on the stations they share. That check is worth making explicitly, because a parallel run that silently reorders or drops rows looks exactly like one that did not.
+
+```{r}
+#| label: agreement
+comparison <- serial_result |>
+  select(station_id, serial = mean_days) |>
+  inner_join(
+    sim_result |> select(station_id, par = mean_days),
+    by = "station_id"
+  )
+
+max_diff <- max(abs(comparison$serial - comparison$par))
+
+cli_alert_info(
+  "{nrow(comparison)} stations compared, \\
+   max difference {max_diff}"
+)
+```
+
+## The result
+
+```{r}
+#| label: result
+sim_result |>
+  arrange(desc(mean_days)) |>
+  slice_head(n = 8)
+```
+
+```{r}
+#| label: plot
+#| fig-width: 6
+#| fig-height: 3.5
+#| fig-alt: "Histogram of the simulated mean number of low-flow days per year across about a thousand stations."
+ggplot(sim_result, aes(mean_days)) +
+  geom_histogram(bins = 40, fill = "#447099") +
+  labs(
+    x = "simulated low-flow days per year",
+    y = "stations"
+  ) +
+  theme_minimal(base_size = 11)
+```
+
+## This one is finished
+
+The honest checkpoint. The page reaches it and stops, rather than reaching for the cluster to complete a demonstration.
+
+The arithmetic is small: about a thousand stations, a thousand draws of 365 values each. That finishes on a handful of cores in a time that does not justify starting anything, and the correct thing to do is nothing further.
+
+Saying so is what earns the credibility for the next page, where the answer is different.
+
+## When this shape does need the cluster
+
+The example's own simulation is small. The shape is not inherently small, and yours may not be.
+
+The arithmetic rather than a threshold, because the threshold depends on your machine: the number of independent units, the cost of one unit, and the cores you can reach in your own session. When the product of the first two outgrows the third by enough that the run stops fitting in a working day, the same code moves to cluster compute with the unit of work unchanged.
+
+Two things carry over unchanged, and both matter for the next page:
+
+- The worker function is the same function. It takes its arguments and returns a data frame, and nothing about it knows where it is running.
+- The backend inside the worker changes, because `furrr` is not there. `parallel::mclapply()` is.
+
+What does not carry over is the assumption that distributing is free. On a single-node cluster, R in one session using `mclapply()` was more than twice as fast as distributing the same work, because distribution costs serialisation and there were no other machines to spread onto. Reaching for the cluster when there is nothing to distribute to is slower than not reaching for it.
+
+## The trap in expressing it the natural way
+
+Worth carrying here even though the cluster is not used on this page, because it is the mistake made at exactly the moment this code first moves across.
+
+The unit of work is naturally a station, so `group_by` looks like the way to say that. It is not: it collapses the job to a single R process and runs slower for an identical answer, and on a current runtime it does not run at all. Partition instead, and let each worker loop over the stations in its slice. [Run a Monte Carlo simulation](../howdoi/monte-carlo.qmd) carries the detail.
+
+```{r}
+#| label: save
+saveRDS(sim_result, "sim_result.rds")
+```
 
 ## Next
 
-[Results, figures, and the record](results.qmd).
+[When the simulation carries the geometry](bootstrap.qmd), which is the same shape with one thing added, and the addition is what changes the answer.
+
+---
+
+This page rests on: per-station mean and standard deviation of daily flow are sufficient to parameterise a lognormal without a second pass over the readings; about a thousand stations at a thousand draws each finishes on a handful of local cores; on a single-node cluster `parallel::mclapply()` in one cluster-side session was over twice as fast as `spark_apply()` for the same draws; `spark_apply(group_by =)` uses one R process where the partition path uses several, runs slower for an identical answer, and fails outright on `rpy2` 3.6.x.

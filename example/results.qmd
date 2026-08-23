@@ -1,34 +1,197 @@
 ---
 title: "Results, figures, and the record"
-subtitle: "Stage five: answering the question, and being able to answer it again"
+subtitle: "Stage seven: answering the question, and being able to answer it again"
+execute:
+  freeze: true
 ---
 
 ::: {.callout-note appearance="simple"}
 
-**Not yet written.** The structure below is settled; the prose is not.
+**Draft.** The code runs and the argument holds; the prose has not been copy-edited.
 
 :::
 
+By this stage nothing is special. The data is in the session, Databricks is no longer involved, and what follows is the R you would write for any other project.
+
+```{r}
+#| label: setup
+#| message: false
+library(dplyr)
+library(tibble)
+library(purrr)
+library(glue)
+library(cli)
+library(ggplot2)
+
+catchment_panel <- readRDS("catchment_panel.rds")
+sim_result <- readRDS("sim_result.rds")
+per_station <- readRDS("per_station.rds")
+```
+
 ## The answer
 
-The question from [The question, and the data](index.qmd), answered. Short, and stated as a result rather than as a demonstration of technique, with the caveat that it is not a finding about water.
+The question from [The question, and the data](index.qmd) was whether catchments with more storm overflows show more variable river flow.
+
+```{r}
+#| label: model
+model_data <- catchment_panel |>
+  filter(
+    !is.na(median_cv),
+    !is.na(overflow_density),
+    is.finite(overflow_density)
+  )
+
+fit <- lm(
+  median_cv ~ log1p(overflow_density),
+  data = model_data
+)
+
+summary(fit)$coefficients
+```
+
+```{r}
+#| label: answer
+slope <- coef(fit)[["log1p(overflow_density)"]]
+p_value <- summary(fit)$coefficients[2, 4]
+
+n_used <- nrow(model_data)
+
+cli_alert_info(
+  "slope {round(slope, 3)} on {n_used} catchments, \\
+   p = {signif(p_value, 2)}"
+)
+```
+
+Stated plainly: across these catchments the association between overflow density and flow variability is weak, and the coefficient is small relative to the spread in the data.
+
+**This is not a finding about rivers.** The grade column is a substitute for one that turned out to be unusable, the catchments are those that happen to contain a gauging station, and no confounder is controlled for. The number exists to show that the machinery produced a number. [The data and its licences](../ref/data.qmd) says why the whole example is a vehicle.
 
 ## The figure
 
-Ordinary `ggplot2` on an ordinary data frame. The point worth making by showing rather than saying: by this stage nothing is special, because the data is in her session and Databricks is no longer involved.
+Ordinary `ggplot2` on an ordinary data frame.
+
+```{r}
+#| label: figure
+#| fig-width: 6
+#| fig-height: 4
+#| fig-alt: "Scatter plot of median flow variability against storm overflow density per catchment, on a log scale, with a fitted linear trend that is nearly flat."
+ggplot(
+  model_data,
+  aes(overflow_density, median_cv)
+) +
+  geom_point(alpha = 0.35, colour = "#447099") +
+  geom_smooth(
+    method = "lm",
+    formula = y ~ log1p(x),
+    colour = "#EE6331",
+    se = TRUE
+  ) +
+  scale_x_continuous(trans = "log1p") +
+  labs(
+    x = "storm overflows per km²",
+    y = "median coefficient of variation of daily flow"
+  ) +
+  theme_minimal(base_size = 11)
+```
+
+The second figure is the one from the simulation, and it is worth keeping because it shows the uncertainty rather than a point estimate.
+
+```{r}
+#| label: figure-sim
+#| fig-width: 6
+#| fig-height: 3.5
+#| fig-alt: "Simulated low-flow days per year for forty stations, each with a 95 per cent interval, ordered by the mean."
+sim_result |>
+  arrange(desc(mean_days)) |>
+  slice_head(n = 40) |>
+  mutate(
+    station_id = factor(station_id, levels = station_id)
+  ) |>
+  ggplot(aes(mean_days, station_id)) +
+  geom_linerange(
+    aes(xmin = lower, xmax = upper),
+    colour = "#A2B8CB"
+  ) +
+  geom_point(colour = "#447099", size = 1) +
+  labs(
+    x = "simulated low-flow days per year",
+    y = NULL
+  ) +
+  theme_minimal(base_size = 9) +
+  theme(axis.text.y = element_blank())
+```
 
 ## Writing results back
 
-To a volume or to a table, with the choice made explicitly for this analysis. The 50,000-row hard error on the table route is worth naming at the point someone would hit it.
+Two routes, and the choice is not a matter of taste.
+
+A results table this size, a few hundred rows, goes back over `dbWriteTable()` without trouble. The route stops working at about 50,000 rows, where it turns into a hard error rather than a slow write, and the fix is the volume-and-`read_files()` path that [Getting the data into Databricks](ingest.qmd) uses for the same reason in the other direction.
+
+```r
+# A small results table: this is fine.
+dbWriteTable(
+  con,
+  DBI::Id(
+    catalog = catalog,
+    schema = schema,
+    table = "flow_variability_results"
+  ),
+  model_data,
+  overwrite = TRUE
+)
+```
+
+For this analysis the results stay local, because nothing downstream reads them from Databricks. Writing back is worth doing when a colleague or a dashboard needs the table, and not otherwise.
+
+```{r}
+#| label: write-local
+model_data |>
+  select(
+    water_body_id,
+    water_body_name,
+    ecological_class,
+    n_overflows,
+    area_km2,
+    overflow_density,
+    median_cv
+  ) |>
+  saveRDS("flow_variability_results.rds")
+```
 
 ## The credit lines
 
-Both licences, worded exactly, because this is the page someone copies from into a paper.
+Both licences, worded exactly. This is the page to copy from into a paper, and the two are **not** the same licence.
+
+> Contains Environment Agency data © Crown copyright and database right, licensed under the Open Government Licence v3.0.
+
+> Storm overflow outfall locations © the water companies, licensed under CC BY 4.0 and published via Stream / Water UK's National Storm Overflow Hub.
+
+The hydrology and catchment data is OGL v3.0. The storm overflow locations are **CC BY 4.0, not OGL**, and they are operational rather than regulatory data. CC BY requires attribution in a way OGL does not, so the distinction has to survive into anything published from this.
 
 ## What it would take to run this again next year
 
-The honest version: what is pinned, what is not, and which parts of reproducibility across the session and worker boundary are still open. This section should end with open questions rather than a workflow that has not been tested, matching [Get results out, and get the same answer next year](../howdoi/results.qmd).
+The honest version.
+
+What is pinned: the table schemas, the catalog and schema names read from the environment, and the queries themselves. Re-running the SQL against next year's data gives next year's answer with no code change.
+
+What is not pinned: the R package versions in this session, the runtime version on the cluster, and the packages installed on the workers. This project has no `renv.lock`, so the session is reproducible only by accident. Adding one is the single highest-value thing to do before this becomes a paper.
+
+What is open rather than solved:
+
+- **The worker boundary.** The packages on the cluster's workers are whatever an administrator installed. Nothing in this repository pins them, and nothing here can detect a change short of running the job and comparing the answer.
+- **Seeds across the boundary.** The simulations seed per unit of work, so they reproduce for a fixed set of units. They do not reproduce if the partitioning changes, because the partitioning decides which units share a worker.
+- **The upstream data.** The hydrology API serves current data, and a station's record can be revised. Re-running the ingest is not guaranteed to reproduce the same table.
+
+[Get results out, and get the same answer next year](../howdoi/results.qmd) covers what to do about each. None of it is settled here.
 
 ## What this example did not cover
 
-A short list, so the boundary is visible: rasters, scheduling, and anything the analysis did not happen to need.
+A short list, so the boundary is visible: rasters, scheduling, streaming, and anything the analysis did not happen to need.
+
+Two things the example did reach and could not settle. How the distributed stage behaves at more than two worker machines is untested, so nothing on this site claims a scaling property. And the grouped form of the distributed call could not be measured at all, because it does not run on a current runtime.
+
+One thing it reached and had to work around: on the Databricks Connect backend, `spark_apply()` does not carry the calling environment to the worker, so geometry had to travel as a column rather than in the closure. [When the simulation carries the geometry](bootstrap.qmd) shows the route that works.
+
+---
+
+This page rests on: `dbWriteTable()` fails hard at about 50,000 rows, so a large result needs the volume route; environmental agency data is OGL v3.0 while storm overflow locations are CC BY 4.0; this project pins no R package versions, so session reproducibility is not established; per-unit seeding reproduces only for a fixed partitioning.

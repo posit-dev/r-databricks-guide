@@ -1,30 +1,301 @@
 ---
 title: "Getting connected and finding the tables"
 subtitle: "Stage one: from an empty R session to a table you can query"
+execute:
+  freeze: true
 ---
 
 ::: {.callout-note appearance="simple"}
 
-**Not yet written.** The structure below is settled; the prose is not.
+**Draft.** The code runs and the argument holds; the prose has not been copy-edited.
 
 :::
 
+Two connections, not one, and the reason is a bug rather than a preference. This page opens both, finds the tables, and runs the one check that has to happen before anything else: that geometry survives the trip into your session.
+
+```{r}
+#| label: setup
+#| message: false
+library(DBI)
+library(dplyr)
+library(dbplyr)
+library(tibble)
+library(purrr)
+library(glue)
+library(cli)
+library(sf)
+```
+
+Where the tables live comes from the environment rather than from anything typed here, so pointing this code at your own tables means changing two variables and nothing else.
+
+```{r}
+#| label: location
+catalog <- Sys.getenv("DATABRICKS_CATALOG")
+schema  <- Sys.getenv("DATABRICKS_SCHEMA")
+```
+
+```{r}
+#| label: mask
+#| include: false
+# This site is published, so a rendered page must not
+# carry the catalog this example runs against. Queries
+# below all use the real `catalog`; shown() is applied
+# only to text on its way to being printed.
+shown <- function(x) {
+  gsub(catalog, "your_catalog", x, fixed = TRUE)
+}
+```
+
 ## Opening the connection
 
-Which of the two connection paths this analysis uses, and why. Geometry is involved later, so the choice is forced: `brickster::DatabricksSQL()`, because ODBC cannot carry a `BINARY` column intact. The reasoning is on [Connect your R session to the data](../howdoi/connect.qmd) and should not be repeated here, only cited and acted on.
+For ordinary queries, `odbc::databricks()` against a SQL warehouse is the default and is fine. It is what the next two pages use.
+
+```{r}
+#| label: connect-odbc
+con <- dbConnect(
+  odbc::databricks(),
+  httpPath = Sys.getenv("DATABRICKS_PATH"),
+  # Load-bearing, not defensive. Left at its default,
+  # an encoded geometry is silently clipped at 1,023
+  # characters. 65535 is deliberately not round: a
+  # round value renders as 1e+05 and is dropped.
+  DefaultStringColumnLength = 65535
+)
+```
+
+Geometry is involved later in this example, and that forces a second connection. `odbc` does not return a `BINARY` column intact, and it does not tell you: a polygon comes back as a fraction of itself, with no error and no warning. Geometry is stored as `BINARY`, so the ODBC path cannot carry it, and [Connect your R session to the data](../howdoi/connect.qmd) explains why this is a constraint rather than a choice.
+
+```{r}
+#| label: connect-brickster
+acon <- dbConnect(
+  brickster::DatabricksSQL(),
+  warehouse_id = basename(Sys.getenv("DATABRICKS_PATH"))
+)
+```
+
+Both point at the same warehouse. The difference is entirely in what survives the wire.
 
 ## Finding the tables
 
-Catalog, schema, table. Worth showing the actual navigation rather than jumping to a known name, because not knowing where a table lives is a real starting condition and the three-part name is unfamiliar.
+Names in Unity Catalog have three parts: catalog, schema, table. The three-part name is not bureaucracy, it is how permission is granted, which is why you can sometimes see a catalog and not its contents.
+
+Rather than jumping to a table name you already know, the honest starting condition is not knowing where anything lives. Browsing costs nothing: these calls ask for metadata and move no data at all.
+
+```{r}
+#| label: browse
+glue("SHOW TABLES IN `{catalog}`.`{schema}`") |>
+  dbGetQuery(conn = con) |>
+  as_tibble()
+```
+
+A three-part name is what every query below needs, so it is worth building once rather than pasting together each time.
+
+```{r}
+#| label: naming
+tbl_name <- function(table) {
+  glue("{catalog}.{schema}.{table}")
+}
+
+tbl_name("hydrology_readings") |>
+  shown()
+```
 
 ## What the tables look like
 
-Row counts and columns, and the first point where the example diverges from a laptop workflow: looking at a table does not mean loading it. The page should make that visible rather than assert it.
+Here is the first place this stops resembling a laptop workflow. `tbl()` gives you something you can inspect, count and query, and none of that loads the table.
+
+```{r}
+#| label: lazy-table
+# I() keeps dbplyr from quoting the dots in a
+# three-part name.
+readings <- tbl(
+  con,
+  I(tbl_name("hydrology_readings"))
+)
+
+readings
+```
+
+That printed a preview, and the data is still on Databricks. The object is a query, not a table: it describes what to fetch rather than holding anything.
+
+Counting proves the point, because the count runs on the server and only the answer comes back.
+
+```{r}
+#| label: row-count
+readings |>
+  summarise(
+    rows = n(),
+    first_day = min(date),
+    last_day = max(date)
+  ) |>
+  collect()
+```
+
+Thirty-two million rows, and what arrived in your session is three numbers. This is the whole idea the next page is built on.
+
+The other tables are small by comparison, and their sizes are worth knowing now because they decide which ones can simply be pulled across whole.
+
+```{r}
+#| label: table-sizes
+# as.numeric() is not decoration: the driver returns
+# integer64, and map_dbl() would otherwise reinterpret
+# its bits rather than convert them.
+count_rows <- function(table) {
+  glue("SELECT count(*) AS n FROM {tbl_name(table)}") |>
+    dbGetQuery(conn = con) |>
+    pull(n) |>
+    as.numeric()
+}
+
+tibble(
+  table = c(
+    "hydrology_stations",
+    "hydrology_measures",
+    "wfd_catchments",
+    "storm_overflows",
+    "bathing_water_sites"
+  )
+) |>
+  mutate(rows = map_dbl(table, count_rows))
+```
 
 ## The check that the geometry column is intact
 
-Do this at the start, not after the spatial join fails. Comparing the length the server reports against the length that arrives takes one line and catches the silent truncation described in [Connect your R session to the data](../howdoi/connect.qmd). Putting it here, early, is a deliberate choice: it is the cheapest possible place to catch it.
+Do this now, not after a spatial join returns nothing. It costs one query, and it is the cheapest possible place to catch a failure that otherwise surfaces much later as a wrong answer.
+
+The check compares two numbers: the length the server says a value has, and the length that actually arrives in R. If they differ, the value was truncated in transit.
+
+```{r}
+#| label: truncation-check
+longest_five <- glue("
+  SELECT
+    base64(geom_wkb) AS g,
+    length(base64(geom_wkb)) AS declared
+  FROM {tbl_name('wfd_catchments')}
+  WHERE geom_wkb IS NOT NULL
+  ORDER BY length(geom_wkb) DESC
+  LIMIT 5
+")
+
+longest_five |>
+  dbGetQuery(conn = con) |>
+  as_tibble() |>
+  transmute(
+    declared,
+    arrived = nchar(g),
+    intact = declared == arrived
+  )
+```
+
+These arrive intact because the connection above sets `DefaultStringColumnLength` beyond the longest encoded value. Without that setting the same query silently returns 1,023 characters, and the decode that follows fails with an error that reads like corrupt input rather than truncation.
+
+That covers text. Binary is the harder half, and it is not fixable by any driver setting, which is why the second connection exists.
+
+```{r}
+#| label: binary-check
+#| message: false
+bytes_back <- function(connection, n) {
+  glue("SELECT cast(repeat('x', {n}) as binary) AS b") |>
+    dbGetQuery(conn = connection) |>
+    pull(b) |>
+    pluck(1) |>
+    length()
+}
+
+tibble(asked = c(512, 1024, 1025, 2000, 5000)) |>
+  mutate(
+    odbc = map_dbl(asked, \(n) bytes_back(con, n)),
+    brickster = map_dbl(asked, \(n) bytes_back(acon, n))
+  )
+```
+
+Read the middle column. A 1,025-byte value comes back as a single byte, and nothing about that is an error: the query succeeded and returned a value of the wrong length. The `brickster` column is what correct looks like.
+
+## Proving the geometry itself is right
+
+Arriving at full length is necessary but not sufficient. A geometry that parses can still be the wrong geometry, so the useful check is against something recorded independently: the catchment table carries its own area column, computed before any of this transport happened.
+
+```{r}
+#| label: area-check
+catchments <- glue("
+  SELECT
+    base64(geom_wkb) AS g,
+    water_body_area_m2 AS declared
+  FROM {tbl_name('wfd_catchments')}
+  WHERE geom_wkb IS NOT NULL
+    AND water_body_area_m2 IS NOT NULL
+  LIMIT 200
+") |>
+  dbGetQuery(conn = con) |>
+  as_tibble()
+
+# Two steps, because geometry is encoded server-side to
+# survive the trip: it arrives as text, and has to be
+# decoded before sf will look at it. The CRS must be
+# supplied, because WKB carries no SRID of its own.
+geom <- catchments$g |>
+  map(jsonlite::base64_dec) |>
+  structure(class = "WKB") |>
+  st_as_sfc(EWKB = FALSE, crs = 27700)
+
+declared <- sum(catchments$declared)
+measured <- sum(as.numeric(st_area(geom)))
+err <- abs(measured - declared) / declared
+
+cli_alert_info(
+  "EPSG:{st_crs(geom)$epsg}, {length(geom)} polygons, \\
+   area differs from declared by {round(100 * err, 4)}%"
+)
+```
+
+A difference of thousandths of a percent means the geometry is intact and correctly projected. This is the check worth repeating whenever geometry crosses a boundary, and [When the simulation carries the geometry](bootstrap.qmd) uses it again for exactly that reason.
+
+## Configuring more than one compute target
+
+This example uses a warehouse for queries and, later, a cluster for distributed work. Naming both invites a specific silent failure: `config::get()` treats a profile name it does not recognise as absent and falls back to the default, so a typo runs your job on the wrong compute and returns results that look entirely ordinary.
+
+The fix is to validate the name against the file's own keys rather than trusting the lookup.
+
+```{r}
+#| label: profile-guard
+#| error: true
+cluster_id <- function(profile = "default",
+                       file = "config.yml") {
+  known <- names(yaml::yaml.load_file(file))
+
+  if (!profile %in% known) {
+    cli_abort(c(
+      "Unknown profile {.val {profile}}.",
+      i = "{.file {file}} defines: {.val {known}}.",
+      x = "config::get() would have fallen back to
+           {.val default} and given you the wrong compute."
+    ))
+  }
+
+  config::get("cluster_id", config = profile, file = file)
+}
+
+# A real profile resolves. The id itself is not printed:
+# it names one cluster in one workspace, and this page
+# is published.
+nzchar(cluster_id("multinode"))
+
+# A typo must not silently succeed.
+cluster_id("multinod")
+```
+
+Storing the warehouse as a bare identifier rather than as a connection path is the related habit. Two clients want two different forms of the same value, and keeping the shorter one means each composes what it needs instead of taking the longer one apart.
+
+```{r}
+#| label: cleanup
+dbDisconnect(con)
+dbDisconnect(acon)
+```
 
 ## Next
 
 [Exploring and reducing the big table](reducing.qmd).
+
+---
+
+This page rests on: ODBC truncates `BINARY` values to length mod 1024 at every setting tried, so a 1,025-byte value returns 1 byte with no error; `brickster::DatabricksSQL()` returns `BINARY` byte-exact; encoded geometry as text is separately truncated at 1,023 characters unless `DefaultStringColumnLength` is raised, and a round number there can be silently dropped; decoded catchment area matches the table's declared area column to within thousandths of a percent; `config::get()` falls back to the default profile without warning when a profile name is unrecognised.

@@ -35,4 +35,22 @@ What has to be true for the example to run: a connection, and the geospatial pac
 
 ## The stages
 
-Six, in order, each one a page. The list should read as a narrative rather than a table of contents, so that someone can decide from here whether to read on or jump.
+Seven, after this one, each one a page. The list should read as a narrative rather than a table of contents, so that someone can decide from here whether to read on or jump.
+
+The shape of the narrative, which the prose has to carry rather than merely list: the first three stages get the data to a place where ordinary R works on it, and the last four are about the repeats, which is where the analysis stops being a query and starts being a computation. That is the hinge, and the stages after it escalate one step at a time: your own cores, then a simulation that fits in a summary, then one that carries geometry with it, then the record.
+
+The escalation is the point. Each step earns the next by having been insufficient, and the example is honest about stopping early wherever stopping early is right.
+
+1. [Getting connected and finding the tables](connecting.qmd)
+2. [Exploring and reducing the big table](reducing.qmd)
+3. [The spatial join](spatial.qmd)
+4. [Using the cores you already have](parallel.qmd)
+5. [Simulating from a summary](simulation.qmd)
+6. [When the simulation carries the geometry](bootstrap.qmd)
+7. [Results, figures, and the record](results.qmd)
+
+If you want to load this data into your own catalog rather than read the example, there is an optional [stage zero](ingest.qmd) before any of the above. Most readers should skip it.
+
+## Next
+
+[Getting connected and finding the tables](connecting.qmd).

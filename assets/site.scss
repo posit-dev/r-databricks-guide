@@ -53,6 +53,15 @@ h2 {
 // Hover is an underline, never a fill.
 a:hover { text-decoration: underline; }
 
+// Code sits smaller than prose. At the shared 0.875em a 42rem measure holds
+// only about 78 characters, and an annotated pipeline does not fit: lines wrap,
+// and `code-overflow: wrap` means that degrades silently rather than showing a
+// scrollbar. 0.75em raises the ceiling to about 91 characters. Code here is
+// written to a 60-character target, so the slack absorbs deep indentation.
+pre code, pre code.sourceCode, .sourceCode pre code {
+  font-size: 0.75em;
+}
+
 code:not(.sourceCode) {
   background-color: rgba($link-color, 0.07);
   padding: 0.1em 0.3em;

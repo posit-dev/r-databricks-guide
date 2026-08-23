@@ -25,3 +25,14 @@ renv/staging/
 /docs/
 
 **/*.quarto_ipynb
+
+# Compute targets. config.yml carries a real warehouse and cluster id, and this
+# repo is public by default, so it stays local. dbx-config.R reads it and is
+# safe to track; the ids never appear in the helper itself.
+config.yml
+
+# Stage-to-stage artefacts of the worked example. Each stage saves what the
+# next one reads, so a reader can start part-way through, and `freeze: true`
+# means a whole-site render does not regenerate them. They are derived data,
+# one of them 9 MB, and they are reproducible from the pages that write them.
+*.rds
