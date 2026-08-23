@@ -1,0 +1,48 @@
+---
+title: "Work with rasters, using `terra`"
+subtitle: "Why gridded data behaves differently from polygons here, and what your two options are"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not.
+
+:::
+
+## `terra` has no server-side equivalent
+
+The `ST_` functions are vector functions, and there is no `ST_` for a raster cell. So there is no server-side path for gridded data.
+
+The reader arrives here from [Join and transform polygons](polygons.qmd), where the answer was that the work can stay on the server. The page has to say plainly that the answer is different for rasters, and why, or she will assume the previous page's advice generalises. It does not, and the reason is structural rather than a gap someone will fill next quarter.
+
+## So you have two options
+
+Bring the data to R, or send R to the data. There is no third, and the page is better for saying so early: this is a smaller decision than it looks, and most of the length below is about making the second option work rather than about choosing.
+
+## Check whether `terra` loads where your code runs, before anything else
+
+The two-line check. If it fails, see [Packages](../ref/packages.qmd).
+
+First because it is the most common failure and the cheapest to rule out, and because the answer differs between her session and a worker. A `terra` that loads locally says nothing about the worker.
+
+## If you send R to the data
+
+A disk-backed raster serialises its file path, not its pixels, so the file has to be reachable from the worker. That means a volume, not your own filesystem.
+
+This is the fact that decides whether the option works at all, and it is unintuitive: the object looks self-contained in her session and is not. The failure appears in the worker as a missing file, which reads like a permissions problem rather than a serialisation one.
+
+## Reading `/Volumes/...` from inside a worker
+
+The worker reads it as an ordinary local path, which is the good news and worth stating plainly. Mechanics in [Sending things to where your code runs](../ref/sending-things.qmd).
+
+## What this rules out, stated plainly
+
+Some raster workflows have no good answer here, and the page should name which rather than leave her to discover it. Worth including the honest case: if the raster fits on her laptop and nobody dictates where the work happens, doing it locally is faster to set up and better for her science.
+
+## Next
+
+[Sending things to where your code runs](../ref/sending-things.qmd).
+
+---
+
+This page rests on: the native `ST_` functions are vector functions with no raster equivalent, so gridded work has no server-side path; a disk-backed raster object serialises its file path rather than its pixels.

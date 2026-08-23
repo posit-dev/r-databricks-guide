@@ -11,7 +11,13 @@ This guide is for you, and for nobody else. It assumes you read R, the tidyverse
 
 And it is harder. That is not your imagination, and it is worth saying before anything else.
 
-The reason the choice may not be yours is usually one of three: the data is too big to move, governance decides where it lives, or the compute genuinely wins. If none of those hold, and the data fits in your session, work locally. Local R is quicker to set up, easier to debug, and better for your science. Nothing on this site argues otherwise.
+The reason the choice may not be yours is usually one of three:
+
+- the data is too big to move
+- governance decides where it lives
+- the compute genuinely wins
+
+If none of those hold, and the data fits in your session, work locally. Local R is quicker to set up, easier to debug, and better for your science. Nothing on this site argues otherwise.
 
 When one of them does hold, this guide exists to close as much of the gap as can be closed.
 
@@ -37,7 +43,7 @@ readings |>                             # a large table, sitting in Databricks
 
 Everything above `collect()` runs on Databricks as SQL. Everything below it runs in your own R session, with all of `sf` and `ggplot2` and no translation. The whole question is how big the data is when it crosses.
 
-[Work with a table that will not fit in your session](jobs/big-table.qmd)
+[Work with a table that will not fit in your session](howdoi/big-table.qmd)
 
 :::
 
@@ -58,25 +64,33 @@ exceedances <- sites |>
 
 Here the crossing is free and the cost is in the last line, repeated. So the question is not how much data moves. It is how many repeats run at once, and whether R is present where they run.
 
-[Run a Monte Carlo simulation](jobs/monte-carlo.qmd)
+[Run a Monte Carlo simulation](howdoi/monte-carlo.qmd)
 
 :::
 
 :::
 
-The third shape is gridded data, and it has no server-side path at all: Databricks' spatial functions work on vectors, and there is no equivalent for a raster cell. So the only question there is which side of the boundary the pixels sit on. See [Work with rasters, using `terra`](jobs/terra.qmd).
+The third shape is gridded data, and it has no server-side path at all: Databricks' spatial functions work on vectors, and there is no equivalent for a raster cell. So the only question there is which side of the boundary the pixels sit on. See [Work with rasters, using `terra`](howdoi/terra.qmd).
 
-## The jobs
+## Where to go
 
-- [Connect your R session to the data](jobs/connect.qmd). Which connection to open, and why the choice matters before you write any code.
-- [Write and run R against the cluster, without leaving your editor](jobs/interactive.qmd). An interactive R session with cluster compute behind it, rather than a notebook.
-- [Work with a table that will not fit in your session](jobs/big-table.qmd). Where each step of your pipeline runs, and how much data comes back.
-- [Join and transform polygons](jobs/polygons.qmd). Real spatial work when the polygons start out in the table rather than in R.
-- [Work with rasters, using `terra`](jobs/terra.qmd). Why gridded data behaves differently from polygons here, and what your two options are.
-- [Run a Monte Carlo simulation](jobs/monte-carlo.qmd). Simulating, bootstrapping, resampling or fitting many times over, and where the repeats happen.
-- [Check that you get the same answer wherever it ran](jobs/check-the-answer.qmd). Confirming that a computation done on the server and the same one done in R agree, and by how much.
-- [Work out what the cluster you have can do](jobs/compute.qmd). Reading the compute you were given, and what you can and cannot change about it.
-- [Get results out, and get the same answer next year](jobs/results.qmd). Writing results back, exporting for the paper, and keeping the run reproducible.
+If you have ten minutes and no particular emergency, start with [What changes when the data is not on your laptop](concepts/index.qmd), under **Get started** above. It is the one page the rest of the site assumes, and almost every surprise documented here is the same handful of assumptions failing.
+
+If you arrived with a specific problem, go straight to it. These are the **Guides**.
+
+- [Connect your R session to the data](howdoi/connect.qmd). Which connection to open, and why the choice matters before you write any code.
+- [Write and run R against the cluster, without leaving your editor](howdoi/interactive.qmd). An interactive R session with cluster compute behind it, rather than a notebook.
+- [Work with a table that will not fit in your session](howdoi/big-table.qmd). Where each step of your pipeline runs, and how much data comes back.
+- [Join and transform polygons](howdoi/polygons.qmd). Real spatial work when the polygons start out in the table rather than in R.
+- [Work with rasters, using `terra`](howdoi/terra.qmd). Why gridded data behaves differently from polygons here, and what your two options are.
+- [Run a Monte Carlo simulation](howdoi/monte-carlo.qmd). Simulating, bootstrapping, resampling or fitting many times over, and where the repeats happen.
+- [Check that you get the same answer wherever it ran](howdoi/check-the-answer.qmd). Confirming that a computation done on the server and the same one done in R agree, and by how much.
+- [Work out what the cluster you have can do](howdoi/compute.qmd). Reading the compute you were given, and what you can and cannot change about it.
+- [Get results out, and get the same answer next year](howdoi/results.qmd). Writing results back, exporting for the paper, and keeping the run reproducible.
+
+If you would rather see one analysis carried the whole way through, with the awkward parts left in, that is [the worked example](example/index.qmd).
+
+And if what is stopping you turns out not to be yours to fix, [what to ask for, and how to ask](admin/index.qmd) is about getting the change made by whoever administers your workspace.
 
 ## What this guide does not cover
 

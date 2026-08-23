@@ -13,9 +13,13 @@ subtitle: "Real spatial work when the polygons start out in the table rather tha
 
 23 of 23 probed `ST_` functions work server-side, so needing a spatial operation is not by itself a reason to bring data back.
 
+The reader's likely prior is that spatial work means `sf`, and therefore means R, and therefore means collecting everything first. The page's job is to break that chain in its first paragraph. Give the count and let it carry the argument.
+
 ## Set the CRS yourself
 
 Polygons are stored as WKB in a `BINARY` column with no embedded SRID. `st_srid` returns 0, and the number has to come from you.
+
+This is the fact most likely to produce a silently wrong answer on this page, because a missing CRS does not error: it produces areas in the wrong units or joins that match nothing. State that consequence, not just the mechanism.
 
 ## Transforming once, server-side, instead of per iteration
 
@@ -23,7 +27,11 @@ EPSG:4326 to EPSG:27700, worked.
 
 ## Aggregating server-side when only a scalar needs to cross
 
+The best case on the site: the work happens where the data is and a single number comes back. Worth showing because it is the shape she should be looking for in her own analysis.
+
 ## The full `sf` pipeline below the line, when that is what you want
+
+Needed as a genuine option rather than a fallback, and the page should not apologise for it. If the data fits and the pipeline is already written, bringing it back is the right call. The connection caveat applies: geometry cannot travel over the ODBC path, so this route needs `brickster::DatabricksSQL()`. See [Connect your R session to the data](connect.qmd).
 
 ## Points work the same way
 

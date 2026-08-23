@@ -1,0 +1,64 @@
+---
+title: "What changes when the data is not on your laptop"
+subtitle: "The one shift behind almost every surprise on this site"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not.
+
+:::
+
+Read this once and the rest of the site gets shorter. Nearly every trap documented here is the same assumption failing, and it is an assumption worth naming because on your laptop it was true.
+
+## What was true, and has stopped being true
+
+On your own machine, "where does this run" is not a question anyone asks, because there is nothing to ask about. One machine, one R session, one filesystem. A package you installed is installed. An object in your environment is there. A file path points at a file. None of that needed thinking about, and none of it was wrong.
+
+The page's job is to state plainly which of those stop holding, and then to derive everything else from that. Four assumptions break, and the order matters because each one depends on the one before.
+
+## There is more than one machine
+
+The first and largest. Your R session is on one machine, the data is on another, and there may be several more behind it. Everything else on this page follows from that sentence.
+
+The vocabulary can be introduced here, once, and only because she will meet it in error messages and vendor documentation: the machine that coordinates is the **driver**, the machines that do work in parallel are **workers** or **executors**. Her cluster may have exactly one machine, in which case the driver is also the only worker, and that is a common and perfectly ordinary case rather than a broken one.
+
+What the page must not do is teach the topology for its own sake. The reason she needs it is that the next three sections are consequences of it.
+
+## Your session is a client, not a place the work happens
+
+The distinction that catches people: connecting to Databricks does not move your R session onto Databricks. Your session stays where it is and sends instructions. This is why `collect()` matters, why the pipeline in [Work with a table that will not fit in your session](../howdoi/big-table.qmd) has a line through the middle of it, and why "the data is too big to fit" and "the data is too big to move" are different problems with different answers.
+
+## Anything the far side needs has to get there, and that costs something
+
+If the work happens on another machine, then the function, the objects it closes over, and any file it reads all have to travel. That travel is called **serialisation**, and it is the one platform word worth her knowing properly, because it is the hidden term in most performance surprises.
+
+The consequence to state, because it is counterintuitive and the site relies on it repeatedly: distributing work is not free, so distributing something small can be slower than not distributing it at all. That is not a misconfiguration. It is the cost being larger than the saving.
+
+## Each context has its own library
+
+The last one, and the one that produces the most confusing symptoms. "Installed" is not a property of the cluster. It is a property of a particular R context, and there are several. A package that loads in your session says nothing about whether it loads in a worker, and an install may not survive to the next session at all.
+
+This is why an upgrade can appear not to have taken, and why [Packages](../ref/packages.qmd) exists as a separate page.
+
+## Running R where the data is
+
+`spark_apply()` is how you send an R function to run on the cluster rather than in your session, and it is worth meeting here rather than inside any one task, because it turns up in more than one. It is a mechanism, like `collect()`, not a step in a particular recipe.
+
+The page should establish what it does in one paragraph, then be careful about what is and is not known, because the parts differ in how well established they are:
+
+- **Across worker machines, it distributes.** Observed on a two-worker cluster by counting distinct machine names, with real geospatial work running on both. Two workers answers whether it distributes and nothing else: nothing here speaks to shuffle cost, or to behaviour at twenty nodes, and the page must not imply otherwise.
+- **On a single-node cluster it was slower than forked parallel workers**, by roughly a factor of two, because it pays the serialisation cost for distribution it cannot deliver. This is the previous section made concrete.
+- **Inside a `dplyr` pipeline** is a use that has not been verified here. It should be named as a thing people do, and marked plainly as untested, rather than described as though it were established.
+- **Naming the output columns depends on where you are.** A Spark type string from a client connection, a plain character vector on the cluster's own R session. Neither form is rejected by the other path and the error never names the argument, so it surfaces as a missing column and reads like a fault in the worker function. Omitting it works on both.
+- **The grouped path does not run** on a current runtime: `spark_apply(group_by = ...)` fails outright on `rpy2` 3.6.x. The partition-based form works and is the thing to show.
+
+Where it is worth reaching for, and where it is not, belongs on the task pages that use it: [Run a Monte Carlo simulation](../howdoi/monte-carlo.qmd) is the fullest treatment.
+
+## What this buys you
+
+A short closing section, tying the four assumptions to the symptoms she will actually meet, so the page ends as a diagnostic aid rather than as theory. If a package will not load, that is the fourth. If something is slower than expected, usually the third. If a result is empty or truncated, often the second.
+
+---
+
+This page rests on: `spark_apply()` has been observed distributing tasks across two worker machines, neither of them the driver; `spark_apply()` was slower than forked workers on a single node; `spark_apply(group_by =)` fails on `rpy2` 3.6.x; `spark_apply(columns =)` takes a Spark type string from a client connection and a character vector on the cluster's own R session, and the wrong form fails without naming the argument; every R context gets its own ephemeral library.

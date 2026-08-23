@@ -1,0 +1,36 @@
+---
+title: "The simulation"
+subtitle: "Stage four: the part where the repeats are the expensive bit"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not.
+
+:::
+
+## What is being simulated, and why
+
+Stated in her terms, briefly. The statistics need no explanation; what needs explaining is only where the repeats happen.
+
+## Serially first
+
+The version that is slow and obviously correct, kept because everything after it has to agree with it.
+
+## Across the cores you have
+
+One line changed, using `future::plan(multicore)`. The timing quoted with the session size, as a single run rather than a benchmark.
+
+## Was that enough?
+
+The honest checkpoint. If the analysis finishes here, the section should say so and stop, rather than reaching for the cluster to complete a demonstration. Doing that in a worked example is more persuasive than asserting it on a task page.
+
+## If it was not enough
+
+Where `spark_apply()` comes in, what the call looks like for this analysis, and the caveats carried from [What changes when the data is not on your laptop](../concepts/index.qmd) rather than restated: two workers observed, nothing claimed about scaling, and the `columns` argument omitted so the example works from either context.
+
+If the replicates do spatial work, `sf` has to load in the worker too, which depends on the library situation described in [Packages](../ref/packages.qmd). If it is not available, this stage of the example does not run, and the page should say that plainly rather than assume.
+
+## Next
+
+[Results, figures, and the record](results.qmd).

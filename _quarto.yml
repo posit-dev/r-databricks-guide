@@ -7,8 +7,11 @@ project:
   execute-dir: project
   render:
     - index.qmd
-    - jobs/*.qmd
+    - concepts/*.qmd
+    - howdoi/*.qmd
+    - example/*.qmd
     - ref/*.qmd
+    - admin/*.qmd
 
 website:
   title: "R on Databricks"
@@ -18,13 +21,49 @@ website:
   repo-url: https://github.com/posit-dev/r-databricks-guide
   repo-branch: main
   repo-actions: [edit, issue]
-  # The nine jobs are the site's structure, and the front page lists them all.
-  # The navbar carries only the reference material, so that the job list is read
-  # once, deliberately, rather than skimmed as a dropdown.
+  # Five sections, in the order she needs them: the mental model first, then the
+  # task she arrived with, then the whole thing joined up. Reference and the
+  # admin material are lookups rather than reading, so they sit on the right.
   navbar:
     left:
-      - href: index.qmd
-        text: Start here
+      # No explicit home entry: the site title is the home link, as on
+      # quarto.org, sparklyr and pkgdown, which is where this reader already is.
+      - href: concepts/index.qmd
+        text: Get started
+      - text: Guides
+        menu:
+          - href: howdoi/connect.qmd
+            text: Connect my R session to the data
+          - href: howdoi/interactive.qmd
+            text: Work in my editor, not a notebook
+          - href: howdoi/big-table.qmd
+            text: Work with a table that will not fit
+          - href: howdoi/polygons.qmd
+            text: Join and transform polygons
+          - href: howdoi/terra.qmd
+            text: Work with rasters
+          - href: howdoi/monte-carlo.qmd
+            text: Run a simulation
+          - href: howdoi/check-the-answer.qmd
+            text: Check I get the same answer
+          - href: howdoi/compute.qmd
+            text: Work out what my cluster can do
+          - href: howdoi/results.qmd
+            text: Get results out, and repeat them
+      - text: Worked example
+        menu:
+          - href: example/index.qmd
+            text: The question, and the data
+          - href: example/connecting.qmd
+            text: Getting connected and finding the tables
+          - href: example/reducing.qmd
+            text: Exploring and reducing the big table
+          - href: example/spatial.qmd
+            text: The spatial join
+          - href: example/simulation.qmd
+            text: The simulation
+          - href: example/results.qmd
+            text: Results, figures, and the record
     right:
       - text: Reference
         menu:
@@ -41,23 +80,39 @@ website:
             text: The data and its licences
           - href: ref/evidence.qmd
             text: How claims are tagged
-          - href: ref/for-your-admin.qmd
-            text: For your admin
+      - text: For your admin
+        menu:
+          - href: admin/index.qmd
+            text: What to ask for, and how to ask
+          - href: admin/geospatial-setup.qmd
+            text: Setting up a cluster for geospatial R
   sidebar:
-    - title: "Jobs"
+    - title: "Guides"
       style: floating
       contents:
-        - section: "The jobs"
-          contents:
-            - jobs/connect.qmd
-            - jobs/interactive.qmd
-            - jobs/big-table.qmd
-            - jobs/polygons.qmd
-            - jobs/terra.qmd
-            - jobs/monte-carlo.qmd
-            - jobs/check-the-answer.qmd
-            - jobs/compute.qmd
-            - jobs/results.qmd
+        - howdoi/connect.qmd
+        - howdoi/interactive.qmd
+        - howdoi/big-table.qmd
+        - howdoi/polygons.qmd
+        - howdoi/terra.qmd
+        - howdoi/monte-carlo.qmd
+        - howdoi/check-the-answer.qmd
+        - howdoi/compute.qmd
+        - howdoi/results.qmd
+    - title: "Worked example"
+      style: floating
+      contents:
+        - example/index.qmd
+        - example/connecting.qmd
+        - example/reducing.qmd
+        - example/spatial.qmd
+        - example/simulation.qmd
+        - example/results.qmd
+    - title: "For your admin"
+      style: floating
+      contents:
+        - admin/index.qmd
+        - admin/geospatial-setup.qmd
 
 format:
   html:

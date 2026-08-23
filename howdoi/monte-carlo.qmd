@@ -1,0 +1,86 @@
+---
+title: "Run a Monte Carlo simulation"
+subtitle: "Simulating, bootstrapping, resampling or fitting many times over: once per site, per polygon, per resample or per replicate"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not. Two open items: the `furrr` re-run, and one geospatial replicate run end to end in a worker.
+
+:::
+
+## The crossing is free, the repetition is not
+
+A large table shrinks server-side to a small one, and only then does the expensive work start.
+
+## Memory is not the constraint here
+
+Across four forked workers, peak R memory fell rather than rose, because each worker holds only its slice. The opposite of the big-table case.
+
+## The shape
+
+One independent unit per site, per polygon, per resample or per replicate.
+
+The test to give her: if replicate 200 does not need anything replicate 199 produced, the work is this shape and everything below applies. Almost all simulation, bootstrapping and resampling is. Naming the test matters more than naming the examples, because she will recognise her own problem faster than she will match it to a list.
+
+## Running the repeats serially, with `purrr::map()`
+
+The baseline, and the page should keep it rather than treat it as the thing to escape. It is the version she can debug, and the one everything else has to agree with.
+
+## Running them across the cores you have, with `furrr::future_map()`
+
+With `future::plan(multicore)`. The change from the serial version is one line, and the page should show that it is one line: the argument for trying the cluster's own cores first rests on how little it costs to try.
+
+## `plan(multisession)` does not carry the memory finding
+
+Each session gets its own full copy rather than a fork. `multisession` is the plan people reach for by default, and it is the one that works on Windows. You are on Linux, where forking is available and better.
+
+## Is the cluster worth it?
+
+On the arithmetic alone. Session sizes stated with every number. Single runs, not benchmarks.
+
+The honest answer the page has to be willing to give: often not. If the repeats finish on her own cores in an afternoon, that is the better route, and reaching for distribution costs setup time and buys nothing. This section earns the credibility for the ones after it.
+
+## Getting the worker count wrong is cheap
+
+Worth stating because it removes a decision she might otherwise agonise over. The penalty for a wrong count is mild and the fix is one number, so a reasonable guess and a re-run beats calculating it.
+
+## If your replicates do polygon work, `sf` has to load inside the worker too
+
+Check, then see [Packages](../ref/packages.qmd). This depends on your admin having built a library volume: if they have not, this section does not apply to you.
+
+## Bootstrapping and resampling are the same shape
+
+Nothing new to teach here, and the page should be brief about it. She knows what a bootstrap is; the only claim is that it maps onto the shape above unchanged.
+
+## Tuning across resamples
+
+The tidymodels path, and why it works without you doing anything. The fact: `tune` already parallelises over resamples through the same `future` plan, so the plan she set earlier applies and there is no separate step.
+
+## If you reach for `spark_apply()`
+
+Last, and only after the cores of her own session have been ruled out, because that ordering is the page's actual recommendation. The subsections below are what she needs to know once she has a reason to be here.
+
+### On a single node it was slower than forked workers
+
+It pays serialisation for no distribution benefit.
+
+### It does distribute across worker machines
+
+Observed on a two-worker cluster, counting distinct machine names rather than process ids. Two workers answers whether it distributes at all, and nothing about how it scales.
+
+### Count machines, not processes
+
+Two machines can report the same process id, so a process count cannot tell a single-node cluster from a distributed one.
+
+### Naming the output columns is context-dependent
+
+`spark_apply(columns =)` takes a Spark type string from a client connection and a plain character vector on the cluster's own R session. Neither form is rejected by the other path, and the failure never names the argument: it surfaces as a complaint that a column does not exist, which reads like the worker function returned the wrong thing. Leaving the argument out works on both paths, which is what an example should do unless it needs to fix the types.
+
+### The grouped path does not run on a current runtime
+
+`spark_apply(group_by = ...)` fails outright on `rpy2` 3.6.x. Where it did run, it used one R process where the default used four, and was slower on identical work with the same answer. The mechanism behind that is unexplained.
+
+---
+
+This page rests on: a 32.5 million row table shrinks server-side to a small result before the expensive work starts; forked parallel workers reduced peak R memory rather than increasing it; `spark_apply()` was slower than forked workers on a single node; `spark_apply()` has been observed distributing tasks across two worker machines, neither of them the driver; `spark_apply(group_by =)` fails on `rpy2` 3.6.x, and where it ran was slower than the default partitioning; `spark_apply(columns =)` takes a Spark type string from a client connection and a character vector on the cluster's own R session, and the wrong form fails without naming the argument.

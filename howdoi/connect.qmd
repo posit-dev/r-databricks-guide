@@ -1,0 +1,50 @@
+---
+title: "Connect your R session to the data"
+subtitle: "Which connection to open, and why the choice matters before you write any code"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not.
+
+:::
+
+## Use `brickster::DatabricksSQL()` if geometry is involved. Otherwise either path works
+
+The decision is this small, and the page should resolve it in the first paragraph rather than build up to it. `odbc::databricks()` is the default and is fine for ordinary queries through `dbplyr`. The moment a `BINARY` column is in play, and geometry is stored as `BINARY`, the ODBC path cannot carry the data and the choice is made for her. This is not a preference between two working options.
+
+## Why: ODBC silently truncates `BINARY`
+
+A 1,025-byte polygon comes back as 1 byte, and it is a correct prefix, so nothing errors. Upstream issue `r-dbi/odbc#1024`.
+
+The fact that makes this dangerous, and which the page must not bury: the failure is silent in both directions. Nothing errors, and what arrives is a valid prefix rather than obvious rubbish, so a pipeline runs clean and produces a wrong answer. On one measured table the default connection discarded about 87% of the geometry while reporting success.
+
+There is a second trap behind the first, and the page has to carry both or it sends the reader into it. The documented way round the `BINARY` bug is to encode the value as text server-side. Text columns are themselves silently truncated at 1,023 characters by default, and encoded geometry runs well past that, so following the first workaround alone yields about a tenth of the data and a decode error that reads like corrupt input rather than truncation. Both have to be worked around together: encode server-side *and* raise the driver's string-length setting above the longest encoded value. Round numbers are a trap in that setting, and can be silently dropped, so a value like 65535 rather than 100000.
+
+Both bugs now have fix pull requests open against the driver package. Neither is merged, so the workarounds are needed today, but the page should say "until the fix ships" rather than present them as permanent.
+
+Because both failures are silent, the page owes the reader a check as well as a recipe: compare the length the server reports against the length that arrives, and validate decoded geometry against a declared area or length column rather than merely confirming it parses. A geometry that parses can still be a fraction of the real thing.
+
+## Finding your table
+
+Catalogs, schemas and tables, and what Unity Catalog is doing for you.
+
+Three levels, and the fact worth stating is that the three-part name is not bureaucracy: it is how permission is granted, which is why she may see a catalog and not its contents.
+
+## Configuring more than one compute target
+
+If she works against both a warehouse and a cluster, or two clusters, this is where the shape belongs. The trap to name: `config::get()` treats an unrecognised profile name as absent and silently falls back to the default profile, so a mistyped name does not fail. It runs the job against whichever target the default names and returns results that look entirely ordinary, with nothing in the output saying which compute answered. The page should show how to validate a profile name against the configuration file's own keys, and how to report which target a session actually resolved.
+
+A related shape worth recommending here: store the warehouse identifier on its own rather than as part of a connection path. Different clients want different forms of it, one the path and one the bare identifier, and storing the longer form means call sites take it apart again, which is how the two drift out of step.
+
+## What your connection is, and is not
+
+A client to remote compute, not a session on it.
+
+## Next
+
+Whichever of these resembles the code you have written: [work with a table that will not fit in your session](big-table.qmd), [join and transform polygons](polygons.qmd), or [run a Monte Carlo simulation](monte-carlo.qmd).
+
+---
+
+This page rests on: ODBC truncates `BINARY` values to length mod 1024 at every setting tried, returning a correct prefix so nothing errors; `brickster::DatabricksSQL()` returns `BINARY` byte-exact; the server-side text encoding workaround meets a separate silent truncation at 1,023 characters unless the driver's string-length setting is raised, and a round number there can be silently dropped; both truncation bugs have unmerged fix PRs open against the driver package; `config::get()` falls back to the default profile without warning when a profile name is unrecognised.

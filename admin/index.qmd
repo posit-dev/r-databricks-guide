@@ -1,0 +1,54 @@
+---
+title: "What to ask for, and how to ask"
+subtitle: "Getting a workspace change made when you do not administer the workspace"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not.
+
+:::
+
+Some of what stops you is not fixable from your session, and no amount of persistence in R will change that. This page is about recognising those cases quickly and asking for the right thing, so that one exchange settles it rather than four.
+
+## How to tell it is not yours to fix
+
+The distinguishing question is whether the change has to happen on every machine, or before your session starts. If it does, it needs an administrator, and trying it yourself costs an afternoon and leaves no trace.
+
+Three symptoms that always mean this, worth listing so she can match against them rather than reason from first principles:
+
+- `install.packages("sf")` fails at configure. The system libraries are missing from the image, you cannot install those, and no R-level fix exists.
+- A package loads in your session but not in a worker. The worker's library is a different thing from yours.
+- An install appears not to have taken, repeatedly. Each R context gets its own ephemeral library, so it did take, and then went away.
+
+## Ask for the outcome, not the mechanism
+
+The failure mode in these conversations is asking for a specific fix and getting a debate about it. Describe what you need to be able to do, name the constraint you have hit, and let the person who owns the platform choose how. They may already have a solution you do not know the name of.
+
+## The three requests worth knowing by name
+
+Most of what a research scientist needs from a Databricks workspace is one of these, and knowing which one you are asking for makes the request short.
+
+### The geospatial system libraries
+
+GDAL, GEOS and PROJ, installed by an init script so they land on every node. Hand over [Setting up a cluster for geospatial R](geospatial-setup.qmd), which is written for them rather than for you.
+
+### A package library that persists
+
+So that `sf` and `terra` are simply present, in your session and in workers, without a fifteen-minute wait at every cluster start. The durable form is a prebuilt library tree on a volume.
+
+### A cluster of a different shape
+
+The one thing you cannot approximate. Worth being specific about what you need and why, because this is the request most likely to have a cost attached, and the answer may reasonably be no. Read [Work out what the cluster you have can do](../howdoi/compute.qmd) first, so you are asking for the right shape.
+
+## What to include in the message
+
+A short template she can adapt: what you are trying to do, what you tried, the exact error, and what you believe is needed. Written so it can be pasted into a ticket without editing.
+
+## What is reasonable to expect
+
+Managing expectations honestly, in both directions. An init script is a small change and a common request. A new cluster is a budget conversation. Knowing which you are in prevents both frustration and over-asking.
+
+## If the answer is no
+
+There is usually still a route, and it is worth naming rather than leaving her stuck: reduce the data server-side and work locally, or do the parts that need the missing capability on your own machine. Sometimes the laptop is the right answer, and this is one of the times.

@@ -1,0 +1,38 @@
+---
+title: "Write and run R against the cluster, without leaving your editor"
+subtitle: "An interactive R session with cluster compute behind it, rather than a notebook"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not. Needs one walkthrough, recorded step by step.
+
+:::
+
+## You do not have to write R inside a Python notebook
+
+The facts this page has to establish, before anything else: an interactive R session on your own machine can drive cluster compute through a client connection, with no R notebook attached to the cluster at any point. That is the whole premise, and it is worth stating first because the Databricks documentation route leads to notebooks and nothing signposts the alternative. You keep your editor, your project, your `renv` library and your version control.
+
+## The setup
+
+Your session, the connection, and where your code actually executes.
+
+The page needs the three-part picture: the R session that is yours, the connection object, and the remote compute the connection points at. The reader has to be able to say which of the three a given line of her script touches. One walkthrough, start to finish, recorded as it actually ran rather than reconstructed.
+
+## Which side of the boundary each line of your script is on
+
+The rule to state: a line runs locally unless something in it forces the crossing, and the things that force it are few enough to list. This is the same boundary [Work with a table that will not fit in your session](big-table.qmd) draws around `collect()`, seen from the session's side rather than the data's, and the two pages must not contradict each other on where the line falls.
+
+## Session lifetime, reconnecting, and what you lose when the connection drops
+
+Facts needed: what survives a dropped connection and what does not. A local R object is yours and survives. Anything holding a handle to remote state does not, and the failure appears at next use rather than at the moment of the drop, which is what makes it confusing. Also needed: whether reconnecting restores a usable session or requires rebuilding the pipeline.
+
+## When you do need a notebook, and what changes
+
+Two facts. A notebook is required for the paths a client connection cannot reach, and the page should name those rather than gesture at them. And `spark_apply()`'s `columns` argument changes meaning between the two contexts: a Spark type string when connecting from your own machine, a plain character vector when running on the cluster itself. Neither form is rejected by the other path, and the resulting error never names `columns`, so code copied between the two fails in a way that looks like the worker function misbehaving.
+
+A caution for whoever writes this: access mode is not the same question as notebook versus client. A Standard cluster refuses R *notebooks* while a client connection to one works, which is exactly the case where this page's premise matters most. Keep the claim qualified, and leave the detail to [Work out what the cluster you have can do](compute.qmd).
+
+---
+
+This page rests on: an interactive R session can drive cluster compute through a client connection, without an R notebook attached to the cluster; `spark_apply(columns =)` takes a Spark type string from a client connection and a character vector on the cluster's own R session, and the wrong form fails without naming the argument.

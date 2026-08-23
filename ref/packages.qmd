@@ -13,25 +13,31 @@ subtitle: "Checking, and fixing, which packages exist where your code runs"
 
 Run this, and if it loads you are done. Most likely you are done.
 
+The page opens here deliberately. Most readers arriving from another page have a working library and need to leave in ten seconds, and the diagnostic material below is for the minority who do not. The check has to be run in the context she is asking about: a package that loads in her session says nothing about a worker.
+
 ## If it does not load
 
 This is a workspace configuration matter, and not something to fix from your session.
 
+The fact that saves her the most time: for the geospatial stack this is not a missing R package but a missing system library, and no amount of `install.packages()` from her session will fix it. `install.packages("sf")` fails at configure on the stock image because GDAL, GEOS and PROJ are absent. She cannot install those, and trying is the week the page is written to save.
+
 ## What to send your admin
 
-A short paragraph naming what is needed, and why an interactive install will not do it.
+A short paragraph naming what is needed, and why an interactive install will not do it: an init script runs on every node, and an interactive install touches only the driver. Written so she can forward it without editing. Full detail is in [Setting up a cluster for geospatial R](../admin/geospatial-setup.qmd), and the reason it is a separate page is that the two audiences need different things.
 
 ## If your workspace has a prebuilt library volume
 
-Prepend it to `.libPaths()`.
+Prepend it to `.libPaths()`. This is the good case and worth describing so she can recognise it: someone has already paid the build cost, and the tree is reusable by any later cluster with the same R version and image. It works inside a worker too, which is what makes the geospatial sections of [Run a Monte Carlo simulation](../howdoi/monte-carlo.qmd) available to her.
 
 ## Installs do not persist between R contexts
 
 A package you upgraded may read as the old version next time, which looks exactly like the upgrade having failed. Do everything in one context.
 
+Every R context gets its own ephemeral library, which is the mechanism behind the symptom. Stating it plainly matters because the natural response to an upgrade that appears not to have taken is to run it again, which produces the same result and wastes the afternoon.
+
 ## Full detail, for whoever administers your workspace
 
-[For your admin](for-your-admin.qmd).
+[Setting up a cluster for geospatial R](../admin/geospatial-setup.qmd).
 
 ---
 

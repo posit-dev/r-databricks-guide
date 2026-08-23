@@ -1,0 +1,54 @@
+---
+title: "Setting up a cluster for geospatial R"
+subtitle: "Written for whoever administers the workspace, not for the person using it"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not.
+
+:::
+
+If you have arrived here from another page, this one is not addressed to you. Pass it on.
+
+This was verified in a test workspace, and in your workspace much of it may already be done.
+
+## What an R user needs from a runtime image to do geospatial work
+
+The stock runtime image ships no GDAL, GEOS or PROJ, so `install.packages("sf")` fails at configure. That single fact is the whole reason this page exists, and it should lead.
+
+## System libraries and R packages are two separate problems
+
+Conflating them costs a week. The system layer needs an init script and root; the R layer needs a repository and a library path. Fixing either alone leaves the same symptom, which is why the two get conflated in the first place.
+
+## The init script, and why it must be an init script
+
+It runs on every node. An interactive install touches only the driver.
+
+## Version constraints found in practice
+
+This section is runtime-specific and must say which runtime it describes, because the answer has changed. On older runtimes `terra` needed pinning against the image's GDAL and `Rcpp` needed upgrading before `units` would install. On DBR 18 both have stopped being necessary, and carrying the old script forward keeps constraints that no longer apply while leaving packages missing or recompiling at every start.
+
+Two things follow. The runtime version and the setup script are one decision rather than two, so a script has to be revised when the runtime moves. And a runtime should be pinned to a specific version rather than a rolling alias if this page quotes measured library versions, because the alias moves and the quoted GDAL or GEOS versions silently stop matching.
+
+Whoever writes this has to decide which runtime the guide addresses, and say so, rather than listing both sets of constraints and leaving the admin to work out which applies.
+
+## Build times, and why a binary repository does not help
+
+Binaries are keyed to both the distribution and the R minor version.
+
+There is a second reason, and it is the one nobody guesses. The repository decides whether to serve binaries by reading the `R/<version>` token at the front of the request's user agent. An interactive R session sends it; `Rscript` does not, and an init script is exactly that case. So the repository serves sources and the install compiles: same command, same repository, correct URL, and the only symptom is setup taking about fifteen minutes per node instead of seconds. Setting the user agent explicitly is the fix.
+
+This is worth stating carefully, because pointing at the distribution-specific URL is still necessary and is not wrong, just incomplete. Fixing only the URL changes nothing observable, which makes correct advice look wrong when it is half right.
+
+## Pay it once
+
+Build to local disk, copy the tree to a Unity Catalog volume, prepend that path to `.libPaths()`. Reusable by any later cluster with the same R version and image, and verified working inside a `spark_apply()` worker.
+
+## Every R context gets its own ephemeral library
+
+Which is why the volume above is the durable fix and an install is not.
+
+---
+
+This page rests on: the stock runtime image ships no GDAL, GEOS or PROJ, so `install.packages("sf")` fails at configure; an init script fixes the system layer and runs on every node where an interactive install touches only the driver; on older runtimes the image's pinned `Rcpp` is older than current `units` requires and `terra` must be pinned against the image's GDAL, and on DBR 18 neither pin is needed; a runtime version and its setup script are one decision; a binary repository serves sources unless the request's user agent carries an `R/<version>` token, which `Rscript` omits, costing about fifteen minutes per node; a prebuilt library tree on a volume is reusable and works inside a `spark_apply()` worker.

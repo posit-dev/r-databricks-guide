@@ -1,0 +1,56 @@
+---
+title: "Work with a table that will not fit in your session"
+subtitle: "Where each step of your pipeline runs, and how much data comes back"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not.
+
+:::
+
+## One line decides where the work happens
+
+The annotated `collect()` pipeline. Above the line, Databricks. Below it, R.
+
+The single fact this page exists to install: `dbplyr` sends everything above `collect()` to the server, and the only data that moves is what is left after it. Everything else here is a consequence. The page should give her a way to see the line for herself, in her own pipeline, rather than trusting the site's example.
+
+## What "too big" means here
+
+32.5 million rows is about 2.5 GB in R and fits in a 32 GB session. The point is that the next dataset will not, and the technique does not change.
+
+State the session size with the number, and do not present it as a benchmark. The honest framing is that this table happens to fit and is used because the technique is visible on it, not because it is at the limit.
+
+## Three things can happen at that line
+
+### Shrink first
+
+Only R has the function, but the data summarises down before it gets there. The measured case reduced by three orders of magnitude before anything crossed, which is the ordinary outcome and the one worth showing first.
+
+### Stay server-side
+
+You need one row out per row in, and Databricks has the function.
+
+### The hard case
+
+Only R has the function, and you need one row out per row in. This is the case with no comfortable answer, and the page should say so rather than manufacture one. It is also the case that leads to [Run a Monte Carlo simulation](monte-carlo.qmd), where the repeats rather than the crossing are the cost.
+
+## Reaching a function `dbplyr` cannot translate, with `dplyr::sql()`
+
+The fact: `dbplyr`'s translation is not the boundary of what the server can do. `dplyr::sql()` reaches Spark SQL functions it cannot translate, so "dbplyr does not know this function" is not the same as "this has to happen in R", and the page should keep the two apart.
+
+## Fitting a model on what came back
+
+This is the first case, and there is nothing special about it.
+
+## Where this stops
+
+Spark SQL has no ordinal-regression or cumulative-link primitive, which is what forces that class of model into R. Worth naming the specific gap rather than saying "some models", because the reader can then check her own.
+
+## Next
+
+If the repeats are the expensive part, see [Run a Monte Carlo simulation](monte-carlo.qmd).
+
+---
+
+This page rests on: a 32.5 million row table reduces by three orders of magnitude before crossing into R; `dplyr::sql()` reaches Spark SQL functions `dbplyr` cannot translate; Spark SQL has no ordinal-regression primitive.

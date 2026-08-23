@@ -13,6 +13,8 @@ subtitle: "Getting an object or a file to the machine that will use it"
 
 Write the thing to a Unity Catalog volume with `brickster::db_volume_write()`, and read it in the worker as an ordinary local file from `/Volumes/...`. That is the answer up to 5 GiB, and it is the answer for anything file-shaped.
 
+The table below is the page. The prose around it should stay short, because a reader arrives here mid-task with a specific thing she is trying to move and wants the row that matches it.
+
 ## Three situations
 
 | If the thing you need is... | Do this | Where it stops |
@@ -25,11 +27,13 @@ Write the thing to a Unity Catalog volume with `brickster::db_volume_write()`, a
 
 ### A `BINARY` column reaches a worker as a text representation, not as bytes
 
-Base64 on the way out, decode in the worker.
+Base64 on the way out, decode in the worker. Worth connecting to [Connect your R session to the data](../howdoi/connect.qmd), where the same column type fails differently on the way in: this is the third place `BINARY` behaves unlike bytes, and a reader who has met the other two will expect it.
 
 ### `spark_apply()`'s documented `columns = list(...)` form fails here
 
 Use a Spark DDL string. Upstream issue `sparklyr/sparklyr#3529`.
+
+There is a further wrinkle the page should carry: the correct form differs by context. A Spark type string is right from a client connection, and a plain character vector is right on the cluster's own R session. Neither is rejected by the other path, and the error never names `columns`, so code moved between the two fails as a missing-column complaint that looks like a fault in the worker function. Omitting the argument works on both.
 
 ### Do not compare hashes across R minor versions
 

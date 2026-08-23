@@ -1,0 +1,32 @@
+---
+title: "The spatial join"
+subtitle: "Stage three: putting the measurements and the places together"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not.
+
+:::
+
+## Deciding which side to do it on
+
+The choice, made explicitly and with reasons, between joining server-side and bringing geometry back to `sf`. Both work. This example should pick one, say why, and note what the other would have cost, since the reader's situation may differ.
+
+## Setting the CRS
+
+Geometry arrives as WKB with no embedded SRID, so `st_srid` returns 0 and the number has to come from you. The failure mode is what makes this worth a section: a missing CRS does not error, it produces wrong areas or a join that matches nothing.
+
+## The join itself
+
+## Checking the result is plausible
+
+Row counts before and after, and an eyeball plot. A join that silently matches nothing looks exactly like a join that matched everything, in the shape of the output.
+
+## Confirming the two sides agree
+
+The server-side answer against R's, on a sample, as described in [Check that you get the same answer wherever it ran](../howdoi/check-the-answer.qmd). This is where the recipe there gets its second, structurally different case, which is what that page currently lacks.
+
+## Next
+
+[The simulation](simulation.qmd).

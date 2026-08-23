@@ -1,0 +1,50 @@
+---
+title: "Work out what the cluster you have can do"
+subtitle: "Reading the compute you were given, and what you can and cannot change about it"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not.
+
+:::
+
+## You can start and stop what you have. You cannot change its shape
+
+The premise the whole page is designed around. She is not choosing a cluster and will not be, so the page teaches her to read the one she has and design inside it. Any advice here that amounts to "use a bigger cluster" is off-target by construction.
+
+## What you have
+
+A group cluster that is probably already running, and a personal cluster you can start and stop yourself.
+
+## Reading a cluster
+
+Cores, memory, and how many nodes. `num_workers = 0` means everything is one machine, whatever else the interface implies. Three lines that report your own cluster's node count and access mode, so you can answer this for yourself rather than taking the site's word for it.
+
+The node count is the fact that matters most, because it decides whether anything on [Run a Monte Carlo simulation](monte-carlo.qmd) about distributing work applies to her at all. A single-node cluster is not a small distributed cluster: it is a different thing, and `num_workers = 0` is how it says so.
+
+## Access modes, and the honest state of it
+
+A Standard cluster refuses R *notebooks*, but a client connection to one works. Whether `spark_apply()` works on Standard is open, and this guide will not assert it either way. It matters because your group cluster is quite likely Standard.
+
+The single word "notebooks" carries the whole claim, and the page must not lose it in a summary table. The unqualified sentence, the one she will meet elsewhere, is false, and a reader who believes it abandons a cluster that would have served her and picks up a per-person cluster cost she never needed.
+
+## What costs time
+
+Starting a stopped personal cluster takes minutes, an already-running cluster is warm, and a cluster bills until it auto-terminates.
+
+## Which cluster answered
+
+If she has more than one compute target configured, the page owes her a way to confirm which one actually ran the job. Nothing in a result says where it came from, and a mistyped profile name silently falls back to the default rather than failing. Someone comparing a single-node against a multi-node cluster, which is the main reason to keep two, can draw a confident wrong conclusion from a clean run. Setup is in [Connect your R session to the data](connect.qmd); this page is where the reason to care belongs.
+
+## The one thing you have to ask for
+
+A new cluster, and therefore a different shape. What to ask for, and why. The runtime version is part of the request rather than a separate matter: it and the cluster's setup script are one decision, and asking for one without the other produces a cluster that either lacks the packages or recompiles them at every start.
+
+## What is still unknown
+
+Listed, with the reason it is unknown. Two belong here: whether `spark_apply()` runs under Standard access mode, and how work spread across workers scales beyond the two-worker case that has actually been observed.
+
+---
+
+This page rests on: `num_workers = 0` means a single machine; a Standard access-mode cluster refuses R notebooks while a client connection to one works; whether `spark_apply()` works under Standard access mode is unresolved; a cluster's runtime version and its setup script are one decision, and a script left attached across a runtime change either leaves packages missing or recompiles them at every start.

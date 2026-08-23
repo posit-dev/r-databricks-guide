@@ -1,0 +1,46 @@
+---
+title: "Check that you get the same answer wherever it ran"
+subtitle: "Confirming that a computation done on the server and the same one done in R agree, and by how much"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not. Needs the recipe run on a second, structurally different computation before it can teach a technique rather than an anecdote.
+
+:::
+
+## The two sides agree, and here is how closely
+
+Worker-computed polygon area matched the warehouse's own to a relative difference of 3.1e-12. The number is here to settle the question rather than to impress: the answer to "can I trust work that ran somewhere else" is yes, and the page should say so before explaining anything.
+
+The honest limit belongs next to it. This is one comparison on one kind of computation. Until the recipe has been run on a second, structurally different case, the page teaches a technique on the strength of a single example, and it should not pretend otherwise.
+
+## Why they can disagree at all
+
+Floating point, aggregation order, and a CRS you set in one place and not the other.
+
+Three causes, and they are not equally likely. The CRS one is the only one that produces a difference large enough to notice, and it is a genuine mistake rather than a rounding artefact. The other two are expected and small. Ranking them this way is the page's main service, because a reader who finds a discrepancy needs to know which she is looking at.
+
+## The recipe
+
+Compute it server-side, compute it in R on a sample you can hold, compare relative difference against a tolerance you choose, and record the tolerance.
+
+## Choosing a tolerance, and why "identical" is the wrong test
+
+The fact to establish: exact equality will fail on correct results, so a test written that way reports corruption that is not there. Relative difference against a stated tolerance is the check, and the tolerance is a judgement she records rather than a constant the page supplies.
+
+## What to check when the work ran in a worker rather than in your session
+
+The extra variable is the worker's library. A different package version in the worker can change a result legitimately, which is indistinguishable from a bug unless she has checked. See [Packages](../ref/packages.qmd).
+
+## Do not compare hashes
+
+They are not portable across R minor versions, and a false mismatch looks exactly like corruption. Compare content.
+
+Worth stating firmly, because hashing is the obvious approach and it fails in the most misleading possible way: it reports a difference when the values are equal.
+
+## Recording the check alongside the result, so the paper can refer to it
+
+---
+
+This page rests on: worker-computed polygon area matched the warehouse's own to a relative difference of 3.1e-12; hashing an R object is not portable across R minor versions.

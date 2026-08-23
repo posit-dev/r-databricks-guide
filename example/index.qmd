@@ -1,0 +1,38 @@
+---
+title: "The question, and the data"
+subtitle: "One analysis, carried from an empty session to a figure"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not. This section needs the analysis actually run, end to end, before any of it is written.
+
+:::
+
+The rest of this site answers one question at a time. This section does the opposite: a single analysis, start to finish, with nothing skipped and nothing idealised. If you want to see how the pieces fit rather than what each one does, read this.
+
+## Why a worked example, when the task pages exist
+
+The task pages cannot show continuity, because each is written to be arrived at from a search. What they leave out is the ordinary friction of a real analysis: the check that fails, the CRS you have to supply, the step that turns out to be in the wrong place. This section keeps that in.
+
+## The question
+
+One analytical question, small enough to hold in your head and real enough to need every stage. It should be answerable, and it should be answered by the last page rather than trailing off.
+
+The page has to state plainly that the analysis is a vehicle. It uses public UK water quality data because that data is open and spatial and awkward in useful ways, and no conclusion drawn here is a finding about water.
+
+## The data
+
+Which tables, what each contains, and roughly how large. Enough for a reader to judge whether her own data resembles it, since that is what decides whether the example transfers.
+
+## The licences
+
+Two, and they are different: the environmental agency data is OGL v3.0, the storm overflow locations are CC BY 4.0. Full detail in [The data and its licences](../ref/data.qmd), and the credit lines have to be exact wherever they appear.
+
+## Before you start
+
+What has to be true for the example to run: a connection, and the geospatial packages available where the code runs. Both are checks rather than instructions, and both link out rather than repeating what [Connect your R session to the data](../howdoi/connect.qmd) and [Packages](../ref/packages.qmd) already say.
+
+## The stages
+
+Six, in order, each one a page. The list should read as a narrative rather than a table of contents, so that someone can decide from here whether to read on or jump.

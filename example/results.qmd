@@ -1,0 +1,34 @@
+---
+title: "Results, figures, and the record"
+subtitle: "Stage five: answering the question, and being able to answer it again"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not.
+
+:::
+
+## The answer
+
+The question from [The question, and the data](index.qmd), answered. Short, and stated as a result rather than as a demonstration of technique, with the caveat that it is not a finding about water.
+
+## The figure
+
+Ordinary `ggplot2` on an ordinary data frame. The point worth making by showing rather than saying: by this stage nothing is special, because the data is in her session and Databricks is no longer involved.
+
+## Writing results back
+
+To a volume or to a table, with the choice made explicitly for this analysis. The 50,000-row hard error on the table route is worth naming at the point someone would hit it.
+
+## The credit lines
+
+Both licences, worded exactly, because this is the page someone copies from into a paper.
+
+## What it would take to run this again next year
+
+The honest version: what is pinned, what is not, and which parts of reproducibility across the session and worker boundary are still open. This section should end with open questions rather than a workflow that has not been tested, matching [Get results out, and get the same answer next year](../howdoi/results.qmd).
+
+## What this example did not cover
+
+A short list, so the boundary is visible: rasters, scheduling, and anything the analysis did not happen to need.

@@ -11,16 +11,22 @@ subtitle: "Provenance, contents, and the attribution each licence requires"
 
 ## What each table contains
 
-Provenance and row counts.
+Provenance and row counts. Enough for a reader to tell whether an example matches the table in front of her, and no more: this is a reference page, not a data dictionary.
 
 ## Licences
 
 Two, and they are different. The environmental agency data is OGL v3.0. The storm overflow locations are CC BY 4.0, not OGL. The difference has to survive into every page that describes the data.
 
+If the river network data is used anywhere on the site, it carries a third set of attribution wording, different again from both, and needs its own credit line rather than sharing theirs.
+
+The outstanding task on this page is confirming the exact wording each licence requires, and it should not ship with approximations. A reader is copying these lines into a paper.
+
 ## Nothing here is a finding about water
 
 The data is a vehicle for demonstrating technique. No page on this site makes a substantive claim about water quality.
 
+Worth keeping prominent. The reader is an environmental scientist and will read the examples with a domain eye, so the disclaimer stops her weighing a number that was chosen to make a technique visible rather than to be true.
+
 ## Next
 
-To use these tables, start at [Connect your R session to the data](../jobs/connect.qmd). To cite them in a paper, see [Get results out, and get the same answer next year](../jobs/results.qmd).
+To use these tables, start at [Connect your R session to the data](../howdoi/connect.qmd). To cite them in a paper, see [Get results out, and get the same answer next year](../howdoi/results.qmd).

@@ -1,0 +1,34 @@
+---
+title: "Exploring and reducing the big table"
+subtitle: "Stage two: getting from tens of millions of rows to something you can hold"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not.
+
+:::
+
+## Looking before reducing
+
+The exploratory pass, done server-side. Counts, ranges, missingness, distribution across sites and years. The point to make concrete: this is ordinary `dplyr`, and it is running somewhere else, and she can tell which by where `collect()` is.
+
+## Where the line falls in this pipeline
+
+The annotated pipeline, as on [Work with a table that will not fit in your session](../howdoi/big-table.qmd), but for this specific analysis rather than as an illustration. Showing the reduction factor is the useful part: how many rows before, how many after, and what that means for what is about to happen.
+
+## A step that has to move
+
+At least one point where the obvious ordering is wrong and the fix is to move a step above or below the line. This is the thing the task pages cannot show, and the reason to keep it rather than present a pipeline that was right first time.
+
+## Reaching a function `dbplyr` will not translate
+
+The `dplyr::sql()` escape hatch, in context. Worth including if the analysis genuinely needs it, and worth cutting if it does not: a manufactured example here would undermine the section's whole claim.
+
+## What came back
+
+The reduced object, its size in the session, and a sanity check against the server-side counts.
+
+## Next
+
+[The spatial join](spatial.qmd).

@@ -1,0 +1,30 @@
+---
+title: "Getting connected and finding the tables"
+subtitle: "Stage one: from an empty R session to a table you can query"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not.
+
+:::
+
+## Opening the connection
+
+Which of the two connection paths this analysis uses, and why. Geometry is involved later, so the choice is forced: `brickster::DatabricksSQL()`, because ODBC cannot carry a `BINARY` column intact. The reasoning is on [Connect your R session to the data](../howdoi/connect.qmd) and should not be repeated here, only cited and acted on.
+
+## Finding the tables
+
+Catalog, schema, table. Worth showing the actual navigation rather than jumping to a known name, because not knowing where a table lives is a real starting condition and the three-part name is unfamiliar.
+
+## What the tables look like
+
+Row counts and columns, and the first point where the example diverges from a laptop workflow: looking at a table does not mean loading it. The page should make that visible rather than assert it.
+
+## The check that the geometry column is intact
+
+Do this at the start, not after the spatial join fails. Comparing the length the server reports against the length that arrives takes one line and catches the silent truncation described in [Connect your R session to the data](../howdoi/connect.qmd). Putting it here, early, is a deliberate choice: it is the cheapest possible place to catch it.
+
+## Next
+
+[Exploring and reducing the big table](reducing.qmd).

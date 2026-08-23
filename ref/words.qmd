@@ -17,12 +17,22 @@ Bidirectional, because the translation is needed in both directions. Being overw
 
 `sf`, `terra`, `purrr`, `furrr`, polygon, raster, CRS, EPSG, replicate, resample, fit, tune.
 
+These need no explanation, only a mapping. The entry for each says what the platform calls the thing, or says plainly that the platform has no word for it, which is itself useful: a reader who stops searching for the Databricks term for a resample has got what she came for.
+
 ## The platform's words
 
 Driver, executor, worker, node, partition, serialisation, pushdown, UDF, artifact, volume, DBFS, catalog, schema, access mode, cluster lifecycle, warehouse.
 
+This is where the explaining budget goes. Each entry has to do two things: say what the word means, and say what it changes about her work. "Driver" is not a definition exercise. It is the machine her code runs on unless she does something specific, and that is the fact that makes the rest of the site readable.
+
+Three of these carry a consequence sharp enough that the entry should state it outright rather than leave it to a job page. A **partition** is the unit of parallel work, so the count of them, and not the count of rows, decides how much runs at once. **Serialisation** is the cost paid to move work to another machine, which is why distributing can be slower than not distributing when there is no other machine to reach. And an **access mode** decides which languages a cluster will accept, in a way that is narrower than it first appears.
+
 No domain nouns belong in this table. A catchment is not a Databricks word and needs no translation.
+
+## Where a word means two things
+
+The page should carry a short list of terms the reader will meet with two incompatible meanings, because these cost more search time than unfamiliar words do. "Worker" is the clearest case: a worker machine in a cluster, and a forked R worker process inside one machine, are different things, and most parallel-R writing means the second while most Databricks writing means the first. A reader who does not have that distinction cannot read [Run a Monte Carlo simulation](../howdoi/monte-carlo.qmd) correctly, because the whole page turns on it.
 
 ## Next
 
-If a word sent you here from the middle of something, go back to it. If the word was about where your code runs, [Sending things to where your code runs](sending-things.qmd) is the page that uses this vocabulary most heavily; if it was about the machine, see [Work out what the cluster you have can do](../jobs/compute.qmd).
+If a word sent you here from the middle of something, go back to it. If the word was about where your code runs, [Sending things to where your code runs](sending-things.qmd) is the page that uses this vocabulary most heavily; if it was about the machine, see [Work out what the cluster you have can do](../howdoi/compute.qmd).
