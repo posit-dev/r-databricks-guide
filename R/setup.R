@@ -11,6 +11,11 @@
 # targets are read from the environment and from config.yml, so a clone with
 # different values needs no edit to a tracked file.
 
+# The compute targets. Sourced rather than assumed: wq_connect_odbc() below
+# calls dbx_http_path(), and a page that sources only this file would otherwise
+# fail with "object not found" at connection time rather than here.
+if (!exists("dbx_http_path")) source("dbx-config.R")
+
 # --- where the tables live -------------------------------------------------
 
 # Three-part names are built here rather than pasted into each query, so a
@@ -137,4 +142,47 @@ wq_cluster_notice <- function() {
       "this point ran normally. The outputs quoted in the prose below come ",
       "from a deliberate run, recorded on the date given.\n",
       "::::\n", sep = "")
+}
+
+# --- how many cores you may actually use ------------------------------------
+
+# detectCores() reads the MACHINE, not your share of it. Under a container it
+# reports the host's cores while cgroup quota caps what you may actually run,
+# and forking past the quota is how you get an OOM kill rather than a slowdown:
+# each worker is a real process, and anything it allocates itself (an sf
+# spatial index, say) is not shared by copy-on-write.
+#
+# This matters on the driver too. A Databricks driver is a container with a
+# quota, so the same overcommit happens there, and the symptom is a session
+# that dies rather than an error a reader can act on.
+#
+# cgroup v2 states the quota in cpu.max as "<quota> <period>"; v1 splits it
+# across two files. "max" means unlimited, in which case detectCores() is the
+# honest answer.
+wq_cpu_quota <- function() {
+  v2 <- "/sys/fs/cgroup/cpu.max"
+  if (file.exists(v2)) {
+    parts <- strsplit(readLines(v2, warn = FALSE)[1], "\\s+")[[1]]
+    if (identical(parts[1], "max")) return(NA_integer_)
+    return(as.integer(floor(as.numeric(parts[1]) / as.numeric(parts[2]))))
+  }
+  q <- "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
+  p <- "/sys/fs/cgroup/cpu/cpu.cfs_period_us"
+  if (file.exists(q) && file.exists(p)) {
+    quota <- as.numeric(readLines(q, warn = FALSE)[1])
+    if (quota <= 0) return(NA_integer_)
+    return(as.integer(floor(quota / as.numeric(readLines(p, warn = FALSE)[1]))))
+  }
+  NA_integer_
+}
+
+#' Cores it is safe to fork onto: the quota if there is one, else the machine.
+#'
+#' `reserve` leaves a core for the parent process. Pass reserve = 0 when the
+#' parent only waits, and note that on a 2-core quota reserving one leaves one,
+#' which is serial and correct rather than a failure.
+wq_cores <- function(reserve = 1L) {
+  quota <- wq_cpu_quota()
+  n <- if (is.na(quota)) parallel::detectCores() else min(quota, parallel::detectCores())
+  max(1L, as.integer(n) - reserve)
 }

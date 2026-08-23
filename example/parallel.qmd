@@ -93,11 +93,33 @@ The version this example carries forward.
 
 ```{r}
 #| label: cores
-n_cores <- max(1L, detectCores() - 1L)
+source("R/setup.R")
+n_cores <- wq_cores()
 n_cores
 ```
 
-Two facts worth stating and neither worth dwelling on. Forking is available because this is Linux, and it is cheaper than the alternative because workers share memory with the parent rather than each taking a full copy. `plan(multisession)`, and the equivalent socket cluster in `parallel`, is what to reach for on Windows and what not to reach for here.
+Forking is available because this is Linux, and it is cheaper than the alternative because the child starts as a copy-on-write view of the parent rather than a fresh copy. `plan(multisession)`, and the equivalent socket cluster in `parallel`, is what to reach for on Windows and what not to reach for here.
+
+Copy-on-write is worth being precise about, because the next section depends on it. It means a worker pays nothing to *read* what the parent already had. It does not mean a worker pays nothing for what it allocates itself, and a spatial index built inside the worker is exactly that.
+
+## Count the cores you are allowed, not the cores you can see
+
+`detectCores()` is the obvious call and it answers the wrong question. It reports the machine's cores, which is not the same as your share of them.
+
+```{r}
+#| label: quota
+tibble(
+  `detectCores()` = detectCores(),
+  `cgroup quota` = wq_cpu_quota(),
+  `wq_cores()` = wq_cores()
+)
+```
+
+Those two agree on the session this page was rendered in, and that is the uninteresting case. When they disagree you are in a container whose CPU quota is smaller than the machine it sits on, which is the normal case on a hosted workbench and on a Databricks driver, and it is worth checking rather than assuming: the same code moved to a smaller session is where this bites.
+
+Forking past the quota does not queue politely. Each worker is a real process holding real memory, so the job overshoots its memory limit and the session is killed. That arrives as a crash with no R error at all, which makes it the least diagnosable failure in this whole example.
+
+`wq_cores()` in `R/setup.R` reads the quota and takes the smaller number. On a two-core quota it returns one, and one is the honest answer: serial, and not a failure.
 
 Here is the shape, on a deliberately trivial unit of work so the mechanism is visible rather than buried:
 
@@ -142,11 +164,17 @@ peak_mb <- sum(gc()[, "max used"] * c(8, 8)) / 2^20
 round(peak_mb, 1)
 ```
 
-Across forked workers, peak memory in the parent does not climb the way it would if each worker took a full copy, because each holds only its slice and the fork is copy-on-write. This is the opposite of the big-table case, and it means the arithmetic from [Work with a table that will not fit in your session](../howdoi/big-table.qmd) does not transfer here.
+Reading shared data across forked workers costs almost nothing, because the fork is copy-on-write and none of them writes to it. So the arithmetic from [Work with a table that will not fit in your session](../howdoi/big-table.qmd) does not transfer here.
 
-## Getting the worker count wrong is cheap
+What does cost is anything a worker builds for itself. Multiply it by the worker count, because none of it is shared: `n` workers each constructing a spatial index over the same polygons pay for `n` indexes. That is the term to watch, and it is the one that goes wrong quietly.
 
-Short, and included to prevent an agonising decision. The penalty for a wrong count is mild and the fix is one number, so a reasonable guess and a re-run beats calculating it. Leaving one core free, as above, is a habit rather than a rule.
+## Too few workers is cheap, too many is not
+
+The two directions are not symmetric, which is worth knowing before you tune anything.
+
+Asking for fewer workers than you could have is mild: the job takes longer and nothing else happens. Asking for more is not, and it is not a slowdown either. Past the quota the work does not fit, and a session that is killed for exceeding its memory limit reports no error you can read.
+
+So round down. Leaving a core for the parent, as above, is a habit rather than a rule, but taking the quota rather than the machine count is a rule.
 
 ## What this decides for the rest of the example
 
@@ -161,4 +189,4 @@ The backend is settled here, and the next two pages lean on it rather than repea
 
 ---
 
-This page rests on: `future` and `furrr` are absent from the cluster runtime bundle while `sf`, `dplyr` and base `parallel` are present on the workers, confirmed by asking the workers directly; forked parallel workers do not multiply peak memory in the parent, because the fork is copy-on-write; whether a `future` multicore plan behaves correctly under a Spark executor is untested.
+This page rests on: `future` and `furrr` are absent from the cluster runtime bundle while `sf`, `dplyr` and base `parallel` are present on the workers, confirmed by asking the workers directly; forked parallel workers share what the parent already held, because the fork is copy-on-write, but each pays in full for whatever it allocates itself; `detectCores()` reports the host's cores rather than the container's CPU quota, so forking on its answer overcommits and the session is killed without an error message; whether a `future` multicore plan behaves correctly under a Spark executor is untested.
