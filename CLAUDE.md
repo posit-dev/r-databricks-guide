@@ -100,9 +100,16 @@ Expect `#447099` (light links), `#7494B1` (dark links), `#fbfaf8` (paper) and a 
 
 The navbar has been checked at narrow widths and collapses cleanly, so five sections with four dropdowns is not too wide.
 
-**Known broken, and the next presentation job:** the two annotated code blocks on `index.qmd` sit side by side in a `.grid` of two `.g-col-md-6` columns. The theme caps the measure at `42rem` on a 20px root, so each column gets about half that, and the code runs to 96 characters. The right-hand comments (`#   runs on Databricks`, `# <== the line. How much crosses it?`) are aligned into a column, and that alignment is the whole point of the examples: it is how the page shows that one line decides where the work happens. At this width it wraps and the meaning goes with it. `code-overflow: wrap` means it degrades silently rather than showing a scrollbar.
+The two annotated code blocks on `index.qmd` are **stacked full-width**, not side by side, and the code is deliberately terse. Both constraints are load-bearing, so keep them if you edit the page.
 
-Fix the layout rather than the prose. Worth weighing: stacking the blocks full-width, shortening code and comments to roughly 45 characters, or widening the measure for this page alone. Check several widths in both modes. The navbar itself is fine when narrow, already checked.
+The right-hand comments (`#   on Databricks`, `# <== how much crosses?`) are aligned into a column, and that alignment is the whole point of the examples: it is how the page shows that one line decides where the work happens. When a line exceeds the measure it wraps, the column breaks, and the meaning goes with it. `code-overflow: wrap` means that degrades silently rather than showing a scrollbar, so nothing warns you.
+
+**Do the width arithmetic before lengthening a line**, because eyeballing it is what got this wrong once already. Code renders at `0.875em` on a 20px root, and Source Code Pro advances 0.6em, so a character is 10.5px. The measure is `42rem`, 840px, less about 16px of `pre` padding:
+
+- full-width: 824px, about **78 characters**
+- one `.g-col-md-6` of a two-column `.grid`: 374px, about **36 characters**
+
+That 36 is why side by side was abandoned: it cannot hold an annotated pipeline. Terse also survives a phone better than the measure alone suggests, which is the second reason to keep it. The navbar is fine when narrow, already checked.
 
 ## Two connection paths
 

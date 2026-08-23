@@ -25,50 +25,34 @@ When one of them does hold, this guide exists to close as much of the gap as can
 
 Most of what you will do falls into one of these. They are not a taxonomy to learn, and you do not have to decide which one you are in before reading on. Look for the one that resembles code you have written.
 
-::: {.grid}
-
-::: {.g-col-12 .g-col-md-6}
-
 When the table is large, one line decides everything.
 
 ```r
-readings |>                             # a large table, sitting in Databricks
-  inner_join(gauges) |>                 #   runs on Databricks
-  filter(!is.na(value)) |>              #   runs on Databricks
-  group_by(station_id, year) |>         #   runs on Databricks
-  summarise(total = sum(value)) |>      #   runs on Databricks
-  collect() |>                          # <== the line. How much crosses it?
-  st_as_sf(crs = 27700)                 # runs in R
+readings |>                  # a large table
+  inner_join(gauges) |>      #   on Databricks
+  filter(!is.na(value)) |>   #   on Databricks
+  group_by(station_id) |>    #   on Databricks
+  summarise(mean(value)) |>  #   on Databricks
+  collect() |>               # <== how much crosses?
+  st_as_sf(crs = 27700)      # in R
 ```
 
-Everything above `collect()` runs on Databricks as SQL. Everything below it runs in your own R session, with all of `sf` and `ggplot2` and no translation. The whole question is how big the data is when it crosses.
-
-[Work with a table that will not fit in your session](howdoi/big-table.qmd)
-
-:::
-
-::: {.g-col-12 .g-col-md-6}
+Everything above `collect()` runs on Databricks as SQL. Everything below it runs in your own R session, with all of `sf` and `ggplot2` and no translation. The whole question is how big the data is when it crosses. That is [Work with a table that will not fit in your session](howdoi/big-table.qmd).
 
 When the repeats are the expensive part, almost nothing crosses.
 
 ```r
-sites <- readings |>                    # the same large table
-  group_by(site_id) |>
-  summarise(across(everything(), fit_params)) |>
-  collect()                             # a small result. Nothing so far was expensive
+sites <- readings |>         # the same table
+  group_by(site_id) |>       #   on Databricks
+  summarise(fit_params()) |> #   on Databricks
+  collect()                  # <== a small result
 
 exceedances <- sites |>
   split(sites$site_id) |>
-  map(simulate_many_years)              # the expensive part, and no data crossed to reach it
+  map(simulate_years)        # in R, expensive
 ```
 
-Here the crossing is free and the cost is in the last line, repeated. So the question is not how much data moves. It is how many repeats run at once, and whether R is present where they run.
-
-[Run a Monte Carlo simulation](howdoi/monte-carlo.qmd)
-
-:::
-
-:::
+Here the crossing is free and the cost is in the last line, repeated. So the question is not how much data moves. It is how many repeats run at once, and whether R is present where they run. That is [Run a Monte Carlo simulation](howdoi/monte-carlo.qmd).
 
 The third shape is gridded data, and it has no server-side path at all: Databricks' spatial functions work on vectors, and there is no equivalent for a raster cell. So the only question there is which side of the boundary the pixels sit on. See [Work with rasters, using `terra`](howdoi/terra.qmd).
 
