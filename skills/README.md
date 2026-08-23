@@ -19,6 +19,8 @@ Start with `r-databricks-connections`. It routes to the rest.
 - **Evidence tags.** `[verified: ran it on DATE]` means someone ran it. `[documented: read it on DATE]` means someone read the vendor documentation. `[unresolved]` means nobody knows. A documented claim is never presented as a measured one.
 - **Timings are not benchmarks.** Warehouse submit latency varies by up to 6.5× and results cache. Figures carry a date and a tag.
 - **No customer or project detail.** These skills are portable by construction. Anything naming a specific catalog, warehouse, cluster or dataset belongs in a project-local skill.
+- **Runnable scripts sit in a `scripts/` directory beside the skill.** Each is self-contained, reads every identifier from the environment with `Sys.getenv()`, and says in its header what was run, where, and when. A script that has not been executed does not belong here.
+- **This copy is published.** It is symlinked into a public repository, so anything committed may go out. Assume no private context survives.
 
 ## Prior art
 

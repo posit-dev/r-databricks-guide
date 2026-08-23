@@ -79,6 +79,40 @@ con <- DBI::dbConnect(
 
 Choose it over `odbc::databricks()` whenever a `BINARY` column is in play: `DatabricksSQL()` decodes Arrow directly and returns bytes exactly, where the ODBC path silently drops most of them. See `r-databricks-connections` for the measured byte table; it is not repeated here.
 
+## Native `GEOMETRY` and `GEOGRAPHY`: what actually arrives
+
+`[verified: ran it on 2026-08-23]` against a **Pro** SQL warehouse (serverless, `DBSQL 2026.20`).
+
+**A native geometry value arrives as an EWKT string with the SRID prefixed onto the value**, and the R column class is `character`:
+
+```
+SELECT st_geomfromtext('POINT(1 2)', 4326)   ->  "SRID=4326;POINT(1 2)"
+```
+
+This is a **different path** from geometry stored as WKB in a `BINARY` column, which is what the `DatabricksSQL()`-over-`odbc` argument above is about. Native geometry is text and needs no byte-exactness; binary-stored geometry still does.
+
+- **The SRID does not need a separate `st_srid()` call.** It is on the value, and it is *also* in the result manifest as `type_text = "GEOMETRY(4326)"`, alongside `type_name = "GEOMETRY"`.
+- **`INLINE` and `EXTERNAL_LINKS` return identical manifest schemas** for this type.
+- **The text form is not lossy**, round-tripping `POINT(1.2345678901234567 2.9876543210987654)` character-for-character.
+- **`GEOGRAPHY` behaves identically**, reporting `type_name = "GEOGRAPHY"`. Its constructor takes **one** argument: `st_geogfromtext('POINT(1 2)')`. Passing an SRID raises `WRONG_NUM_ARGS`.
+
+**Converting to `sf` is two steps**, because `sf::st_as_sfc()` does not accept the `SRID=` prefix:
+
+```r
+srid <- as.integer(sub("^SRID=([0-9]+);.*$", "\\1", x))
+sfc  <- sf::st_as_sfc(sub("^SRID=[0-9]+;", "", x), crs = srid)
+```
+
+**`brickster` 0.2.14 does not recognise either type.** `db_sql_type_to_empty_vector()` has no `GEOMETRY` or `GEOGRAPHY` case, so both fall through to the character default alongside `ARRAY`, `STRUCT` and `MAP`. The returned column is usable, since the wire form really is text, but it is indistinguishable from an unhandled type and the SRID in the manifest is discarded.
+
+**Check the warehouse type before blaming the query.** Spatial functions are documented as unavailable on **SQL Classic** warehouses, and the failure is an unknown-function error that reads like a typo. `db_sql_warehouse_get(id = ...)$warehouse_type` answers it in one call. A current Pro warehouse reports **97** `ST_` functions from `SHOW FUNCTIONS LIKE 'st_*'`, against vendor documentation's "80+".
+
+**`dbDataType()` mistypes an `sf` geometry column.** `[verified: ran it on 2026-08-23]` It returns `"STRING"` for an `sfc` column, so `dbWriteTable()` on an `sf` object writes geometry into a string column without warning. `raw` and `blob` correctly give `BINARY`. Separately, `dbDataType()` is not scalar over a `raw` vector: `as.raw(1:3)` returns three values where DBI expects one.
+
+## Runnable script
+
+`scripts/geometry-to-sf.R` demonstrates the whole path: warehouse-type check, function count, what arrives, the two-step `sf` conversion, and the precision round trip. Run on a Pro serverless warehouse on 2026-08-23. It needs `DATABRICKS_WAREHOUSE_ID`.
+
 ## Two recorded gotchas
 
 - **Call `db_context_command_run_and_wait(..., parse_result = FALSE)`.** The default parsing path pulls in `huxtable` and `magick` to format the result, a heavy and usually unwanted dependency chain for what is otherwise a lightweight remote-execution call.

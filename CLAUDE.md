@@ -117,6 +117,19 @@ Five portable skills covering connections, `brickster`, Unity Catalog, compute l
 
 Note that the skills keep evidence tags in their own text. That is correct: they are reference material for an agent deciding what to trust. The site's prose does not.
 
+### The research repo writes skill code; this repo decides what is published
+
+Upstream contributes to `skills/` directly, and specifically contributes **runnable code examples**: scripts it has actually run on a cluster, alongside the findings they establish. That is the right division, because it can run things this repo cannot, and an example nobody has executed is worth less than none.
+
+**Publication authority stays here.** Because the symlink makes this the copy that gets committed, and this repo is public by default, nothing reaches the outside world without passing through it. So treat an upstream contribution as a submission, not as a merge already made:
+
+- **Run `scripts/check-public.sh` before committing it.** The check scans only what git tracks, so new untracked files are invisible to it until added. Add them first, or run the patterns against the new paths by hand.
+- **Read every script for identifiers.** A cluster id, warehouse id, catalog or host name must be read with `Sys.getenv()`. `DATABRICKS_CLUSTER_ID` is per-user by construction.
+- **Hold it to this repo's conventions**, which upstream has no reason to share: base pipe, no em-dashes, UK English, and no repo, dataset or customer name.
+- **Rewrite freely.** Upstream's wording is a draft here. Keeping the measurement and changing the prose around it is normal and needs no negotiation.
+
+Editing a contributed script is fine and expected, but the measurements in it are upstream's evidence: change what a script *says* without re-running it, never what it *found*.
+
 ## House style
 
 - **UK English.** `-ise` not `-ize`. Code identifiers keep their real spelling.
@@ -131,7 +144,9 @@ Note that the skills keep evidence tags in their own text. That is correct: they
 
 ## Where the findings come from
 
-The research that established what this guide says lives in a separate, private repository. It notifies this one through a downstream changelog rather than by sharing files.
+The research that established what this guide says lives in a separate, private repository. It reaches this one two ways, and they carry different things. **Facts arrive as a downstream changelog**, prose to be read and acted on, never files to be copied. **Code arrives in `skills/`**, as runnable examples upstream has executed, written into the shared copy directly. Nothing else crosses: the site's own pages are written here.
+
+So a finding that changes what the guide says comes through the changelog even when the script demonstrating it lands in `skills/`. If a skill gains an example whose claim is not in the changelog, that is a gap upstream needs to close, not a fact to promote onto a page.
 
 Each page here should carry a short note naming the claims it rests on, phrased as claims rather than file references, so a changelog entry can be matched to the pages it affects without either repo knowing the other's internals.
 

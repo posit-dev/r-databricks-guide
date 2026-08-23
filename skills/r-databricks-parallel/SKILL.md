@@ -26,7 +26,9 @@ Work down that table in order. Each row costs more to set up and debug than the 
 
 ## What `spark_apply()` actually does
 
-It applies an R function to each partition of a Spark DataFrame on the executors, and reassembles the results into one Spark DataFrame. The function receives a data frame and must return one. `group_by` changes the unit of work from "one partition" to "one group"; `packages` controls which libraries are distributed to the workers; `names` sets the output column names. `[documented: read it on 2026-08-19]`
+It applies an R function to each partition of a Spark DataFrame on the executors, and reassembles the results into one Spark DataFrame. The function receives a data frame and must return one. `group_by` changes the unit of work from "one partition" to "one group"; `packages` controls which libraries are distributed to the workers; `columns` sets the output column names and types. `[documented: read it on 2026-08-19]`
+
+**There is no `names` argument**, despite its appearing in circulating examples. The signature in `sparklyr` 1.9.5 is `x, f, columns, memory, group_by, packages, context, name, barrier, fetch_result_as_sdf, partition_index_param, arrow_max_records_per_batch, auto_deps, ...`; `name` (singular) is the registered table name, not the columns. A `names =` argument is silently swallowed by `...`. `[verified: ran it on 2026-08-23]`
 
 ```r
 library(sparklyr)
@@ -40,6 +42,63 @@ out <- sdf |>
 ```
 
 See `r-databricks-connections` for why `spark_connect(method = "databricks_connect", ...)` is the sparklyr path among the five connection choices, and cite it rather than re-deriving the decision here.
+
+## Inside the worker it is ordinary R; `spark_apply()` is a stage, not an expression
+
+**`mutate()` and the rest of dplyr work unchanged inside the worker function.** The worker receives a local data frame and returns one, so nothing is translated and nothing needs a SQL equivalent. `[verified: ran it on 2026-08-23]`
+
+```r
+sdf |> spark_apply(function(df) dplyr::mutate(df, doubled = id * 2))
+```
+
+Columns the worker adds are typed correctly on return without being declared: adding two gave `integer, numeric, character` with `columns` omitted. Namespace-qualify `dplyr::` rather than relying on attach order in the worker.
+
+**The reverse shape cannot work.** Calling `spark_apply()` inside a `mutate()` on a lazy table fails at translation, before any cluster is involved:
+
+```
+Caused by error in `FUN()`: ! Unknown input type: pairlist
+```
+
+The cause is general and not specific to `spark_apply()`. `dbplyr` walks the expression to build SQL and reaches the function's formals, a `pairlist`, which has no SQL representation. **Any R closure written inline inside a `mutate()` on a remote table fails identically**: substituting a function that does not exist gives the same error, while an unknown function *without* a closure argument translates fine and becomes a SQL function call. `[verified: ran it on 2026-08-23]`
+
+So `spark_apply()` composes as a pipeline stage: `mutate()` before it or after it, never inside. Be alert for a circulating example of the failing form that uses a `names =` argument and shows an output table it cannot have produced.
+
+## Parallelism comes from partitions, not from the node's cores
+
+**One R process per task, and a task gets one core.** `[verified: ran it on 2026-08-23]` 2 partitions gave 2 distinct PIDs, 8 partitions gave 8. The consequence is that **partition count is the dial** controlling how much of a machine a job uses, and under-partitioning wastes it silently:
+
+| Shape | Work per task | Wall clock |
+|---|---|---|
+| 1 partition | 1.2e7 iterations | 35.8 s |
+| 4 partitions | 3e6 iterations each | 35.8 s |
+
+Four times the work in one process took the same elapsed time as a quarter of it in each of four. Nothing in the output distinguishes the two cases.
+
+**The worker sees the whole machine**, reporting the node's full `parallel::detectCores()` rather than a restricted allocation. That is what makes the waste invisible, and also what makes the remedy work.
+
+**Nesting a fork inside the worker reclaims the idle cores.** Measured inside the worker: `parallel::mclapply(mc.cores = 4)` against serial `lapply` on identical work gave **0.591 s versus 0.198 s, 2.98×**. The driver gave 2.57× on the same benchmark, so the worker is not restricted relative to it. `[verified: ran it on 2026-08-23]`
+
+**Prefer more partitions where the data allows it.** Nesting earns its cost only when partition count is bounded below available cores: few large groups, or one expensive task per row of a small frame.
+
+**Choose `mc.cores` against cores per executor, not against `detectCores()`.** Nested forks multiply: 8 partitions each forking 4 ways is 32 processes on a 4-core node.
+
+**Time inside the worker when the question is about the worker.** Timing the same comparison as wall clock of the whole job gave 29.7 s against 28.3 s and reads as "nesting buys nothing"; submission, library serialisation and collection dominate a sub-second difference.
+
+`furrr` and `future` are **`[unresolved]`** here: neither is in the DBR 18.1 runtime bundle, so both need an init-script change, and whether `future`'s multicore plan behaves correctly under a Spark executor has not been tested. `parallel` is base R and already present.
+
+Measured on one 4-core single-node cluster, one session. One-process-per-task is established; the core arithmetic has not been re-checked where tasks compete across several executors.
+
+## Runnable scripts
+
+Three scripts in `scripts/`, each self-contained, each reading `DATABRICKS_CLUSTER_ID` from the environment. They were run on a 4-core single-node DBR 18.1 cluster on 2026-08-23 and are the source of the measurements above. Verified on the cluster's own R session; each script's header notes what changes for a client connection. `nested-parallel.R` reproduced its result independently on a second run (3.01x against 2.98x).
+
+| Script | Answers |
+|---|---|
+| `partition-shape.R` | How many R processes ran, on how many machines, with how many cores each. Run this before tuning anything |
+| `nested-parallel.R` | Whether forking inside the worker reclaims idle cores, timed inside the worker |
+| `worker-dplyr.R` | The working and non-working shapes for dplyr with `spark_apply()`, including the failure |
+
+`partition-shape.R` is the one to reach for first: a job that looks parallel and is not looks exactly like a job that is.
 
 ## Prerequisites: hard gates, checked before writing any `spark_apply()` code
 
@@ -88,7 +147,17 @@ The cluster measured had no worker nodes: the parallelism observed was across co
 
   **Whether this persists across machines is still `[unresolved]`**, because on a multi-node cluster the `group_by` path could not be run at all: on **`rpy2` 3.6.x it fails outright**, raising `DeprecationWarning` from `pandas2ri.activate()` inside `pysparklyr`'s `udf/udf-apply.py`, which is the template used only when `group_by` is supplied. Ungrouped calls are unaffected. `[verified: ran it on 2026-08-21]` So on a current runtime the practical rule is stronger than the performance argument: **the grouped path does not run.**
 
-- **`columns =` must be a Spark DDL string under `databricks_connect`, not the documented named list.** `[verified: ran it on 2026-08-20]` `columns = list(id = "character", m = "double")`, the form `?spark_apply` documents, fails with a bare `Error: non-character argument`. A named character vector fails with `PySparkTypeError: [NOT_DATATYPE_OR_STR] Argument 'returnType' should be a DataType or str`. **The working form is `columns = "id string, m double"`.** Omitting `columns` entirely also works. Neither error names the argument at fault, so this reads as a fault in the worker function or the data, and it is neither. Seen on `sparklyr` 1.9.5 against DBR 15.4; whether other connection methods are affected is **untested**.
+- **`columns =` must be a Spark DDL string under `databricks_connect`, not the documented named list.** `[verified: ran it on 2026-08-20]` `columns = list(id = "character", m = "double")`, the form `?spark_apply` documents, fails with a bare `Error: non-character argument`. A named character vector fails with `PySparkTypeError: [NOT_DATATYPE_OR_STR] Argument 'returnType' should be a DataType or str`. **The working form is `columns = "id string, m double"`.** Omitting `columns` entirely also works. Neither error names the argument at fault, so this reads as a fault in the worker function or the data, and it is neither. Seen on `sparklyr` 1.9.5 against DBR 15.4.
+
+  **The other connection path wants the opposite form, and neither rejects the other's.** `[verified: ran it on 2026-08-23]` Running on the cluster's own R session (`method = "databricks"`, which is what a notebook uses) dispatches to `sparklyr:::spark_apply.default()`, which treats a character `columns` as a **vector of names**. So the DDL string that is correct client-side renames only the first inferred column, to the entire string: `columns = "id long, doubled double"` returns a frame whose first column is literally named `id long, doubled double`. The data is correct and correctly typed; only the name is wrong, and the later failure is `Column \`id\` doesn't exist`, which reads like the worker returned the wrong shape.
+
+  | Connection | Correct form |
+  |---|---|
+  | `databricks_connect` (client) | `columns = "id long, doubled double"` |
+  | `databricks` (cluster-side) | `columns = c("id", "doubled")` |
+  | either | omit `columns` |
+
+  **Omitting `columns` is the portable form**, and is what an example should show unless it needs to fix types. Reported as a comment on `sparklyr/sparklyr#3529`.
 
 ## Databricks Connect is a reduced Spark API
 
