@@ -1,0 +1,50 @@
+---
+title: "Sending things to where your code runs"
+subtitle: "Getting an object or a file to the machine that will use it"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not.
+
+:::
+
+## The default, in one sentence
+
+Write the thing to a Unity Catalog volume with `brickster::db_volume_write()`, and read it in the worker as an ordinary local file from `/Volumes/...`. That is the answer up to 5 GiB, and it is the answer for anything file-shaped.
+
+## Three situations
+
+| If the thing you need is... | Do this | Where it stops |
+|----|----|----|
+| A file, or anything over a few kB | Write it to a Unity Catalog volume, then read `/Volumes/...` in the worker as a local file | 5 GiB |
+| A small R object, a few kB, and you have no volume | Serialise it into the function body | Needs `serialize(version = 2)`, and the line breaks stripped from the base64. Both failures report `unknown type 0`, which tells you nothing |
+| A table you will query again later | Write it as a table | Hard error above 50,000 rows without a staging volume |
+
+## Traps on the way through
+
+### A `BINARY` column reaches a worker as a text representation, not as bytes
+
+Base64 on the way out, decode in the worker.
+
+### `spark_apply()`'s documented `columns = list(...)` form fails here
+
+Use a Spark DDL string. Upstream issue `sparklyr/sparklyr#3529`.
+
+### Do not compare hashes across R minor versions
+
+Compare content.
+
+## What else was tried, and what it did
+
+::: {.callout-note collapse="true"}
+
+## The full comparison
+
+For the reader auditing the claims rather than getting work done. Includes the two mechanisms that are not recommended: `spark_apply(context =)`, which does not work on this backend, and an unexported internal function.
+
+:::
+
+---
+
+This page rests on: `brickster::db_volume_write()` works and the worker reads the result as a local file, up to 5 GiB; serialising into the closure body works but needs `version = 2` and stripped line breaks; `dbWriteTable()` hard errors above 50,000 rows without a staging volume; `spark_apply(context =)` does not work on the `databricks_connect` backend; a `BINARY` column arrives in a worker as a text representation; `columns = list(...)` fails where a Spark DDL string works.

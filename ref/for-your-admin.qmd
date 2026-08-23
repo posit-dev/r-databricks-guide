@@ -1,0 +1,40 @@
+---
+title: "For your admin"
+subtitle: "Written for whoever administers the workspace, not for the person using it"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not.
+
+:::
+
+If you have arrived here from another page, this one is not addressed to you. Pass it on.
+
+This was verified in a test workspace, and in your workspace much of it may already be done.
+
+## What an R user needs from a runtime image to do geospatial work
+
+## System libraries and R packages are two separate problems
+
+Conflating them costs a week.
+
+## The init script, and why it must be an init script
+
+It runs on every node. An interactive install touches only the driver.
+
+## Version constraints found in practice
+
+## Build times, and why a binary repository does not help
+
+Binaries are keyed to both the distribution and the R minor version.
+
+## Pay it once
+
+Build to local disk, copy the tree to a Unity Catalog volume, prepend that path to `.libPaths()`. Reusable by any later cluster with the same R version and image, and verified working inside a `spark_apply()` worker.
+
+## Every R context gets its own ephemeral library
+
+---
+
+This page rests on: the stock runtime image ships no GDAL, GEOS or PROJ, so `install.packages("sf")` fails at configure; an init script fixes the system layer and runs on every node where an interactive install touches only the driver; the image's pinned `Rcpp` is older than current `units` requires; `terra` must be pinned against the image's GDAL; a prebuilt library tree on a volume is reusable and works inside a `spark_apply()` worker.

@@ -1,0 +1,70 @@
+---
+title: "Run a Monte Carlo simulation"
+subtitle: "Simulating, bootstrapping, resampling or fitting many times over: once per site, per polygon, per resample or per replicate"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not. Two open items: the `furrr` re-run, and one geospatial replicate run end to end in a worker.
+
+:::
+
+## The crossing is free, the repetition is not
+
+A large table shrinks server-side to a small one, and only then does the expensive work start.
+
+## Memory is not the constraint here
+
+Across four forked workers, peak R memory fell rather than rose, because each worker holds only its slice. The opposite of the big-table case.
+
+## The shape
+
+One independent unit per site, per polygon, per resample or per replicate.
+
+## Running the repeats serially, with `purrr::map()`
+
+## Running them across the cores you have, with `furrr::future_map()`
+
+With `future::plan(multicore)`.
+
+## `plan(multisession)` does not carry the memory finding
+
+Each session gets its own full copy rather than a fork. `multisession` is the plan people reach for by default, and it is the one that works on Windows. You are on Linux, where forking is available and better.
+
+## Is the cluster worth it?
+
+On the arithmetic alone. Session sizes stated with every number. Single runs, not benchmarks.
+
+## Getting the worker count wrong is cheap
+
+## If your replicates do polygon work, `sf` has to load inside the worker too
+
+Check, then see [Packages](../ref/packages.qmd). This depends on your admin having built a library volume: if they have not, this section does not apply to you.
+
+## Bootstrapping and resampling are the same shape
+
+## Tuning across resamples
+
+The tidymodels path, and why it works without you doing anything.
+
+## If you reach for `spark_apply()`
+
+### On a single node it was slower than forked workers
+
+It pays serialisation for no distribution benefit.
+
+### It does distribute across worker machines
+
+Observed on a two-worker cluster, counting distinct machine names rather than process ids. Two workers answers whether it distributes at all, and nothing about how it scales.
+
+### Count machines, not processes
+
+Two machines can report the same process id, so a process count cannot tell a single-node cluster from a distributed one.
+
+### The grouped path does not run on a current runtime
+
+`spark_apply(group_by = ...)` fails outright on `rpy2` 3.6.x. Where it did run, it used one R process where the default used four, and was slower on identical work with the same answer. The mechanism behind that is unexplained.
+
+---
+
+This page rests on: a 32.5 million row table shrinks server-side to a small result before the expensive work starts; forked parallel workers reduced peak R memory rather than increasing it; `spark_apply()` was slower than forked workers on a single node; `spark_apply()` has been observed distributing tasks across two worker machines, neither of them the driver; `spark_apply(group_by =)` fails on `rpy2` 3.6.x, and where it ran was slower than the default partitioning.

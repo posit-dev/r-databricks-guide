@@ -1,0 +1,34 @@
+---
+title: "Check that you get the same answer wherever it ran"
+subtitle: "Confirming that a computation done on the server and the same one done in R agree, and by how much"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not. Needs the recipe run on a second, structurally different computation before it can teach a technique rather than an anecdote.
+
+:::
+
+## The two sides agree, and here is how closely
+
+## Why they can disagree at all
+
+Floating point, aggregation order, and a CRS you set in one place and not the other.
+
+## The recipe
+
+Compute it server-side, compute it in R on a sample you can hold, compare relative difference against a tolerance you choose, and record the tolerance.
+
+## Choosing a tolerance, and why "identical" is the wrong test
+
+## What to check when the work ran in a worker rather than in your session
+
+## Do not compare hashes
+
+They are not portable across R minor versions, and a false mismatch looks exactly like corruption. Compare content.
+
+## Recording the check alongside the result, so the paper can refer to it
+
+---
+
+This page rests on: worker-computed polygon area matched the warehouse's own to a relative difference of 3.1e-12; hashing an R object is not portable across R minor versions.

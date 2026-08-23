@@ -1,0 +1,50 @@
+---
+title: "Work with a table that will not fit in your session"
+subtitle: "Where each step of your pipeline runs, and how much data comes back"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not.
+
+:::
+
+## One line decides where the work happens
+
+The annotated `collect()` pipeline. Above the line, Databricks. Below it, R.
+
+## What "too big" means here
+
+32.5 million rows is about 2.5 GB in R and fits in a 32 GB session. The point is that the next dataset will not, and the technique does not change.
+
+## Three things can happen at that line
+
+### Shrink first
+
+Only R has the function, but the data summarises down before it gets there.
+
+### Stay server-side
+
+You need one row out per row in, and Databricks has the function.
+
+### The hard case
+
+Only R has the function, and you need one row out per row in.
+
+## Reaching a function `dbplyr` cannot translate, with `dplyr::sql()`
+
+## Fitting a model on what came back
+
+This is the first case, and there is nothing special about it.
+
+## Where this stops
+
+Spark SQL has no ordinal-regression or cumulative-link primitive, which is what forces that class of model into R.
+
+## Next
+
+If the repeats are the expensive part, see [Run a Monte Carlo simulation](monte-carlo.qmd).
+
+---
+
+This page rests on: a 32.5 million row table reduces by three orders of magnitude before crossing into R; `dplyr::sql()` reaches Spark SQL functions `dbplyr` cannot translate; Spark SQL has no ordinal-regression primitive.

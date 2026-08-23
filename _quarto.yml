@@ -7,18 +7,63 @@ project:
   execute-dir: project
   render:
     - index.qmd
+    - jobs/*.qmd
+    - ref/*.qmd
 
 website:
   title: "R on Databricks"
   description: "A working guide for R users whose data lives in Databricks."
+  # repo-actions needs repo-url alongside it: without the url, Quarto renders the
+  # page with only a build-time warning and the edit/issue links never appear.
+  repo-url: https://github.com/posit-dev/r-databricks-guide
+  repo-branch: main
+  repo-actions: [edit, issue]
+  # The nine jobs are the site's structure, and the front page lists them all.
+  # The navbar carries only the reference material, so that the job list is read
+  # once, deliberately, rather than skimmed as a dropdown.
   navbar:
     left:
       - href: index.qmd
         text: Start here
+    right:
+      - text: Reference
+        menu:
+          - href: ref/words.qmd
+            text: Words
+          - href: ref/sending-things.qmd
+            text: Sending things to where your code runs
+          - href: ref/packages.qmd
+            text: Packages
+          - href: ref/when-it-breaks.qmd
+            text: When it breaks
+          - text: "---"
+          - href: ref/data.qmd
+            text: The data and its licences
+          - href: ref/evidence.qmd
+            text: How claims are tagged
+          - href: ref/for-your-admin.qmd
+            text: For your admin
+  sidebar:
+    - title: "Jobs"
+      style: floating
+      contents:
+        - section: "The jobs"
+          contents:
+            - jobs/connect.qmd
+            - jobs/interactive.qmd
+            - jobs/big-table.qmd
+            - jobs/polygons.qmd
+            - jobs/terra.qmd
+            - jobs/monte-carlo.qmd
+            - jobs/check-the-answer.qmd
+            - jobs/compute.qmd
+            - jobs/results.qmd
 
 format:
   html:
-    theme: cosmo
+    theme:
+      light: [cosmo, assets/andrie-site.scss]
+      dark: [darkly, assets/andrie-site-dark.scss]
     toc: true
     df-print: default
     code-copy: true

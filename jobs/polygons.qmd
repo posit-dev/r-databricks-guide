@@ -1,0 +1,36 @@
+---
+title: "Join and transform polygons"
+subtitle: "Real spatial work when the polygons start out in the table rather than in R"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not.
+
+:::
+
+## The spatial functions are on both sides of the line
+
+23 of 23 probed `ST_` functions work server-side, so needing a spatial operation is not by itself a reason to bring data back.
+
+## Set the CRS yourself
+
+Polygons are stored as WKB in a `BINARY` column with no embedded SRID. `st_srid` returns 0, and the number has to come from you.
+
+## Transforming once, server-side, instead of per iteration
+
+EPSG:4326 to EPSG:27700, worked.
+
+## Aggregating server-side when only a scalar needs to cross
+
+## The full `sf` pipeline below the line, when that is what you want
+
+## Points work the same way
+
+## Next
+
+Gridded data does not work like this. And if you want to confirm the server-side answer matches R's, see [Check that you get the same answer wherever it ran](check-the-answer.qmd).
+
+---
+
+This page rests on: 23 of 23 probed native `ST_` functions work on the SQL warehouse; `st_transform` works server-side between EPSG:4326 and EPSG:27700; geometry is stored as WKB with no embedded SRID; polygon area aggregates server-side with only a scalar crossing.

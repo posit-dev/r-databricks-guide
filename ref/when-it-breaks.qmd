@@ -1,0 +1,35 @@
+---
+title: "When it breaks"
+subtitle: "Organised by what you saw, not by what is wrong"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not.
+
+:::
+
+Each entry states what you saw, why it happens, the fix, and whether the fix is yours or your admin's.
+
+## Entries to write
+
+- Polygons come back truncated or unreadable
+- `unknown type 0`
+- A package upgrade appears not to have taken
+- `install.packages("sf")` fails at configure
+- `terra` fails to load
+- A `BINARY` value arrives far longer than it should be
+- `columns = list(...)` rejected
+- `context =` rejected
+- Hashes differ between your session and a worker
+- An R notebook refuses to attach to a cluster
+- A `spark_apply()` job is slower than the serial version
+- `spark_apply(group_by = ...)` raises a deprecation warning from `pandas2ri.activate()`
+
+## Next
+
+If nothing above matches what you saw, the cause is often vocabulary rather than a fault: [Words](words.qmd) translates the term in the error message. If it looks like a missing package, see [Packages](packages.qmd).
+
+---
+
+This page rests on the same claims as the pages that link to it, keyed to the symptom rather than the mechanism.

@@ -1,0 +1,64 @@
+/*-- scss:defaults --*/
+
+// andrie-site.scss: Andrie de Vries' house style for Quarto websites.
+// Companion to andrie-slides.scss (revealjs). Same fonts and same accent,
+// sized for reading rather than projection.
+//
+// Use with: theme: {light: [cosmo, andrie-site.scss], dark: [darkly, andrie-site-dark.scss]}
+
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,400;0,600;1,400&display=swap');
+
+// Posit palette, shared with andrie-slides.scss
+$posit-light-blue-2: #A2B8CB;
+$posit-light-blue-3: #7494B1;
+$posit-blue:         #447099;
+$posit-orange:       #EE6331;
+$posit-dark-blue-3:  #17212B;
+
+// Type. Root size 20px against Bootstrap's 16px default: prose
+// documentation is read, not scanned. Verified to compile to 1.25rem.
+$font-family-sans-serif: 'Open Sans', sans-serif !default;
+$font-family-monospace:  'Source Code Pro', monospace !default;
+$font-size-root: 20px !default;
+$headings-font-weight: 600 !default;
+
+// Light mode. Paper is tinted rather than pure white, so code blocks and
+// callouts read as raised surfaces.
+$body-bg:    #fbfaf8 !default;   // body on this: 15.62:1
+$body-color: $posit-dark-blue-3 !default;
+$link-color: $posit-blue !default;        // 5.00:1 on $body-bg
+$link-hover-color: darken(saturate($link-color, 40%), 10%) !default;
+$code-color: $posit-orange !default;
+
+// Measure. Long lines are hard to track back at 20px.
+$content-max-width: 42rem !default;
+
+/*-- scss:rules --*/
+
+// Headings tint toward the accent rather than sitting at pure black.
+h1, h2, h3, h4, h5, h6 {
+  color: mix($body-color, $link-color, 88%);
+}
+
+// Hairline rules instead of cards and shadows.
+h2 {
+  border-bottom: 1px solid rgba($body-color, 0.12);
+  padding-bottom: 0.2em;
+  margin-top: 2.2rem;
+}
+
+// Hover is an underline, never a fill.
+a:hover { text-decoration: underline; }
+
+code:not(.sourceCode) {
+  background-color: rgba($link-color, 0.07);
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+}
+
+// For an unreleased link in a schedule table: text present, dimmed, not a link.
+// 0.75, not a lighter value: at 0.5 alpha this measures 3.17:1 on the light
+// ground, a WCAG AA failure. Bootstrap's own .text-muted carries !important,
+// so this needs it too or the rule is dead CSS. Measured 7.02:1.
+.text-muted { color: rgba($body-color, 0.75) !important; }

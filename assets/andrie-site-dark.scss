@@ -1,0 +1,52 @@
+/*-- scss:defaults --*/
+
+// andrie-site-dark.scss: dark companion to andrie-site.scss.
+// The accent holds its hue and lifts its lightness, so it stays legible
+// on a dark ground. Both values measured, not estimated.
+
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,400;0,600;1,400&display=swap');
+
+$posit-light-blue-2: #A2B8CB;
+$posit-light-blue-3: #7494B1;
+$posit-orange:       #EE6331;
+$posit-dark-blue-3:  #17212B;
+
+$font-family-sans-serif: 'Open Sans', sans-serif !default;
+$font-family-monospace:  'Source Code Pro', monospace !default;
+$font-size-root: 20px !default;
+$headings-font-weight: 600 !default;
+
+$body-bg:    $posit-dark-blue-3 !default;
+$body-color: #ccc !default;
+$link-color: $posit-light-blue-3 !default;   // 5.13:1 on $body-bg
+$link-hover-color: lighten($link-color, 12%) !default;
+$code-color: $posit-orange !default;         // 5.02:1 on $body-bg
+
+$content-max-width: 42rem !default;
+
+/*-- scss:rules --*/
+
+h1, h2, h3, h4, h5, h6 {
+  color: $posit-light-blue-2;   // 7.96:1 on $body-bg
+}
+
+h2 {
+  border-bottom: 1px solid rgba($body-color, 0.15);
+  padding-bottom: 0.2em;
+  margin-top: 2.2rem;
+}
+
+a:hover { text-decoration: underline; }
+
+code:not(.sourceCode) {
+  background-color: rgba($link-color, 0.12);
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+}
+
+// For an unreleased link in a schedule table: text present, dimmed, not a link.
+// 0.75, not a lighter value: at 0.5 alpha this measures 3.17:1 on the light
+// ground, a WCAG AA failure. Bootstrap's own .text-muted carries !important,
+// so this needs it too or the rule is dead CSS. Measured 7.61:1.
+.text-muted { color: rgba($body-color, 0.75) !important; }

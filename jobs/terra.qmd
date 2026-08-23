@@ -1,0 +1,38 @@
+---
+title: "Work with rasters, using `terra`"
+subtitle: "Why gridded data behaves differently from polygons here, and what your two options are"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not.
+
+:::
+
+## `terra` has no server-side equivalent
+
+The `ST_` functions are vector functions, and there is no `ST_` for a raster cell. So there is no server-side path for gridded data.
+
+## So you have two options
+
+Bring the data to R, or send R to the data.
+
+## Check whether `terra` loads where your code runs, before anything else
+
+The two-line check. If it fails, see [Packages](../ref/packages.qmd).
+
+## If you send R to the data
+
+A disk-backed raster serialises its file path, not its pixels, so the file has to be reachable from the worker. That means a volume, not your own filesystem.
+
+## Reading `/Volumes/...` from inside a worker
+
+## What this rules out, stated plainly
+
+## Next
+
+[Sending things to where your code runs](../ref/sending-things.qmd).
+
+---
+
+This page rests on: the native `ST_` functions are vector functions with no raster equivalent, so gridded work has no server-side path; a disk-backed raster object serialises its file path rather than its pixels.

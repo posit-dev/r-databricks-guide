@@ -1,0 +1,32 @@
+---
+title: "Connect your R session to the data"
+subtitle: "Which connection to open, and why the choice matters before you write any code"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not.
+
+:::
+
+## Use `brickster::DatabricksSQL()` if geometry is involved. Otherwise either path works
+
+## Why: ODBC silently truncates `BINARY`
+
+A 1,025-byte polygon comes back as 1 byte, and it is a correct prefix, so nothing errors. Upstream issue `r-dbi/odbc#1024`.
+
+## Finding your table
+
+Catalogs, schemas and tables, and what Unity Catalog is doing for you.
+
+## What your connection is, and is not
+
+A client to remote compute, not a session on it.
+
+## Next
+
+Whichever of these resembles the code you have written: [work with a table that will not fit in your session](big-table.qmd), [join and transform polygons](polygons.qmd), or [run a Monte Carlo simulation](monte-carlo.qmd).
+
+---
+
+This page rests on: ODBC truncates `BINARY` values to length mod 1024 at every setting tried, returning a correct prefix so nothing errors; `brickster::DatabricksSQL()` returns `BINARY` byte-exact.

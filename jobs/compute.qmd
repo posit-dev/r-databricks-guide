@@ -1,0 +1,40 @@
+---
+title: "Work out what the cluster you have can do"
+subtitle: "Reading the compute you were given, and what you can and cannot change about it"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not.
+
+:::
+
+## You can start and stop what you have. You cannot change its shape
+
+## What you have
+
+A group cluster that is probably already running, and a personal cluster you can start and stop yourself.
+
+## Reading a cluster
+
+Cores, memory, and how many nodes. `num_workers = 0` means everything is one machine, whatever else the interface implies. Three lines that report your own cluster's node count and access mode, so you can answer this for yourself rather than taking the site's word for it.
+
+## Access modes, and the honest state of it
+
+A Standard cluster refuses R *notebooks*, but a client connection to one works. Whether `spark_apply()` works on Standard is open, and this guide will not assert it either way. It matters because your group cluster is quite likely Standard.
+
+## What costs time
+
+Starting a stopped personal cluster takes minutes, an already-running cluster is warm, and a cluster bills until it auto-terminates.
+
+## The one thing you have to ask for
+
+A new cluster, and therefore a different shape. What to ask for, and why.
+
+## What is still unknown
+
+Listed, with the reason it is unknown.
+
+---
+
+This page rests on: `num_workers = 0` means a single machine; a Standard access-mode cluster refuses R notebooks while a client connection to one works; whether `spark_apply()` works under Standard access mode is unresolved.

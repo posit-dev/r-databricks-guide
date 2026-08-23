@@ -1,0 +1,30 @@
+---
+title: "How claims are tagged"
+subtitle: "What the labels mean, and the machine each number came from"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not. This page must render in every output format, because outside HTML it is the only place the three words are defined.
+
+:::
+
+## Three words
+
+Verified, documented, and open, and what each means.
+
+## Inheritance
+
+Page-level and column-level tags, and what an untagged claim means. Stated here once and nowhere else, because a rule restated on every page is itself the clutter.
+
+## The machine
+
+One workspace, and the session size, node count, runtime version and access mode for each recorded run.
+
+## Why no number here is a benchmark
+
+Single runs. Warehouse submit latency varies by up to 6.5x, and results cache.
+
+## What is open, in one place
+
+With the reason each one is open, and what would settle it.

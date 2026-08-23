@@ -1,0 +1,28 @@
+---
+title: "Words"
+subtitle: "Your word, the word you will see in Databricks documentation, and what it means for your work"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not.
+
+One discipline makes this page worth writing: source every entry from an error message or a documentation page you would actually meet, not from a glossary. The test for an entry is whether it would have saved somebody a search.
+
+:::
+
+Bidirectional, because the translation is needed in both directions. Being overwhelmed by documentation is very often a vocabulary problem.
+
+## Your words
+
+`sf`, `terra`, `purrr`, `furrr`, polygon, raster, CRS, EPSG, replicate, resample, fit, tune.
+
+## The platform's words
+
+Driver, executor, worker, node, partition, serialisation, pushdown, UDF, artifact, volume, DBFS, catalog, schema, access mode, cluster lifecycle, warehouse.
+
+No domain nouns belong in this table. A catchment is not a Databricks word and needs no translation.
+
+## Next
+
+If a word sent you here from the middle of something, go back to it. If the word was about where your code runs, [Sending things to where your code runs](sending-things.qmd) is the page that uses this vocabulary most heavily; if it was about the machine, see [Work out what the cluster you have can do](../jobs/compute.qmd).

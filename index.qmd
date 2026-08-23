@@ -1,15 +1,96 @@
 ---
 title: "R on Databricks"
-subtitle: "A working guide for getting your analysis running"
+subtitle: "A working guide for a research scientist whose data lives in Databricks"
 ---
 
-You are fluent in R. Your data is in Databricks, and that was not your choice. Most of
-what is written about Spark is aimed at someone administering a platform rather than
-someone trying to finish an analysis.
+You write R. Your data is in Databricks. Almost everything published about Spark is written for someone administering a platform, and you are trying to finish an analysis.
 
-This guide is for the second person.
+This guide is for you, and for nobody else. It assumes you read R, the tidyverse, `sf` and `tidymodels` fluently, and it spends its whole explaining budget on the other thing: where your code runs, what has to move before it can run there, and what it costs you.
 
-::: {.callout-note appearance="simple"}
-**Under construction.** The structure of this guide is being designed. Nothing below
-this line yet.
+## You were working on your laptop, and now you are working on Databricks
+
+And it is harder. That is not your imagination, and it is worth saying before anything else.
+
+The reason the choice may not be yours is usually one of three: the data is too big to move, governance decides where it lives, or the compute genuinely wins. If none of those hold, and the data fits in your session, work locally. Local R is quicker to set up, easier to debug, and better for your science. Nothing on this site argues otherwise.
+
+When one of them does hold, this guide exists to close as much of the gap as can be closed.
+
+## Two shapes of work, and a third
+
+Most of what you will do falls into one of these. They are not a taxonomy to learn, and you do not have to decide which one you are in before reading on. Look for the one that resembles code you have written.
+
+::: {.grid}
+
+::: {.g-col-12 .g-col-md-6}
+
+When the table is large, one line decides everything.
+
+```r
+readings |>                             # a large table, sitting in Databricks
+  inner_join(gauges) |>                 #   runs on Databricks
+  filter(!is.na(value)) |>              #   runs on Databricks
+  group_by(station_id, year) |>         #   runs on Databricks
+  summarise(total = sum(value)) |>      #   runs on Databricks
+  collect() |>                          # <== the line. How much crosses it?
+  st_as_sf(crs = 27700)                 # runs in R
+```
+
+Everything above `collect()` runs on Databricks as SQL. Everything below it runs in your own R session, with all of `sf` and `ggplot2` and no translation. The whole question is how big the data is when it crosses.
+
+[Work with a table that will not fit in your session](jobs/big-table.qmd)
+
 :::
+
+::: {.g-col-12 .g-col-md-6}
+
+When the repeats are the expensive part, almost nothing crosses.
+
+```r
+sites <- readings |>                    # the same large table
+  group_by(site_id) |>
+  summarise(across(everything(), fit_params)) |>
+  collect()                             # a small result. Nothing so far was expensive
+
+exceedances <- sites |>
+  split(sites$site_id) |>
+  map(simulate_many_years)              # the expensive part, and no data crossed to reach it
+```
+
+Here the crossing is free and the cost is in the last line, repeated. So the question is not how much data moves. It is how many repeats run at once, and whether R is present where they run.
+
+[Run a Monte Carlo simulation](jobs/monte-carlo.qmd)
+
+:::
+
+:::
+
+The third shape is gridded data, and it has no server-side path at all: Databricks' spatial functions work on vectors, and there is no equivalent for a raster cell. So the only question there is which side of the boundary the pixels sit on. See [Work with rasters, using `terra`](jobs/terra.qmd).
+
+## The jobs
+
+- [Connect your R session to the data](jobs/connect.qmd). Which connection to open, and why the choice matters before you write any code.
+- [Write and run R against the cluster, without leaving your editor](jobs/interactive.qmd). An interactive R session with cluster compute behind it, rather than a notebook.
+- [Work with a table that will not fit in your session](jobs/big-table.qmd). Where each step of your pipeline runs, and how much data comes back.
+- [Join and transform polygons](jobs/polygons.qmd). Real spatial work when the polygons start out in the table rather than in R.
+- [Work with rasters, using `terra`](jobs/terra.qmd). Why gridded data behaves differently from polygons here, and what your two options are.
+- [Run a Monte Carlo simulation](jobs/monte-carlo.qmd). Simulating, bootstrapping, resampling or fitting many times over, and where the repeats happen.
+- [Check that you get the same answer wherever it ran](jobs/check-the-answer.qmd). Confirming that a computation done on the server and the same one done in R agree, and by how much.
+- [Work out what the cluster you have can do](jobs/compute.qmd). Reading the compute you were given, and what you can and cannot change about it.
+- [Get results out, and get the same answer next year](jobs/results.qmd). Writing results back, exporting for the paper, and keeping the run reproducible.
+
+## What this guide does not cover
+
+Knowing what you can skip is worth as much as knowing where to start. There is nothing here about streaming, ML pipelines, Python interop, or Spark tuning. If your problem is one of those, this is not the guide, and reading it will not help.
+
+Two things are covered but not settled, and you would make a worse decision without knowing which:
+
+- Whether `spark_apply()` works on a **Standard** access-mode cluster. Settling it needs a cluster that has to be created rather than started, and this guide will not assert it in either direction. It matters because your group cluster is quite likely Standard.
+- How work spread across worker nodes **scales**. That it spreads at all has been run and observed on a two-worker cluster. Two workers answers whether it distributes and nothing more: it says nothing about shuffle cost, or about behaviour at twenty nodes.
+
+Where anything else on the site is unsettled, the page says so in the prose.
+
+## Behind the numbers
+
+Every number here was run and recorded rather than estimated, and none of them is a benchmark. [How claims are tagged](ref/evidence.qmd) explains what the labels mean and names the machine each number came from.
+
+The examples use public UK environmental data. [The data and its licences](ref/data.qmd) gives the provenance and the attribution each licence requires. Nothing here is a finding about water: the data is a vehicle for demonstrating technique.

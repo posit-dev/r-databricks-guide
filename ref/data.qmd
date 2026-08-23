@@ -1,0 +1,26 @@
+---
+title: "The data and its licences"
+subtitle: "Provenance, contents, and the attribution each licence requires"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not. The one substantive task is confirming the exact attribution wording each licence requires.
+
+:::
+
+## What each table contains
+
+Provenance and row counts.
+
+## Licences
+
+Two, and they are different. The environmental agency data is OGL v3.0. The storm overflow locations are CC BY 4.0, not OGL. The difference has to survive into every page that describes the data.
+
+## Nothing here is a finding about water
+
+The data is a vehicle for demonstrating technique. No page on this site makes a substantive claim about water quality.
+
+## Next
+
+To use these tables, start at [Connect your R session to the data](../jobs/connect.qmd). To cite them in a paper, see [Get results out, and get the same answer next year](../jobs/results.qmd).

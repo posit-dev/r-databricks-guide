@@ -1,0 +1,38 @@
+---
+title: "Packages"
+subtitle: "Checking, and fixing, which packages exist where your code runs"
+---
+
+::: {.callout-note appearance="simple"}
+
+**Not yet written.** The structure below is settled; the prose is not.
+
+:::
+
+## The check
+
+Run this, and if it loads you are done. Most likely you are done.
+
+## If it does not load
+
+This is a workspace configuration matter, and not something to fix from your session.
+
+## What to send your admin
+
+A short paragraph naming what is needed, and why an interactive install will not do it.
+
+## If your workspace has a prebuilt library volume
+
+Prepend it to `.libPaths()`.
+
+## Installs do not persist between R contexts
+
+A package you upgraded may read as the old version next time, which looks exactly like the upgrade having failed. Do everything in one context.
+
+## Full detail, for whoever administers your workspace
+
+[For your admin](for-your-admin.qmd).
+
+---
+
+This page rests on: every R context gets its own ephemeral library; a prebuilt library tree on a volume, prepended to `.libPaths()`, is reusable by a later cluster with the same R version and image.
