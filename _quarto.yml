@@ -61,9 +61,11 @@ website:
 
 format:
   html:
+    # Both modes must be declared: shipping only the light stylesheet leaves
+    # dark mode as unmodified darkly.
     theme:
-      light: [cosmo, assets/andrie-site.scss]
-      dark: [darkly, assets/andrie-site-dark.scss]
+      light: [cosmo, assets/site.scss]
+      dark: [darkly, assets/site-dark.scss]
     toc: true
     df-print: default
     code-copy: true
