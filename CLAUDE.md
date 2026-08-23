@@ -98,6 +98,8 @@ grep -hoE '\-\-bs-link-color: #[0-9A-Fa-f]{6}|\-\-bs-body-bg: #fbfaf8|\-\-bs-roo
 
 Expect `#447099` (light links), `#7494B1` (dark links), `#fbfaf8` (paper) and a 20px root. Two traps: the filenames are content-hashed, so an unglobbed path finds nothing and reads exactly like a pass; and the root type appears as `--bs-root-font-size`, never as `html{font-size:20px}`.
 
+The navbar has been checked at narrow widths and collapses cleanly, so five sections with four dropdowns is not too wide.
+
 One thing still unchecked: the theme caps the measure at `42rem` on a 20px root, and `index.qmd` leans on code blocks with aligned right-hand comments (`#   runs on Databricks`). If those wrap, the alignment stops carrying meaning. Look at it in `quarto preview`, in both modes, before trusting it.
 
 ## Two connection paths
