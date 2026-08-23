@@ -23,7 +23,7 @@ first, and escalate only on evidence** that one machine is genuinely not enough.
 | `mirai` / `parallel` | one machine | The baseline to beat. Lowest ceremony |
 | `future` on the cluster driver via `brickster` | one cluster node, many cores | A bigger machine is enough, and you want no Spark UDF machinery |
 | Databricks Jobs, parameterised fan-out | many nodes, no Spark UDF | Embarrassingly-parallel simulation, especially long runs that should survive a session ending |
-| `sparklyr::spark_apply()` | Spark executors, designed for many nodes but untested that way here | The only mechanism that distributes R itself. Reach for it when the data is already a Spark DataFrame and one machine genuinely is not enough |
+| `sparklyr::spark_apply()` | Spark executors, across machines `[verified: ran it on 2026-08-21]` | The only mechanism that distributes R itself. Reach for it when the data is already a Spark DataFrame and one machine genuinely is not enough |
 | Push the computation into SQL | Databricks, no R | Only if it is expressible that way, which for simulation it usually is not |
 
 The "`future` on the cluster driver via `brickster`" row means running R on a single,
@@ -99,9 +99,24 @@ also exists, `[verified: ran it on 2026-08-19]`, measured on a Dedicated cluster
    seconds. **Not a benchmark**: one workspace, one day, single node, results cached.
 
 The cluster measured had no worker nodes: the parallelism observed was across cores on
-that single node, not across multiple machines. **This run is not evidence that
-`spark_apply()` distributes across multiple Spark nodes**: that question is separate
-and still open; it needs a multi-worker cluster to test.
+that single node, not across multiple machines. **That run was not evidence that
+`spark_apply()` distributes across multiple Spark nodes.**
+
+**It has since been measured on a two-worker cluster, and it does.**
+`[verified: ran it on 2026-08-21]` Counting distinct `Sys.info()[["nodename"]]` values
+rather than PIDs, tasks landed on **two worker machines, neither of them the driver**,
+across eight R processes, holding at 8, 16 and 64 tasks. `sf` loaded and did real
+point-in-polygon work in the same runs. Details: DBR 18.3, two `Standard_DS3_v2`
+workers, Dedicated access mode.
+
+**Two workers answers "does it distribute at all" and nothing more.** It says nothing
+about scaling, shuffle cost, or behaviour at twenty nodes.
+
+**Count machines, not processes.** Two machines can report the same PID, and N distinct
+PIDs is consistent with N processes on one host, so a PID count cannot tell a
+single-node cluster from a distributed one. Note also that `SPARK_EXECUTOR_ID` came back
+**empty** in the worker on this stack, so it is not a usable corroborating identifier;
+nodename is the one that worked. `[verified: ran it on 2026-08-21]`
 
 ## Costs and traps that surprise people
 
@@ -135,9 +150,16 @@ and still open; it needs a multi-worker cluster to test.
   work is the intuitive expression and it serialises the job.
 
   The mechanism remains unexplained `[unresolved]`, and the failure is **silent**: the answer
-  is correct either way, so nothing surfaces except wall-clock time. **Return `Sys.getpid()`
-  from the worker function and count distinct values** before believing work was distributed.
-  It is one column and it is the only cheap way to see this.
+  is correct either way, so nothing surfaces except wall-clock time. **Return the nodename and
+  `Sys.getpid()` from the worker function and count distinct values** before believing work was
+  distributed. It is two columns and it is the only cheap way to see this.
+
+  **Whether this persists across machines is still `[unresolved]`**, because on a multi-node
+  cluster the `group_by` path could not be run at all: on **`rpy2` 3.6.x it fails outright**,
+  raising `DeprecationWarning` from `pandas2ri.activate()` inside `pysparklyr`'s
+  `udf/udf-apply.py`, which is the template used only when `group_by` is supplied. Ungrouped
+  calls are unaffected. `[verified: ran it on 2026-08-21]` So on a current runtime the practical
+  rule is stronger than the performance argument: **the grouped path does not run.**
 - **`columns =` must be a Spark DDL string under `databricks_connect`, not the documented
   named list.** `[verified: ran it on 2026-08-20]` `columns = list(id = "character", m =
   "double")`, the form `?spark_apply` documents, fails with a bare
