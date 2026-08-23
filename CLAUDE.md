@@ -100,7 +100,9 @@ Expect `#447099` (light links), `#7494B1` (dark links), `#fbfaf8` (paper) and a 
 
 The navbar has been checked at narrow widths and collapses cleanly, so five sections with four dropdowns is not too wide.
 
-One thing still unchecked: the theme caps the measure at `42rem` on a 20px root, and `index.qmd` leans on code blocks with aligned right-hand comments (`#   runs on Databricks`). If those wrap, the alignment stops carrying meaning. Look at it in `quarto preview`, in both modes, before trusting it.
+**Known broken, and the next presentation job:** the two annotated code blocks on `index.qmd` sit side by side in a `.grid` of two `.g-col-md-6` columns. The theme caps the measure at `42rem` on a 20px root, so each column gets about half that, and the code runs to 96 characters. The right-hand comments (`#   runs on Databricks`, `# <== the line. How much crosses it?`) are aligned into a column, and that alignment is the whole point of the examples: it is how the page shows that one line decides where the work happens. At this width it wraps and the meaning goes with it. `code-overflow: wrap` means it degrades silently rather than showing a scrollbar.
+
+Fix the layout rather than the prose. Worth weighing: stacking the blocks full-width, shortening code and comments to roughly 45 characters, or widening the measure for this page alone. Check several widths in both modes. The navbar itself is fine when narrow, already checked.
 
 ## Two connection paths
 
