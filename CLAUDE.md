@@ -53,10 +53,20 @@ These are not stylistic. Getting one wrong makes the guide untrustworthy to this
 ```bash
 Rscript check-databricks-access.R    # smoke test: run this FIRST, and before blaming a document
 scripts/check-public.sh              # publication safety. Run before any push, and after adding any file
+scripts/check-freeze.sh              # freeze cache matches source. Run after editing anything in example/
+scripts/install-hooks.sh             # once per clone: pre-push runs both checks
 quarto render                        # whole site -> _site/
 quarto preview                       # live preview
 R -e 'renv::restore()'               # restore the package environment
 ```
+
+### Editing `example/` means re-rendering it
+
+The site publishes from a committed `_freeze/` cache, and every executable page sets `freeze: true`. That means **never re-execute**, not "re-execute when the source changes". So editing one of those pages and pushing publishes the *previous* output with the edit missing: no error, nothing in the render log, exit 0. Established by test on 2026-08-24, not inferred.
+
+The freeze hash is a plain md5 of the `.qmd`, so any edit invalidates it, prose included. After changing anything under `example/`, re-render that page with credentials and commit `_freeze/` with the edit. `scripts/check-freeze.sh` catches it either way, in the pre-push hook and again in CI, but the fix always requires a credentialed local render because CI has no R.
+
+Corollary worth knowing before reaching for it: `cache: true` does nothing for this. Under `freeze: true` a prose edit re-executes nothing locally either, so there is no loop for a chunk cache to speed up.
 
 ### Setup
 
@@ -121,6 +131,22 @@ That 36 is why side by side was abandoned: it cannot hold an annotated pipeline.
 
 - `odbc::databricks()` is the default for queries via `dbplyr`.
 - `brickster::DatabricksSQL()` is **required** for `BINARY` columns, which is how geometry is stored. `odbc` silently returns only part of a `BINARY` value, so geometry cannot travel over the ODBC path. This is not a preference (`r-dbi/odbc#1024`).
+
+## `context/`
+
+**What the three neighbouring documentation sites already say.** This guide sits in a seam: sparklyr's documentation at `spark.posit.co`, brickster's at `databrickslabs.github.io/brickster`, and Posit's own at `docs.posit.co/data-sources/user/databricks/`. Each is good at what it covers and none covers this reader. `context/` records what each says, so a page here can link instead of repeating, avoid contradicting, and be clear about which gap it fills.
+
+**Read the relevant file before writing prose on any page that touches sparklyr or brickster.** Start at `context/README.md`, which states the seam argument. The sparklyr and brickster files were written from a reading on 2026-08-23; the Posit one is a placeholder naming what to establish.
+
+Three things they change, in the order they save the most work:
+
+- **Several upstream pages will break her if she follows them correctly**, notably `memory = TRUE` and `compute()` from sparklyr's caching guide. Each file marks which pages to link, which to link with a warning, and which not to link at all. The dangerous ones are good `ref/when-it-breaks.qmd` entries, because that page is symptom-shaped.
+- **Some facts this guide derives for itself are stated plainly upstream**, including the broad `sdf_*` exclusion over Spark Connect and the serverless `spark_apply()` prohibition. Citing upstream is stronger and cheaper than resting on our own testing alone.
+- **Neither site has any geospatial story**, and brickster's backend silently writes an `sfc` column as `STRING`. That is the clearest gap, and the part of this guide with the least competition.
+
+Where an upstream claim and a measurement here disagree, the honesty constraints above win: they are deliberately stricter than upstream. The clearest case is `spark_apply()`, where upstream's distribution claim is architectural and asserted rather than demonstrated, so it cannot be used to widen what this guide says.
+
+These files are tracked and therefore published, so they are subject to `scripts/check-public.sh` like anything else. They are not part of the site: `_quarto.yml` has an explicit render list and `context/` is not on it. Do not add it, and do not link to these files from a page.
 
 ## `skills/`
 

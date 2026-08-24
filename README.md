@@ -46,6 +46,14 @@ scripts/check-freeze.sh
 
 So if you edit anything under `example/`, prose included, re-render that page locally with credentials and commit `_freeze/` alongside the edit. CI cannot refill the cache for you.
 
+Rather than remembering that, install the hooks once per clone:
+
+```bash
+scripts/install-hooks.sh
+```
+
+That adds a pre-push hook running the same two checks CI does, so a stale cache is refused in milliseconds instead of failing a build minutes later. `--no-verify` overrides it.
+
 Every other page on the site is scaffolding whose code blocks do not run, and needs nothing.
 
 ## Skills
