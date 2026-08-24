@@ -104,10 +104,16 @@ The two annotated code blocks on `index.qmd` are **stacked full-width**, not sid
 
 The right-hand comments (`#   on Databricks`, `# <== how much crosses?`) are aligned into a column, and that alignment is the whole point of the examples: it is how the page shows that one line decides where the work happens. When a line exceeds the measure it wraps, the column breaks, and the meaning goes with it. `code-overflow: wrap` means that degrades silently rather than showing a scrollbar, so nothing warns you.
 
-**Do the width arithmetic before lengthening a line**, because eyeballing it is what got this wrong once already. Code renders at `0.875em` on a 20px root, and Source Code Pro advances 0.6em, so a character is 10.5px. The measure is `42rem`, 840px, less about 16px of `pre` padding:
+**Do the width arithmetic before lengthening a line**, because eyeballing it is what got this wrong once already. Code renders at `0.875em` on a 20px root, and Source Code Pro advances 0.6em, so a character is 10.5px.
+
+The measure is set with `$grid-body-width`, which **must be `$grid-body-width` and must be in `px`**. Quarto has no `$content-max-width`: setting one compiles cleanly, changes nothing, and leaves the site at the 800px default while the SCSS reads as though the measure were set. This repo shipped that bug until it was measured. A `rem` value fails compilation outright, against `quarto-math.min(500px, $grid-body-column-max)`.
+
+Quarto also subtracts a `3em` gutter, so the usable column is the variable less 60px at a 20px root, and then less about 16px of `pre` padding. At the 900px set here that is 824px:
 
 - full-width: 824px, about **78 characters**
 - one `.g-col-md-6` of a two-column `.grid`: 374px, about **36 characters**
+
+So 900px is the number that yields the intended 42rem of text, not 840px. Grep the compiled CSS for `900px` to confirm it applied: it lands inside the `calc()` in the grid definition, never on a `max-width` property, and zero hits means the variable name was wrong.
 
 That 36 is why side by side was abandoned: it cannot hold an annotated pipeline. Terse also survives a phone better than the measure alone suggests, which is the second reason to keep it. The navbar is fine when narrow, already checked.
 

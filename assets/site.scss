@@ -33,8 +33,11 @@ $link-color: $posit-blue !default;        // 5.00:1 on $body-bg
 $link-hover-color: darken(saturate($link-color, 40%), 10%) !default;
 $code-color: $posit-orange !default;
 
-// Measure. Long lines are hard to track back at 20px.
-$content-max-width: 42rem !default;
+// Measure. Long lines are hard to track back at 20px, so the body column is
+// widened from Quarto's 800px default only as far as the larger type needs.
+// This must be $grid-body-width, in px: Quarto has no $content-max-width, and
+// a rem value here fails compilation against quarto-math.min(500px, ...).
+$grid-body-width: 900px !default;
 
 /*-- scss:rules --*/
 
@@ -53,7 +56,8 @@ h2 {
 // Hover is an underline, never a fill.
 a:hover { text-decoration: underline; }
 
-// Code sits smaller than prose. At the shared 0.875em a 42rem measure holds
+// Code sits smaller than prose. At the shared 0.875em this 42rem-of-text
+// measure (900px less Quarto's 3em gutter) holds
 // only about 78 characters, and an annotated pipeline does not fit: lines wrap,
 // and `code-overflow: wrap` means that degrades silently rather than showing a
 // scrollbar. 0.75em raises the ceiling to about 91 characters. Code here is

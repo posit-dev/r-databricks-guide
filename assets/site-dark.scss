@@ -23,7 +23,7 @@ $link-color: $posit-light-blue-3 !default;   // 5.13:1 on $body-bg
 $link-hover-color: lighten($link-color, 12%) !default;
 $code-color: $posit-orange !default;         // 5.02:1 on $body-bg
 
-$content-max-width: 42rem !default;
+$grid-body-width: 900px !default;   // see site.scss; must be px, not rem
 
 /*-- scss:rules --*/
 
@@ -40,7 +40,7 @@ h2 {
 a:hover { text-decoration: underline; }
 
 // Kept in step with site.scss: code sits at 0.75em so an annotated pipeline
-// fits the 42rem measure without wrapping. See the note there for the sums.
+// fits the measure without wrapping. See the note there for the sums.
 pre code, pre code.sourceCode, .sourceCode pre code {
   font-size: 0.75em;
 }
