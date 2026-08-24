@@ -34,6 +34,20 @@ Packages come from [P3M](https://p3m.dev/cran/latest), which serves pre-built bi
 
 On Posit Workbench, Databricks credentials are ambient: they are injected when you sign in, and Workbench renews them on its own schedule. If `DATABRICKS_HOST` and `DATABRICKS_CONFIG_FILE` are unset, you are not signed in. An expired token shows up as an opaque ODBC driver error rather than anything that looks like an auth failure.
 
+## Publishing
+
+The site is published to GitHub Pages by `.github/workflows/publish.yml` on every push to `main`. CI installs Quarto and nothing else: no R, no packages, no credentials. It can do that because `_freeze/` is committed, so Quarto replays each page's already-rendered markdown rather than executing it. Nothing in CI can reach Databricks, because nothing in CI can run R.
+
+The catch is that the example pages set `freeze: true`, which means they are never re-executed, not that they are re-executed when you change them. So editing one and pushing publishes the previous output with your edit missing, silently. `scripts/check-freeze.sh` compares each frozen page against the md5 of its source and fails the build if they have parted company:
+
+```bash
+scripts/check-freeze.sh
+```
+
+So if you edit anything under `example/`, prose included, re-render that page locally with credentials and commit `_freeze/` alongside the edit. CI cannot refill the cache for you.
+
+Every other page on the site is scaffolding whose code blocks do not run, and needs nothing.
+
 ## Skills
 
 `skills/` holds five agent skills for working with Databricks from R, covering connections, `brickster`, Unity Catalog, compute lifecycle and parallel methods. They assume no `databricks` CLI. Start at `skills/README.md`.
@@ -44,9 +58,10 @@ This repository is public by default: anything committed may be published. Run t
 
 ```bash
 scripts/check-public.sh
+scripts/check-freeze.sh
 ```
 
-It refuses any hard-coded warehouse id, cluster id or catalog name, along with personal and customer identifiers. Read `CLAUDE.md` for the editorial rules, in particular the one this repository exists to enforce: this is a user guide, not a research record, and a finding earns a place only if it changes what the reader does.
+The first refuses any hard-coded warehouse id, cluster id or catalog name, along with personal and customer identifiers. Read `CLAUDE.md` for the editorial rules, in particular the one this repository exists to enforce: this is a user guide, not a research record, and a finding earns a place only if it changes what the reader does.
 
 ## Licences
 

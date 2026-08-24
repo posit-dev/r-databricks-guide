@@ -1,0 +1,78 @@
+# Render the site and publish it to GitHub Pages.
+#
+# No R is installed here, and that is the point. Every executable chunk on the
+# site lives in example/*.qmd, and _freeze/ is committed, so Quarto replays
+# already-rendered markdown as text and never starts an R process. Nothing in
+# CI can reach Databricks because nothing in CI can execute R.
+#
+# The failure this has to guard against is staleness, not breakage. Those
+# pages set `freeze: true`, which means never re-execute, so editing one and
+# forgetting to re-render publishes the previous run's output with the edit
+# missing: no warning in the log, and the render still exits 0. Hence the
+# freeze check below, which compares each cache against the md5 of its source.
+name: Publish
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let an in-flight deploy finish rather than cancelling it half-published.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: 1.10.18
+
+      # Fails if any page has moved on from its freeze cache. Runs before the
+      # render because the render cannot detect this: it would replay the old
+      # output and exit 0.
+      - name: Check the freeze cache is current
+        run: scripts/check-freeze.sh
+
+      # Belt and braces. Under `freeze: true` nothing executes, so this cannot
+      # trigger today, but a page switched to `freeze: auto` would execute and
+      # fail here with no R installed. A project render prints the WARN below
+      # and still exits 0, leaving the previous HTML in place, so the log line
+      # is the signal rather than the exit code. (A single-file
+      # `quarto render path.qmd` does exit 1. Only the project render swallows
+      # it.)
+      - name: Render
+        run: |
+          set -o pipefail
+          quarto render 2>&1 | tee render.log
+          if grep -q 'WARN: Error encountered when rendering files' render.log; then
+            echo "::error::A page failed to execute. The published HTML would be stale."
+            exit 1
+          fi
+
+      # Runs after the render so the _site/ and _freeze/ scans have something
+      # to read. This repo is public by default, so nothing deploys until the
+      # rendered output passes too.
+      - name: Check publication safety
+        run: scripts/check-public.sh
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4
