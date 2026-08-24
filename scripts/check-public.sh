@@ -29,10 +29,26 @@ report() { # name, matches
 # skips gitignored files. xargs cannot run a shell builtin, so `command grep`
 # would exit 127 here and every check would report a false pass.
 GREP="$(command -v grep)"
-# This script necessarily contains the patterns it searches for, so exclude it
-# from its own scan rather than contorting every pattern to avoid self-matching.
+# Two tracked paths are excluded from every scan below.
+#
+# This script necessarily contains the patterns it searches for, so it is
+# excluded from its own scan rather than contorting every pattern to avoid
+# self-matching.
+#
+# renv.lock is generated, never hand-edited, and is ~2000 lines of CRAN
+# metadata copied verbatim from each package's DESCRIPTION. That metadata
+# trips two checks with nothing this repo wrote: `config` names its own CRAN
+# maintainer, who is also this repo's author, and magrittr's Description
+# explains that the package provides `%>%`. Both are third-party facts about
+# published packages, so there is nothing to fix in the file. Excluded here
+# rather than per-check because every future pattern will hit it the same way.
+#
+# This exclusion is deliberately confined to the tracked-file checks. The
+# rendered-output checks below scan _site/ and _freeze/ directly and are
+# unaffected, which is what still catches an identifier that reaches the web.
+EXCLUDE='^(scripts/check-public\.sh|renv\.lock)$'
 tracked() {
-  git ls-files -z | "$GREP" -zv '^scripts/check-public\.sh$' | xargs -0 -r "$GREP" "$@"
+  git ls-files -z | "$GREP" -zvE "$EXCLUDE" | xargs -0 -r "$GREP" "$@"
 }
 
 # Identifiers that must never appear in published material.

@@ -136,7 +136,7 @@ Upstream contributes to `skills/` directly, and specifically contributes **runna
 
 **Publication authority stays here.** Because the symlink makes this the copy that gets committed, and this repo is public by default, nothing reaches the outside world without passing through it. So treat an upstream contribution as a submission, not as a merge already made:
 
-- **Run `scripts/check-public.sh` before committing it.** The check scans only what git tracks, so new untracked files are invisible to it until added. Add them first, or run the patterns against the new paths by hand.
+- **Run `scripts/check-public.sh` before committing it.** The check scans only what git tracks, so new untracked files are invisible to it until added. Add them first, or run the patterns against the new paths by hand. It also skips `renv.lock`, whose CRAN metadata quotes both a maintainer name and `%>%`: that file is generated, so read a real identifier in it as a reason to regenerate rather than to edit.
 - **Read every script for identifiers.** A cluster id, warehouse id, catalog or host name must be read with `Sys.getenv()`. `DATABRICKS_CLUSTER_ID` is per-user by construction.
 - **Hold it to this repo's conventions**, which upstream has no reason to share: base pipe, no em-dashes, UK English, and no repo, dataset or customer name.
 - **Rewrite freely.** Upstream's wording is a draft here. Keeping the measurement and changing the prose around it is normal and needs no negotiation.
