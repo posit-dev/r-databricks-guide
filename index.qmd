@@ -89,6 +89,6 @@ Where anything else on the site is unsettled, the page says so in the prose.
 
 ## Behind the numbers
 
-Every number here was run and recorded rather than estimated, and none of them is a benchmark. [How claims are tagged](ref/evidence.qmd) explains what the labels mean and names the machine each number came from.
+Every number here was run and recorded rather than estimated, and none of them is a benchmark.
 
 The examples use public UK environmental data. [The data and its licences](ref/data.qmd) gives the provenance and the attribution each licence requires. Nothing here is a finding about water: the data is a vehicle for demonstrating technique.

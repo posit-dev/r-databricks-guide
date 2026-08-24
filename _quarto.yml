@@ -84,8 +84,6 @@ website:
           - text: "---"
           - href: ref/data.qmd
             text: The data and its licences
-          - href: ref/evidence.qmd
-            text: How claims are tagged
       - text: For your admin
         menu:
           - href: admin/index.qmd

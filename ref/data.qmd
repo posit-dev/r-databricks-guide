@@ -19,7 +19,13 @@ Two, and they are different. The environmental agency data is OGL v3.0. The stor
 
 If the river network data is used anywhere on the site, it carries a third set of attribution wording, different again from both, and needs its own credit line rather than sharing theirs.
 
-The outstanding task on this page is confirming the exact wording each licence requires, and it should not ship with approximations. A reader is copying these lines into a paper.
+The wording each licence requires, to be copied verbatim rather than paraphrased:
+
+> Contains public sector information licensed under the Open Government Licence v3.0. Source: Environment Agency hydrology data.
+
+> Storm overflow outfall locations © the water companies, licensed under CC BY 4.0 and published via Stream / Water UK's National Storm Overflow Hub.
+
+The first is the wording the Open Government Licence itself prescribes where the information provider specifies none, which is the case here: the Environment Agency's hydrology pages point at the licence without adding an attribution statement of their own. The licence also asks that the source be acknowledged, which is what the second sentence does.
 
 ## Nothing here is a finding about water
 

@@ -53,9 +53,9 @@ Two licences, and they are different. Getting either wrong is a licensing error 
 ```{r}
 #| label: licences
 licence_ogl <- paste(
-  "Contains Environment Agency data (c) Crown copyright",
-  "and database right, licensed under the Open",
-  "Government Licence v3.0."
+  "Contains public sector information licensed under the",
+  "Open Government Licence v3.0.",
+  "Source: Environment Agency hydrology data."
 )
 
 licence_ccby <- paste(

@@ -17,7 +17,9 @@ The task pages cannot show continuity, because each is written to be arrived at 
 
 ## The question
 
-One analytical question, small enough to hold in your head and real enough to need every stage. It should be answerable, and it should be answered by the last page rather than trailing off.
+Do catchments with more storm overflows show more variable river flow?
+
+It is small enough to hold in your head and real enough to need every stage, and [the last page](results.qmd) answers it rather than trailing off.
 
 The page has to state plainly that the analysis is a vehicle. It uses public UK water quality data because that data is open and spatial and awkward in useful ways, and no conclusion drawn here is a finding about water.
 

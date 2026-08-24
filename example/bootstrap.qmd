@@ -23,6 +23,7 @@ library(glue)
 library(cli)
 library(parallel)
 library(sf)
+library(ggplot2)
 
 catchment_panel <- readRDS("catchment_panel.rds")
 catchments <- readRDS("catchments.rds")
@@ -39,15 +40,88 @@ The test, which is what transfers: **if every iteration perturbs something the s
 
 ## The design
 
-Resample the catchments with replacement, jitter each overflow point by an assumed positional error, count points in polygons, and fit a model of ecological grade against overflow density. Per resample, seeded on the resample id.
+Resample the catchments with replacement, jitter each overflow point by an assumed positional error, and count how many points fall inside a polygon. Per resample, seeded on the resample id. Each resample returns two numbers: how many outfalls landed in some catchment, and the mean number of catchments each one landed in.
 
 The jitter deserves its own sentence, and it should be honest about being a design decision rather than a discovery. It represents assumed positional uncertainty in the outfall locations, and it is also what keeps the point-in-polygon genuinely inside the loop. Without it the geometry is identical on every iteration and the whole thing collapses into a single query answering a different question.
 
+Fifty metres sounds too small to matter until you look at an outfall that sits near a catchment boundary. This one is 14 m from the edge, and the cloud is 200 jittered positions of that single point: most stay inside the catchment and a substantial minority land outside it, so which catchment it counts towards is decided by the jitter rather than by the record.
+
+```{r}
+#| label: jitter-inset
+#| fig-width: 5
+#| fig-height: 4.2
+#| fig-alt: "A zoomed view of one catchment boundary with a single storm overflow 14 metres inside it. Two hundred jittered positions of that one point form a cloud straddling the boundary, with most inside the catchment and many outside."
+# jitter_m is set again with the unit of work below; this figure needs it
+# early, and the two must agree.
+jitter_m <- 50
+
+focus_polygon <- catchments |>
+  filter(water_body_id %in% catchment_panel$water_body_id) |>
+  select(water_body_id) |>
+  slice(156)
+
+focus_point <- overflows |>
+  filter(lengths(st_within(overflows, focus_polygon)) > 0) |>
+  slice_min(
+    as.numeric(st_distance(
+      pick(everything()) |> st_as_sf(),
+      st_boundary(focus_polygon)
+    )),
+    n = 1
+  )
+
+focus_xy <- st_coordinates(focus_point)
+
+jitter_cloud <- map(1:200, \(r) {
+  set.seed(r)
+  tibble(
+    X = focus_xy[1] + rnorm(1, 0, jitter_m),
+    Y = focus_xy[2] + rnorm(1, 0, jitter_m)
+  )
+}) |>
+  list_rbind() |>
+  st_as_sf(coords = c("X", "Y"), crs = 27700) |>
+  mutate(
+    inside = lengths(st_within(pick(everything()) |> st_as_sf(), focus_polygon)) > 0
+  )
+
+window <- focus_point |> st_buffer(260) |> st_bbox()
+
+ggplot() +
+  geom_sf(
+    data = st_crop(st_geometry(focus_polygon), window),
+    fill = "#EAF0F5",
+    colour = "#447099",
+    linewidth = 0.4
+  ) +
+  geom_sf(
+    data = jitter_cloud,
+    aes(colour = inside),
+    size = 0.9,
+    alpha = 0.75
+  ) +
+  geom_sf(data = focus_point, colour = "#111111", size = 2.2) +
+  scale_colour_manual(
+    values = c("TRUE" = "#447099", "FALSE" = "#EE6331"),
+    labels = c("TRUE" = "stayed in", "FALSE" = "moved out"),
+    name = NULL
+  ) +
+  coord_sf(
+    xlim = window[c("xmin", "xmax")],
+    ylim = window[c("ymin", "ymax")],
+    expand = FALSE
+  ) +
+  theme_void(base_size = 9) +
+  theme(legend.position = "bottom")
+```
+
+Most outfalls are nowhere near a boundary and the jitter does nothing to them. Across a whole resample of this catchment's 39 outfalls, fewer than one crosses on average. That is the honest size of the effect: small, real, and inside the loop.
+
 ## Two things that are not findings about water
 
-This is where the disclaimer has to be loudest, because the page produces a coefficient and a coefficient looks like a result.
+This is where the disclaimer has to be loudest, because the page produces counts and a count looks like a measurement.
 
-The jitter radius is assumed, the resampling design is invented, and the grade column is a substitute for the one that turned out to be unusable. The number exists to prove that the mechanism works. It must not be read as a statement about rivers, and [The data and its licences](../ref/data.qmd) says why the whole example is a vehicle.
+The jitter radius is assumed and the resampling design is invented, so the spread across resamples describes those two choices rather than anything about outfalls. The numbers exist to prove that the mechanism works. They must not be read as a statement about rivers, and [The data and its licences](../ref/data.qmd) says why the whole example is a vehicle.
 
 ## The column that looks right and is not
 
@@ -61,9 +135,9 @@ catchments |>
   arrange(desc(n))
 ```
 
-The catchment table has a column that plainly means "overall condition", and it is unusable: nearly every row reads `Not assessed` and the rest are empty. Neither an error nor an empty result announces this. A model fitted on it returns a coefficient that looks entirely ordinary.
+The catchment table has a column that plainly means "overall condition", and it is unusable: nearly every row reads `Not assessed` and the rest are empty. Neither an error nor an empty result announces this, and anything fitted on it comes back looking entirely ordinary.
 
-The usable ordinal grade is a different column.
+The usable ordinal grade is a different column. This page does not go on to use either one, but finding out which is which is the sort of thing that has to happen before the modelling rather than after it.
 
 ```{r}
 #| label: usable-grade
@@ -103,7 +177,7 @@ panel_ids <- catchment_panel$water_body_id
 
 boot_polygons <- catchments |>
   filter(water_body_id %in% panel_ids) |>
-  select(water_body_id, ecological_class)
+  select(water_body_id)
 
 # The points go in as a coordinate matrix rather than as an
 # sf object, because that is what the jitter arithmetic wants.
@@ -272,7 +346,6 @@ sc <- spark_connect(
 #| label: ship
 polygon_payload <- tibble(
   water_body_id = boot_polygons$water_body_id,
-  ecological_class = boot_polygons$ecological_class,
   geom_b64 = boot_polygons |>
     st_geometry() |>
     st_as_binary() |>
@@ -356,11 +429,7 @@ Distribution is not free. On a single node it is a straight loss, because serial
 spark_disconnect(sc)
 ```
 
-```{r}
-#| label: save
-#| eval: true
-saveRDS(local_boot, "local_boot.rds")
-```
+This stage stops here. It establishes that a resample carrying geometry runs, locally and then distributed, and it hands nothing forward: [the results page](results.qmd) reads the previous stage's simulation and not this one. Putting a band from eight resamples of an invented design onto the final figure would dress a demonstration up as a measurement, which is the one thing this example is trying not to do.
 
 What remains open, named rather than tidied away: how any of this behaves at twenty nodes is untested here, and the grouped path could not be measured at all on a current runtime because it does not run.
 
@@ -370,4 +439,4 @@ What remains open, named rather than tidied away: how any of this behaves at twe
 
 ---
 
-This page rests on: adding a two-column matrix to an `sfc` recycles the matrix per geometry rather than shifting point `i` by row `i`, costing gigabytes in GEOS that never appear in R's `gc()` accounting, so coordinate jitter must be done on a plain matrix; the catchment column that reads as an overall grade is unusable, with nearly all rows "Not assessed", and `ecological_class` carries the usable ordinal grade; decoded catchment area matches the declared area column to thousandths of a percent; `spark_apply()` on the Databricks Connect backend does not capture the calling environment and rejects `context =` outside the `group_by` path, so geometry must travel as a column in the Spark table; `spark_apply()` has been observed distributing work across two worker machines, neither of them the driver, with `sf` loaded and doing real spatial work; one R process runs per task and a task gets one core, so partition count controls how much of a machine is used; `sf` is absent from a stock cluster image and must be installed on every node; `future` and `furrr` are absent from the cluster runtime bundle while base `parallel` is present.
+This page rests on: adding a two-column matrix to an `sfc` recycles the matrix per geometry rather than shifting point `i` by row `i`, costing gigabytes in GEOS that never appear in R's `gc()` accounting, so coordinate jitter must be done on a plain matrix; the catchment column that reads as an overall grade is unusable, with nearly all rows "Not assessed", while `ecological_class` carries a usable ordinal grade, so the distribution of a categorical column is worth reading before it is relied on; decoded catchment area matches the declared area column to thousandths of a percent; `spark_apply()` on the Databricks Connect backend does not capture the calling environment and rejects `context =` outside the `group_by` path, so geometry must travel as a column in the Spark table; `spark_apply()` has been observed distributing work across two worker machines, neither of them the driver, with `sf` loaded and doing real spatial work; one R process runs per task and a task gets one core, so partition count controls how much of a machine is used; `sf` is absent from a stock cluster image and must be installed on every node; `future` and `furrr` are absent from the cluster runtime bundle while base `parallel` is present.

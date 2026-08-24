@@ -22,6 +22,8 @@ library(dbplyr)
 library(tibble)
 library(glue)
 library(cli)
+library(sf)
+library(ggplot2)
 
 catalog <- Sys.getenv("DATABRICKS_CATALOG")
 schema <- Sys.getenv("DATABRICKS_SCHEMA")
@@ -159,6 +161,25 @@ per_station
 The `mutate()` sits below the line deliberately. It could run either side, and putting it in the session keeps the SQL to the part that has to be SQL.
 
 `n_days >= 1000` drops stations with less than about three years of record. That is a judgement about what a variability estimate is worth, not a technical constraint.
+
+It is worth seeing what that judgement costs, because a filter on record length could quietly have been a filter on geography. It is not: the stations that survive are thinned out of the whole network rather than taken from one part of it.
+
+```{r}
+#| label: survivors
+#| fig-width: 4.5
+#| fig-height: 5.5
+#| fig-alt: "Gauging stations across England, with the thousand-odd stations that have at least a thousand days of record picked out against the rest. The survivors are spread across the whole network rather than concentrated in any region."
+# station_xy.rds carries easting and northing for every station, from the
+# same query [Joining tables that do not share a key](spatial.qmd) uses.
+station_xy <- readRDS("station_xy.rds") |>
+  st_as_sf(coords = c("easting", "northing"), crs = 27700) |>
+  mutate(kept = station_id %in% per_station$station_id)
+
+ggplot(station_xy) +
+  geom_sf(data = ~filter(.x, !kept), colour = "#CFCFCF", size = 0.35) +
+  geom_sf(data = ~filter(.x, kept), colour = "#447099", size = 0.5) +
+  theme_void(base_size = 11)
+```
 
 ## What came back
 

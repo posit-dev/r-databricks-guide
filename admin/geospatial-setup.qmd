@@ -31,7 +31,9 @@ This section is runtime-specific and must say which runtime it describes, becaus
 
 Two things follow. The runtime version and the setup script are one decision rather than two, so a script has to be revised when the runtime moves. And a runtime should be pinned to a specific version rather than a rolling alias if this page quotes measured library versions, because the alias moves and the quoted GDAL or GEOS versions silently stop matching.
 
-Whoever writes this has to decide which runtime the guide addresses, and say so, rather than listing both sets of constraints and leaving the admin to work out which applies.
+This guide addresses **DBR 18.1**, so the constraints above are the DBR 18 ones: neither the `terra` pin nor the `Rcpp` upgrade is needed, and a script carrying them forward is a script to revise.
+
+Worth knowing that this repository is currently an example of the pinning hazard rather than an exception to it. The single-node cluster behind these pages is pinned to `18.1.x-scala2.13`, but the multi-node cluster runs on the rolling `18.x` alias, which can move to 18.2 and quietly date any library version quoted here. Pin both to a specific version if you are going to quote measured versions back to anyone.
 
 ## Build times, and why a binary repository does not help
 

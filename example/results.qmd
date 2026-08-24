@@ -22,10 +22,13 @@ library(purrr)
 library(glue)
 library(cli)
 library(ggplot2)
+library(tidyr)
+library(sf)
 
 catchment_panel <- readRDS("catchment_panel.rds")
 sim_result <- readRDS("sim_result.rds")
 per_station <- readRDS("per_station.rds")
+catchments <- readRDS("catchments.rds")
 ```
 
 ## The answer
@@ -93,6 +96,57 @@ ggplot(
   ) +
   theme_minimal(base_size = 11)
 ```
+
+The same two quantities on the map say something the scatter cannot, which is how much of the country the analysis never saw. The filled catchments are the 810 with a gauging station in them; the grey ones are the other 3,270. That is the selection effect named above, drawn rather than asserted.
+
+```{r}
+#| label: figure-map
+#| fig-width: 7
+#| fig-height: 4.8
+#| fig-alt: "Two maps of England side by side, one shading catchments by median flow variability and one by storm overflow density. In both, the majority of catchments are grey because they contain no gauging station."
+catchment_map <- catchments |>
+  select(water_body_id, geometry) |>
+  left_join(
+    catchment_panel |>
+      select(water_body_id, median_cv, overflow_density),
+    by = "water_body_id"
+  ) |>
+  pivot_longer(
+    c(median_cv, overflow_density),
+    names_to = "measure",
+    values_to = "value"
+  ) |>
+  mutate(
+    measure = recode(
+      measure,
+      median_cv = "flow variability (median CV)",
+      overflow_density = "storm overflows per km²"
+    )
+  ) |>
+  group_by(measure) |>
+  mutate(rank = percent_rank(value)) |>
+  ungroup()
+
+ggplot(catchment_map) +
+  geom_sf(data = ~filter(.x, is.na(rank)), fill = "#E8E8E8", colour = NA) +
+  geom_sf(aes(fill = rank), colour = NA) +
+  facet_wrap(~measure) +
+  scale_fill_viridis_c(
+    direction = -1,
+    na.value = "#E8E8E8",
+    name = "percentile within measure",
+    labels = scales::percent,
+    breaks = c(0, 0.25, 0.5, 0.75, 1)
+  ) +
+  theme_void(base_size = 9) +
+  theme(
+    legend.position = "bottom",
+    legend.key.width = unit(1.4, "cm"),
+    legend.title = element_text(size = 8)
+  )
+```
+
+The fill is each catchment's rank within its own measure rather than its value, because the two measures have different units and a shared value scale would flatten one of them. Both quantities do vary: median CV spans about two and a half fold between its tenth and ninetieth percentiles, and overflow density runs from zero to nearly seven per km². The ranking makes that variation comparable across the two panels without implying the two numbers are on one scale.
 
 The second figure is the one from the simulation, and it is worth keeping because it shows the uncertainty rather than a point estimate.
 
@@ -165,7 +219,7 @@ model_data |>
 
 Both licences, worded exactly. This is the page to copy from into a paper, and the two are **not** the same licence.
 
-> Contains Environment Agency data © Crown copyright and database right, licensed under the Open Government Licence v3.0.
+> Contains public sector information licensed under the Open Government Licence v3.0. Source: Environment Agency hydrology data.
 
 > Storm overflow outfall locations © the water companies, licensed under CC BY 4.0 and published via Stream / Water UK's National Storm Overflow Hub.
 
@@ -177,7 +231,9 @@ The honest version.
 
 What is pinned: the table schemas, the catalog and schema names read from the environment, and the queries themselves. Re-running the SQL against next year's data gives next year's answer with no code change.
 
-What is not pinned: the R package versions in this session, the runtime version on the cluster, and the packages installed on the workers. This project has no `renv.lock`, so the session is reproducible only by accident. Adding one is the single highest-value thing to do before this becomes a paper.
+What is partly pinned: the R package versions in this session. This project has an `renv.lock`, so restoring it gives you the same package versions the pages were rendered with. That is worth having and it is not the whole problem, because a lockfile describes one of the three environments this analysis runs in.
+
+What is not pinned: the runtime version on the cluster, and the packages installed on the workers. Neither is visible to `renv`, and no lockfile can reach them.
 
 What is open rather than solved:
 
@@ -197,4 +253,4 @@ One thing it reached and had to work around: on the Databricks Connect backend, 
 
 ---
 
-This page rests on: `dbWriteTable()` fails hard at about 50,000 rows, so a large result needs the volume route; environmental agency data is OGL v3.0 while storm overflow locations are CC BY 4.0; this project pins no R package versions, so session reproducibility is not established; per-unit seeding reproduces only for a fixed partitioning.
+This page rests on: `dbWriteTable()` fails hard at about 50,000 rows, so a large result needs the volume route; environmental agency data is OGL v3.0 while storm overflow locations are CC BY 4.0; an `renv.lock` pins this session's package versions but reaches neither the cluster runtime nor the worker library; per-unit seeding reproduces only for a fixed partitioning.
