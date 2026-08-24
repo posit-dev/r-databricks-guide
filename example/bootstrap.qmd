@@ -60,15 +60,14 @@ focus_polygon <- catchments |>
   select(water_body_id) |>
   slice(156)
 
-focus_point <- overflows |>
-  filter(lengths(st_within(overflows, focus_polygon)) > 0) |>
-  slice_min(
-    as.numeric(st_distance(
-      pick(everything()) |> st_as_sf(),
-      st_boundary(focus_polygon)
-    )),
-    n = 1
-  )
+# The outfall closest to the boundary, because that is where 50 m of
+# jitter can change the answer.
+in_focus <- overflows |>
+  filter(lengths(st_within(overflows, focus_polygon)) > 0)
+
+to_edge <- st_distance(in_focus, st_boundary(focus_polygon))
+
+focus_point <- in_focus |> slice_min(as.numeric(to_edge), n = 1)
 
 focus_xy <- st_coordinates(focus_point)
 
@@ -80,10 +79,11 @@ jitter_cloud <- map(1:200, \(r) {
   )
 }) |>
   list_rbind() |>
-  st_as_sf(coords = c("X", "Y"), crs = 27700) |>
-  mutate(
-    inside = lengths(st_within(pick(everything()) |> st_as_sf(), focus_polygon)) > 0
-  )
+  st_as_sf(coords = c("X", "Y"), crs = 27700)
+
+jitter_cloud <- jitter_cloud |>
+  mutate(inside = lengths(st_within(jitter_cloud, focus_polygon)) > 0)
+
 
 window <- focus_point |> st_buffer(260) |> st_bbox()
 

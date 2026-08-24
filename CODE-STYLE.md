@@ -171,6 +171,6 @@ Under `howdoi/`, chunks are `#| eval: false` with real output pasted beneath, so
 
 ## Width
 
-The site's usable full width is 824px, about **78 characters** at the site's 20px root. `code-overflow: wrap` means an over-long line wraps silently rather than showing a scrollbar, so nothing warns you when a line is too long.
+The site's usable full width is 733px, about **82 characters** at the site's 17px root. `code-overflow: wrap` means an over-long line wraps silently rather than showing a scrollbar, so nothing warns you when a line is too long.
 
 This bites on real data: a `hydrology_readings.measure` value is a long composite string beginning with a station UUID, so printing one raw overflows the measure. Select or truncate around it.

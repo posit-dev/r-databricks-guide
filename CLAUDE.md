@@ -102,11 +102,11 @@ Verifying a theme change means reading the compiled CSS, not the source. A SASS 
 
 ```bash
 rm -rf _site/site_libs/bootstrap && quarto render   # or you may read stale CSS
-grep -hoE '\-\-bs-link-color: #[0-9A-Fa-f]{6}|\-\-bs-body-bg: #fbfaf8|\-\-bs-root-font-size: 20px' \
+grep -hoE '\-\-bs-link-color: #[0-9A-Fa-f]{6}|\-\-bs-body-bg: #fbfaf8|\-\-bs-root-font-size: 17px' \
   _site/site_libs/bootstrap/bootstrap*.min.css | sort -u
 ```
 
-Expect `#447099` (light links), `#7494B1` (dark links), `#fbfaf8` (paper) and a 20px root. Two traps: the filenames are content-hashed, so an unglobbed path finds nothing and reads exactly like a pass; and the root type appears as `--bs-root-font-size`, never as `html{font-size:20px}`.
+Expect `#447099` (light links), `#7494B1` (dark links), `#fbfaf8` (paper) and a 17px root. Two traps: the filenames are content-hashed, so an unglobbed path finds nothing and reads exactly like a pass; and the root type appears as `--bs-root-font-size`, never as `html{font-size:17px}`.
 
 The navbar has been checked at narrow widths and collapses cleanly, so five sections with four dropdowns is not too wide.
 
@@ -114,18 +114,18 @@ The two annotated code blocks on `index.qmd` are **stacked full-width**, not sid
 
 The right-hand comments (`#   on Databricks`, `# <== how much crosses?`) are aligned into a column, and that alignment is the whole point of the examples: it is how the page shows that one line decides where the work happens. When a line exceeds the measure it wraps, the column breaks, and the meaning goes with it. `code-overflow: wrap` means that degrades silently rather than showing a scrollbar, so nothing warns you.
 
-**Do the width arithmetic before lengthening a line**, because eyeballing it is what got this wrong once already. Code renders at `0.875em` on a 20px root, and Source Code Pro advances 0.6em, so a character is 10.5px.
+**Do the width arithmetic before lengthening a line**, because eyeballing it is what got this wrong once already. Code renders at `0.875em` on a 17px root, and Source Code Pro advances 0.6em, so a character is 8.9px.
 
 The measure is set with `$grid-body-width`, which **must be `$grid-body-width` and must be in `px`**. Quarto has no `$content-max-width`: setting one compiles cleanly, changes nothing, and leaves the site at the 800px default while the SCSS reads as though the measure were set. This repo shipped that bug until it was measured. A `rem` value fails compilation outright, against `quarto-math.min(500px, $grid-body-column-max)`.
 
-Quarto also subtracts a `3em` gutter, so the usable column is the variable less 60px at a 20px root, and then less about 16px of `pre` padding. At the 900px set here that is 824px:
+Quarto also subtracts a `3em` gutter, so the usable column is the variable less 51px at a 17px root, and then less about 16px of `pre` padding. At the 800px set here that is 733px:
 
-- full-width: 824px, about **78 characters**
-- one `.g-col-md-6` of a two-column `.grid`: 374px, about **36 characters**
+- full-width: 733px, about **82 characters**
+- one `.g-col-md-6` of a two-column `.grid`: 350px, about **39 characters**
 
-So 900px is the number that yields the intended 42rem of text, not 840px. Grep the compiled CSS for `900px` to confirm it applied: it lands inside the `calc()` in the grid definition, never on a `max-width` property, and zero hits means the variable name was wrong.
+Grep the compiled CSS for `800px` to confirm it applied: it lands inside the `calc()` in the grid definition, never on a `max-width` property, and zero hits means the variable name was wrong.
 
-That 36 is why side by side was abandoned: it cannot hold an annotated pipeline. Terse also survives a phone better than the measure alone suggests, which is the second reason to keep it. The navbar is fine when narrow, already checked.
+That 39 is why side by side was abandoned: it cannot hold an annotated pipeline. Terse also survives a phone better than the measure alone suggests, which is the second reason to keep it. The navbar is fine when narrow, already checked.
 
 ## Two connection paths
 
@@ -179,6 +179,7 @@ Editing a contributed script is fine and expected, but the measurements in it ar
 - **Lead with the answer.** State the conclusion, then support it.
 - **Do not hard-wrap.** One line per paragraph in every `.md` and `.qmd` file, soft-wrapped by the editor. Code blocks keep their own line structure and are formatted for code readability. Pipe tables and hard line breaks keep theirs too.
 - **Base pipe `|>` only, never `%>%`.** Most Spark-related R documentation uses `%>%`, so translate anything borrowed.
+- **Code style is in `CODE-STYLE.md`, and it is not advisory.** The tidyverse is the default idiom because the reader is fluent in it: `glue()` rather than `paste()` or `sprintf()`, `cli` rather than `message()` or `stop()`, `dplyr` and `purrr` rather than `[` and `lapply()`. `example/reducing.qmd` carries the reference preamble. Read that file before writing R for this repo.
 - **Prefer saying where the code runs** to saying "pushdown". At most once per page, as a parenthetical gloss, so the term still connects to vendor documentation.
 
 ## Where the findings come from
