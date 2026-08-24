@@ -4,6 +4,8 @@ This guide is not the first thing written about R and Databricks. Three document
 
 The files here record what each of those sets says, so that a page written here can link to them instead of repeating them, avoid contradicting them, and be clear about which gap it is filling. Read the relevant one before writing prose on any page that touches sparklyr, brickster, or connecting from Posit tooling.
 
+One file points the other way. `databricks-review-2026-08-24.md` records an external reading of *this* guide from someone at Databricks, kept here for the same reason: it is a neutral account of what the site does not say, and a page can be written against it. It is the published half of a review whose private half stays in `docs/`.
+
 The three divide more cleanly than expected, and the division is by *layer* rather than by product: Posit's documentation covers getting authenticated, brickster's covers the API calls you then make, and sparklyr's covers the distributed computation. Each stops where the next begins, and none of them looks down at the data.
 
 | File | Covers | State |
@@ -11,6 +13,7 @@ The three divide more cleanly than expected, and the division is by *layer* rath
 | [`upstream-sparklyr.md`](upstream-sparklyr.md) | `spark.posit.co`: 17 pages under `guides/`, plus the deployment pages | Read 2026-08-23 |
 | [`upstream-brickster.md`](upstream-brickster.md) | `databrickslabs.github.io/brickster`: 6 articles and the DBI backend | Read 2026-08-23 |
 | [`upstream-posit-docs.md`](upstream-posit-docs.md) | `docs.posit.co/data-sources/user/databricks/`: 8 Databricks pages, plus Getting started and the admin pages | Read 2026-08-24 |
+| [`databricks-review-2026-08-24.md`](databricks-review-2026-08-24.md) | An external Databricks reading of *this* guide: what it found the site does not say | Read 2026-08-24, unacted |
 
 ## What the seam actually is
 
