@@ -10,7 +10,7 @@ In descending order of what they saved. The parallelism is last, and it only wor
 
 `CLAUDE.md` holds the consumed-through marker and a record of where each entry landed. Read the entries above the marker, decide what they change, then move the marker and say in the commit message what you declined.
 
-**2. Reuse `R/setup.R`. Do not rebuild it.** It already has `wq_connect_odbc()`, `wq_connect_brickster()`, `wq_tbl()`, `wq_name()`, `wq_mask()` and `wq_mask_all()`. The 2026-08-24 review found seven of its ten helpers unused, and the reason became obvious: nothing pointed anyone at them, so the session rebuilt most of them from scratch in a scratch directory. Source the file.
+**2. Reuse `R/setup.R`. Do not rebuild it.** It already has `wq_connect_odbc()`, `wq_connect_brickster()`, `wq_tbl()`, `wq_name()`, `wq_mask()` and `wq_mask_all()`. The 2026-08-24 review found seven of its ten helpers unused, and this session showed why: nothing pointed anyone at them, so it rebuilt most of them from scratch in a scratch directory and leaked a cluster id doing it. Source the file.
 
 ```r
 source("R/setup.R")   # brings dbx-config.R with it
@@ -18,6 +18,10 @@ con  <- wq_connect_odbc()
 acon <- wq_connect_brickster()
 readings <- wq_tbl(con, "hydrology_readings")
 ```
+
+Known gap, so this instruction is not mistaken for a description of the current state: **no page calls the connection helpers yet.** Three `example/` pages source the file and use only `wq_cores()`, `wq_cpu_quota()` and `wq_tbl()`, so `R/setup.R` still reads as mostly dead code to anyone who opens it. Reuse them anyway in verification scripts, which is where the saving is. Wiring them into a page, or deleting the ones nothing will ever call, is open work: it costs a re-render, so it belongs in whichever pass already renders that page.
+
+`example/connecting.qmd` likewise still hand-rolls the profile guard that `dbx-config.R` implements, on the page that teaches the guard.
 
 **3. Batch by compute, then parallelise.** Sort the pages by what they need before dispatching anything.
 
