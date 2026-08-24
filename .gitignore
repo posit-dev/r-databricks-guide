@@ -38,3 +38,8 @@ config.yml
 # them in its setup chunk, above its `eval` gate, so without them a copy edit
 # cannot be re-rendered without a cluster. 9.4M in plain git, not LFS: they
 # change rarely, which is the case LFS does not serve.
+
+# The one exception: results.qmd writes this to demonstrate saving a result
+# table, and no page reads it back, so it is a byproduct of the render rather
+# than a stage-to-stage artefact.
+flow_variability_results.rds
