@@ -27,7 +27,8 @@ library(sf)
 catchment_panel <- readRDS("catchment_panel.rds")
 catchments <- readRDS("catchments.rds")
 overflows <- readRDS("overflows.rds")
-n_cores <- max(1L, detectCores() - 1L)
+source("R/setup.R")
+n_cores <- wq_cores()
 ```
 
 ## What makes this one different
@@ -104,26 +105,36 @@ boot_polygons <- catchments |>
   filter(water_body_id %in% panel_ids) |>
   select(water_body_id, ecological_class)
 
-boot_points <- overflows |> select(overflow_id)
+# The points go in as a coordinate matrix rather than as an
+# sf object, because that is what the jitter arithmetic wants.
+boot_xy <- st_coordinates(overflows)
+boot_ids <- overflows$overflow_id
 
 jitter_m <- 50
 
-one_resample <- function(rep_id, polygons, points) {
+one_resample <- function(rep_id, point_xy, point_id, polygons) {
   set.seed(rep_id)
 
-  n <- nrow(points)
-  shifted <- st_geometry(points) +
-    cbind(
-      rnorm(n, 0, jitter_m),
-      rnorm(n, 0, jitter_m)
-    )
-  shifted <- st_sf(
-    st_drop_geometry(points),
-    geometry = st_sfc(shifted, crs = 27700)
+  n <- nrow(point_xy)
+
+  # Jitter the coordinates as a plain matrix, then build the
+  # points once. See the note below: adding a matrix to an
+  # `sfc` instead is the version that will not scale.
+  moved <- point_xy + cbind(
+    rnorm(n, 0, jitter_m),
+    rnorm(n, 0, jitter_m)
   )
 
-  idx <- sample(nrow(polygons), replace = TRUE)
-  resampled <- polygons[idx, ]
+  shifted <- tibble(
+    overflow_id = point_id,
+    X = moved[, 1],
+    Y = moved[, 2]
+  ) |>
+    st_as_sf(coords = c("X", "Y"), crs = 27700)
+
+  resampled <- polygons[
+    sample(nrow(polygons), replace = TRUE),
+  ]
 
   hits <- lengths(st_within(shifted, resampled))
 
@@ -135,6 +146,32 @@ one_resample <- function(rep_id, polygons, points) {
 }
 ```
 
+## The line that looks vectorised and is not
+
+Worth its own section, because it cost an afternoon and because nothing about it looks wrong.
+
+The natural way to jitter points is to add a matrix of offsets to the geometry:
+
+```r
+# Do not do this.
+shifted <- st_geometry(points) + cbind(dx, dy)
+```
+
+That runs, returns the right class, and gives *almost* the right answer. What it does not do is what you expect: adding a two-column matrix to an `sfc` does not shift point `i` by row `i`. The arithmetic is defined per geometry, so the matrix is recycled against each point in turn, and the intermediate that builds is enormous.
+
+Measured on this data, 14,190 points and 810 polygons, one resample:
+
+| | `sfc` plus matrix | shifting the coordinates |
+|---|---|---|
+| build the jittered points | 5.4s, +3.2 GB | under 0.1s, no measurable growth |
+| the `st_within()` that follows | 22.2s, +3.1 GB | 2.0s, +12 MB |
+
+A 6.3 GB spike for one resample, against 12 MB for the same answer. The session size is the point: on a container with an 8 GB limit, one resample is enough to be killed, and forking a few workers guarantees it.
+
+Two things make this nasty rather than merely slow. The memory never appears in R's own accounting, because it is allocated inside GEOS rather than on R's heap, so `gc()` reports tens of megabytes throughout while the container approaches its limit. And the kill arrives with no R error at all: the session simply stops.
+
+The fix is to do the arithmetic on a plain matrix, where `+` means what you think, and build the geometry once afterwards. That is the version above.
+
 ## Run it locally first
 
 Deliberately, and this is the right order rather than a warm-up.
@@ -145,7 +182,7 @@ local_time <- system.time(
   local_boot <- mclapply(
     1:8,
     mc.cores = n_cores,
-    FUN = \(r) one_resample(r, boot_polygons, boot_points)
+    FUN = \(r) one_resample(r, boot_xy, boot_ids, boot_polygons)
   ) |>
     list_rbind()
 )
@@ -167,7 +204,9 @@ This establishes that the design is correct and gives a baseline the distributed
 
 ## When local stops being enough
 
-The arithmetic, stated as on the previous page so the two are comparable: the number of resamples, the cost of one, and the cores available. Each resample here carries a full point-in-polygon pass over thousands of polygons, so the per-unit cost is far higher than a draw from a lognormal, and the crossover comes sooner.
+The arithmetic, stated as on the previous page so the two are comparable: the number of resamples, the cost of one, and the cores available. Each resample here carries a full point-in-polygon pass over hundreds of polygons, so the per-unit cost is higher than a draw from a lognormal, though once the jitter is written properly it is still well under a second.
+
+Which means this example, at this size, does not need a cluster either. Eight resamples finish in seconds. The honest reading is that the shape below matters when your resample count runs to thousands, or your polygon count to national coverage, and not at 810 polygons and 8 repeats.
 
 ## Sending the function to the data
 
@@ -212,15 +251,20 @@ The route that works is to make the geometry part of the data. Encode it, put it
 
 ```{r}
 #| label: connect
+#| message: false
+#| warning: false
 library(sparklyr)
 
+# dbx_cluster_id() rather than config::get(): an unknown
+# profile name makes config::get() fall back to `default`
+# silently, which would run this on the single-node cluster
+# and answer a different question. The helper errors instead.
+#
+# The connect messages are suppressed because they name the
+# cluster, and this page is published.
 sc <- spark_connect(
   method = "databricks_connect",
-  cluster_id = config::get(
-    "cluster_id",
-    config = "multinode",
-    file = "config.yml"
-  )
+  cluster_id = dbx_cluster_id("multinode")
 )
 ```
 
@@ -275,7 +319,12 @@ distributed <- spark_apply(
 ) |>
   collect()
 
-distributed
+# A worker's node name embeds the cluster id, so this page
+# shows the shape of the result rather than the names
+# themselves. What matters is one row per partition.
+distributed |>
+  mutate(host = glue("worker-{dense_rank(host)}")) |>
+  select(host, n_polygons, area)
 ```
 
 ## Check that the work actually left your session
@@ -286,8 +335,9 @@ A single-node cluster passes every other test. The work runs, the answer is righ
 
 ```{r}
 #| label: where
+# Counts and a logical, not names: the check does not need
+# to publish either machine's identity.
 tibble(
-  driver = Sys.info()[["nodename"]],
   worker_machines = n_distinct(distributed$host),
   worker_processes = n_distinct(distributed$pid),
   driver_did_work = Sys.info()[["nodename"]] %in%
@@ -320,4 +370,4 @@ What remains open, named rather than tidied away: how any of this behaves at twe
 
 ---
 
-This page rests on: the catchment column that reads as an overall grade is unusable, with nearly all rows "Not assessed", and `ecological_class` carries the usable ordinal grade; decoded catchment area matches the declared area column to thousandths of a percent; `spark_apply()` on the Databricks Connect backend does not capture the calling environment and rejects `context =` outside the `group_by` path, so geometry must travel as a column in the Spark table; `spark_apply()` has been observed distributing work across two worker machines, neither of them the driver, with `sf` loaded and doing real spatial work; one R process runs per task and a task gets one core, so partition count controls how much of a machine is used; `sf` is absent from a stock cluster image and must be installed on every node; `future` and `furrr` are absent from the cluster runtime bundle while base `parallel` is present.
+This page rests on: adding a two-column matrix to an `sfc` recycles the matrix per geometry rather than shifting point `i` by row `i`, costing gigabytes in GEOS that never appear in R's `gc()` accounting, so coordinate jitter must be done on a plain matrix; the catchment column that reads as an overall grade is unusable, with nearly all rows "Not assessed", and `ecological_class` carries the usable ordinal grade; decoded catchment area matches the declared area column to thousandths of a percent; `spark_apply()` on the Databricks Connect backend does not capture the calling environment and rejects `context =` outside the `group_by` path, so geometry must travel as a column in the Spark table; `spark_apply()` has been observed distributing work across two worker machines, neither of them the driver, with `sf` loaded and doing real spatial work; one R process runs per task and a task gets one core, so partition count controls how much of a machine is used; `sf` is absent from a stock cluster image and must be installed on every node; `future` and `furrr` are absent from the cluster runtime bundle while base `parallel` is present.

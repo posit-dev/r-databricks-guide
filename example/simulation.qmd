@@ -25,7 +25,8 @@ library(parallel)
 library(ggplot2)
 
 per_station <- readRDS("per_station.rds")
-n_cores <- max(1L, detectCores() - 1L)
+source("R/setup.R")
+n_cores <- wq_cores()
 ```
 
 ## What is being simulated, and why
