@@ -164,6 +164,8 @@ The `mutate()` sits below the line deliberately. It could run either side, and p
 
 It is worth seeing what that judgement costs, because a filter on record length could quietly have been a filter on geography. It is not: the stations that survive are thinned out of the whole network rather than taken from one part of it.
 
+The coordinates are eastings and northings on the British National Grid (EPSG 27700), so `coord_sf()` is given that CRS explicitly rather than left to infer one. Stating it is the habit worth copying: a map drawn from unprojected latitude and longitude is stretched north to south at this latitude, and nothing warns you.
+
 ```{r}
 #| label: survivors
 #| fig-width: 4.5
@@ -178,6 +180,7 @@ station_xy <- readRDS("station_xy.rds") |>
 ggplot(station_xy) +
   geom_sf(data = ~filter(.x, !kept), colour = "#CFCFCF", size = 0.35) +
   geom_sf(data = ~filter(.x, kept), colour = "#447099", size = 0.5) +
+  coord_sf(crs = 27700, datum = 27700) +
   theme_void(base_size = 11)
 ```
 

@@ -70,9 +70,9 @@ report "no hard-coded catalog name" \
   "$(tracked -nE 'uk_water_quality' 2>/dev/null)"
 
 # House style, per the guide's own conventions.
-# The style rules in CLAUDE.md and README.md have to quote what they forbid,
-# so they are exempt from these two prose checks.
-PROSE_EXEMPT='^(CLAUDE|README)\.md:'
+# The style rules in CLAUDE.md, CODE-STYLE.md and README.md have to quote what
+# they forbid, so they are exempt from these two prose checks.
+PROSE_EXEMPT='^(CLAUDE|CODE-STYLE|README)\.md:'
 
 report "base pipe only, no magrittr pipe" \
   "$(tracked -n '%>%' 2>/dev/null | "$GREP" -vE "$PROSE_EXEMPT")"

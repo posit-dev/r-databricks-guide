@@ -107,6 +107,8 @@ ggplot() +
     name = NULL
   ) +
   coord_sf(
+    crs = 27700,
+    datum = 27700,
     xlim = window[c("xmin", "xmax")],
     ylim = window[c("ymin", "ymax")],
     expand = FALSE
