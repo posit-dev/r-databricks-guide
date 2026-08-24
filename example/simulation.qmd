@@ -1,6 +1,6 @@
 ---
 title: "Simulating from a summary"
-subtitle: "Stage five: a thousand synthetic years per station, on the cores you have"
+subtitle: "Stage five: a thousand parameter draws per station, on the cores you have"
 execute:
   freeze: true
 ---
@@ -23,6 +23,7 @@ library(glue)
 library(cli)
 library(parallel)
 library(ggplot2)
+library(bit64)
 
 per_station <- readRDS("per_station.rds")
 source("R/setup.R")
@@ -33,9 +34,11 @@ n_cores <- wq_cores()
 
 The question is how often a station's daily flow drops below a low-flow threshold, and how uncertain that number is given only ten years of record.
 
-Ten years gives one observed answer per station and no sense of its spread. Simulating many synthetic decades from each station's fitted distribution gives the spread, which is what turns a number into a number with an interval on it.
+The threshold is a property of the station: the tenth percentile of its own fitted flow distribution, so it is a low flow *for that river* rather than a number carried over from a larger one. That much a single fit gives you. What a single fit does not give you is how much to trust it, because the mean and standard deviation behind it were themselves estimated from a finite record, and a station with three years of readings pins them down less well than one with ten.
 
-This is a demonstration of mechanism, not a hydrological finding. The distributional choice below is convenient rather than defended.
+So the uncertainty that matters here is uncertainty in the fitted parameters. Each draw perturbs the fitted mean and standard deviation by their own sampling error, then asks what fraction of a year would fall below the threshold under those perturbed parameters. A thousand such draws give a thousand answers, and their spread is the interval. Stations with a longer record get a tighter one, which is the whole point.
+
+Two honest caveats. The sampling error used below is the textbook approximation for a normal fit, applied to a lognormal fitted from a mean and a standard deviation rather than from the readings themselves, so it is rough. And this is a demonstration of mechanism, not a hydrological finding: the distributional choice is convenient rather than defended.
 
 ## The summary the simulation runs on
 
@@ -50,10 +53,13 @@ sim_input <- per_station |>
     mean_flow > 0,
     sd_flow > 0
   ) |>
-  select(station_id, n_days, mean_flow, sd_flow, cv)
+  select(station_id, n_days, mean_flow, sd_flow, cv) |>
+  mutate(n_days = as.integer(n_days))
 
 nrow(sim_input)
 ```
+
+`n_days` arrives as an `integer64`, which is how a Spark `BIGINT` lands in R. It has to be converted before it is used in arithmetic, and the conversion needs `bit64` attached: without it, `as.integer()` on one of these columns returns zero and `as.numeric()` returns a number around `1e-320`, both silently. That is why `library(bit64)` is in the setup chunk. The record length is about to become part of the answer, so a column of zeros here would not error, it would just quietly remove the thing the stage is measuring.
 
 ## Fitting the distribution
 
@@ -87,33 +93,44 @@ One station, one function, returning one row. Nothing in it knows how it will be
 
 ```{r}
 #| label: unit
-n_draws <- 1000
-n_days <- 365
-
 simulate_station <- function(station_id,
                              meanlog,
                              sdlog,
+                             n_days,
                              threshold_q = 0.1,
                              n_draws = 1000,
-                             n_days = 365) {
-  set.seed(abs(utf8ToInt(substr(station_id, 1, 1)) * 7919))
+                             days_per_year = 365) {
+  set.seed(strtoi(substr(rlang::hash(station_id), 1, 7), 16L))
 
+  # The threshold comes from the fit as it stands, not from a perturbed
+  # version of it, so it stays a fixed low-flow level for this station
+  # while the draws move around it.
   threshold <- qlnorm(threshold_q, meanlog, sdlog)
 
-  spells <- map_int(seq_len(n_draws), \(i) {
-    year <- rlnorm(n_days, meanlog, sdlog)
-    sum(year < threshold)
+  # Sampling error of the two fitted parameters, given n_days of record.
+  se_meanlog <- sdlog / sqrt(n_days)
+  se_sdlog <- sdlog / sqrt(2 * n_days)
+
+  rate <- map_dbl(seq_len(n_draws), \(i) {
+    days_per_year * plnorm(
+      threshold,
+      rnorm(1, meanlog, se_meanlog),
+      rnorm(1, sdlog, se_sdlog)
+    )
   })
 
   tibble(
     station_id = station_id,
+    n_days = n_days,
     threshold = threshold,
-    mean_days = mean(spells),
-    lower = quantile(spells, 0.025, names = FALSE),
-    upper = quantile(spells, 0.975, names = FALSE)
+    mean_days = mean(rate),
+    lower = quantile(rate, 0.025, names = FALSE),
+    upper = quantile(rate, 0.975, names = FALSE)
   )
 }
 ```
+
+Each draw asks what share of a year falls below the threshold under one perturbed version of the fit, rather than dealing out 365 individual days and counting them. Both are defensible, and this one is chosen deliberately: counting days adds the coin-flip noise of a single year to every draw, and at these record lengths that noise is several times larger than the parameter uncertainty, so it would bury the signal the stage exists to show. Asking for the share isolates the part that answers the question.
 
 ## Serially first
 
@@ -125,8 +142,8 @@ small <- sim_input |> slice_head(n = 50)
 
 serial_time <- system.time(
   serial_result <- small |>
-    pmap(\(station_id, meanlog, sdlog, ...) {
-      simulate_station(station_id, meanlog, sdlog)
+    pmap(\(station_id, meanlog, sdlog, n_days, ...) {
+      simulate_station(station_id, meanlog, sdlog, n_days)
     }) |>
     list_rbind()
 )
@@ -147,7 +164,8 @@ run_all <- function(input, cores) {
     simulate_station(
       input$station_id[i],
       input$meanlog[i],
-      input$sdlog[i]
+      input$sdlog[i],
+      input$n_days[i]
     )
   }) |>
     list_rbind()
@@ -160,7 +178,7 @@ parallel_time <- system.time(
 nrow(sim_result)
 ```
 
-The two runs are not the same size, so they are not comparable as timings. Both are single runs in a session with `r n_cores` cores available, quoted so the numbers mean something rather than as a benchmark.
+The two runs are not the same size, so they are not comparable as timings. Both are single runs in a session with `r n_cores` core`r if (n_cores != 1) "s"` available, quoted so the numbers mean something rather than as a benchmark.
 
 ```{r}
 #| label: timings
@@ -178,8 +196,18 @@ tibble(
 
 The parallel run has to agree with the serial one on the stations they share. That check is worth making explicitly, because a parallel run that silently reorders or drops rows looks exactly like one that did not.
 
+Agreeing on the numbers is the easy half, and on its own it proves less than it appears to: the seed is derived from the station id, so any run that reaches a given station at all computes the same value for it, whatever order the work arrived in. The half that can actually fail is whether every station came back exactly once. So the check below reorders the serial input before re-running it, then compares the set of ids and the row count as well as the values.
+
 ```{r}
 #| label: agreement
+shuffled <- small |> arrange(desc(station_id))
+
+reordered_result <- shuffled |>
+  pmap(\(station_id, meanlog, sdlog, n_days, ...) {
+    simulate_station(station_id, meanlog, sdlog, n_days)
+  }) |>
+  list_rbind()
+
 comparison <- serial_result |>
   select(station_id, serial = mean_days) |>
   inner_join(
@@ -187,11 +215,21 @@ comparison <- serial_result |>
     by = "station_id"
   )
 
+ids_match <- setequal(reordered_result$station_id, serial_result$station_id)
+counts_match <- nrow(reordered_result) == nrow(serial_result) &&
+  !anyDuplicated(sim_result$station_id)
+rows_joined <- nrow(comparison) == nrow(serial_result)
 max_diff <- max(abs(comparison$serial - comparison$par))
+
+stopifnot(
+  "reordering changed which stations came back" = ids_match,
+  "a station was dropped or duplicated" = counts_match,
+  "the parallel run did not cover every serial station" = rows_joined
+)
 
 cli_alert_info(
   "{nrow(comparison)} stations compared, \\
-   max difference {max_diff}"
+   max difference {signif(max_diff, 3)}"
 )
 ```
 
@@ -204,25 +242,31 @@ sim_result |>
   slice_head(n = 8)
 ```
 
+The central estimate is near 36.5 days for every station, and that is arithmetic rather than a result: the threshold is each station's own tenth percentile, so a tenth of a year is the answer by construction. The number that carries information is the width of the interval around it.
+
 ```{r}
 #| label: plot
 #| fig-width: 6
 #| fig-height: 3.5
-#| fig-alt: "Histogram of the simulated mean number of low-flow days per year across about a thousand stations."
-ggplot(sim_result, aes(mean_days)) +
-  geom_histogram(bins = 40, fill = "#447099") +
+#| fig-alt: "Interval width against length of record for about a thousand stations, showing width falling as the record lengthens."
+sim_result |>
+  mutate(width = upper - lower) |>
+  ggplot(aes(n_days, width)) +
+  geom_point(alpha = 0.3, colour = "#447099") +
   labs(
-    x = "simulated low-flow days per year",
-    y = "stations"
+    x = "days of record behind the fit",
+    y = "width of the 95% interval (days)"
   ) +
   theme_minimal(base_size = 11)
 ```
+
+That is the shape a sampling-error argument predicts, and seeing it is the check that the stage is measuring what it claims to. A station with three years of record carries roughly twice the uncertainty of one with ten.
 
 ## This one is finished
 
 The honest checkpoint. The page reaches it and stops, rather than reaching for the cluster to complete a demonstration.
 
-The arithmetic is small: about a thousand stations, a thousand draws of 365 values each. That finishes on a handful of cores in a time that does not justify starting anything, and the correct thing to do is nothing further.
+The arithmetic is small: about a thousand stations, a thousand parameter draws each. That finishes on a handful of cores in a time that does not justify starting anything, and the correct thing to do is nothing further.
 
 Saying so is what earns the credibility for the next page, where the answer is different.
 
@@ -256,4 +300,4 @@ saveRDS(sim_result, "sim_result.rds")
 
 ---
 
-This page rests on: per-station mean and standard deviation of daily flow are sufficient to parameterise a lognormal without a second pass over the readings; about a thousand stations at a thousand draws each finishes on a handful of local cores; on a single-node cluster `parallel::mclapply()` in one cluster-side session was over twice as fast as `spark_apply()` for the same draws; `spark_apply(group_by =)` uses one R process where the partition path uses several, runs slower for an identical answer, and fails outright on `rpy2` 3.6.x.
+This page rests on: per-station mean and standard deviation of daily flow are sufficient to parameterise a lognormal without a second pass over the readings; the count of days behind each fit is available in the same summary, so the sampling error of those two parameters can be formed without returning to the readings either; about a thousand stations at a thousand draws each finishes on a handful of local cores; on a single-node cluster `parallel::mclapply()` in one cluster-side session was over twice as fast as `spark_apply()` for the same draws; `spark_apply(group_by =)` uses one R process where the partition path uses several, runs slower for an identical answer, and fails outright on `rpy2` 3.6.x.

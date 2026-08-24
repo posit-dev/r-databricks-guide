@@ -96,14 +96,17 @@ ggplot(
 
 The second figure is the one from the simulation, and it is worth keeping because it shows the uncertainty rather than a point estimate.
 
+Ordering matters here. Every station's central estimate sits near 36.5 days by construction, so sorting by the mean puts the intervals in effectively random order and the figure says only that they differ. Sorting by interval width instead shows the thing that varies, and the forty are drawn evenly across the full range of widths rather than from the top of it, because the widest forty are all much the same.
+
 ```{r}
 #| label: figure-sim
 #| fig-width: 6
 #| fig-height: 3.5
-#| fig-alt: "Simulated low-flow days per year for forty stations, each with a 95 per cent interval, ordered by the mean."
+#| fig-alt: "Low-flow days per year for forty stations, each with a 95 per cent interval, ordered by interval width so the intervals widen down the figure."
 sim_result |>
-  arrange(desc(mean_days)) |>
-  slice_head(n = 40) |>
+  mutate(width = upper - lower) |>
+  arrange(desc(width)) |>
+  slice(round(seq(1, n(), length.out = 40))) |>
   mutate(
     station_id = factor(station_id, levels = station_id)
   ) |>
