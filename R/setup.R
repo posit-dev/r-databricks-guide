@@ -34,7 +34,7 @@ wq_schema <- function() {
 }
 
 #' A fully qualified table name, for dbGetQuery() and friends.
-wq_name <- function(table) sprintf("%s.%s.%s", wq_catalog(), wq_schema(), table)
+wq_name <- function(table) glue::glue("{wq_catalog()}.{wq_schema()}.{table}")
 
 #' The same thing for dbplyr, which needs I() so it does not quote the dots.
 wq_tbl <- function(con, table) dplyr::tbl(con, I(wq_name(table)))
@@ -113,11 +113,10 @@ wq_connect_brickster <- function() {
 #' Report what an object cost, so a page can show a reduction rather than
 #' claim one.
 wq_size <- function(x, label) {
-  cat(sprintf(
-    "%-34s %12s rows x %2d cols  %7.1f MB\n",
-    label, format(nrow(x), big.mark = ","), ncol(x),
-    as.numeric(utils::object.size(x)) / 2^20
-  ))
+  cli::cli_alert_info(
+    "{label}: {format(nrow(x), big.mark = ',')} rows x {ncol(x)} cols, \\
+     {round(as.numeric(utils::object.size(x)) / 2^20, 1)} MB"
+  )
   invisible(x)
 }
 

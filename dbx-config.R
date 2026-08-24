@@ -47,11 +47,12 @@ dbx_config_value <- function(key, profile = "default", file = DBX_CONFIG_FILE) {
   if (!file.exists(file)) return(NULL)
   known <- dbx_profiles(file)
   if (!profile %in% known) {
-    stop(sprintf(
-      paste("Unknown config profile '%s'. %s defines: %s.",
-            "config::get() would have silently fallen back to 'default'",
-            "and given you the wrong compute."),
-      profile, file, paste(known, collapse = ", ")), call. = FALSE)
+    cli::cli_abort(c(
+      "Unknown config profile {.val {profile}}.",
+      i = "{.file {file}} defines: {.val {known}}.",
+      x = "config::get() would have fallen back to {.val default}
+           and given you the wrong compute."
+    ))
   }
   config::get(key, config = profile, file = file)
 }
@@ -64,8 +65,12 @@ dbx_warehouse_id <- function(profile = "default") {
   id <- dbx_config_value("warehouse_id", profile) %||%
         sub(".*/", "", Sys.getenv("DATABRICKS_PATH"))
   if (!nzchar(id)) {
-    stop("No warehouse configured. Set `warehouse_id` in config.yml, or ",
-         "DATABRICKS_PATH in .Renviron. See README.md.", call. = FALSE)
+    cli::cli_abort(c(
+      "No warehouse configured.",
+      i = "Set {.field warehouse_id} in {.file config.yml},
+           or {.envvar DATABRICKS_PATH} in {.file .Renviron}.",
+      i = "See {.file README.md}."
+    ))
   }
   id
 }

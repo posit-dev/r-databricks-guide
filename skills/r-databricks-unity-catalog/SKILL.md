@@ -1,6 +1,6 @@
 ---
 name: r-databricks-unity-catalog
-description: Finding and querying Unity Catalog data from R. Covers browsing catalogs, schemas and tables with brickster, querying with dbplyr, deciding where the collect() line goes, and using dplyr::sql() for expressions dbplyr cannot translate. Load when locating a table or writing a query; load r-databricks-connections first to choose a connection path.
+description: Finding and querying Unity Catalog data from R. Covers browsing catalogs, schemas and tables with brickster, querying with dbplyr, deciding where the collect() line goes, and using dplyr::sql() for expressions dbplyr cannot translate or tbl(con, sql()) to start from a whole hand-written query. Load when locating a table or writing a query; load r-databricks-connections first to choose a connection path.
 ---
 
 # Finding and querying Unity Catalog data from R
@@ -50,6 +50,17 @@ tbl(con, I("catalog.schema.sites")) |>
   mutate(code = sql("regexp_extract(site_name, '([A-Z]{2}[0-9]+)', 1)")) |>
   collect()
 ```
+
+The same escape hatch has a second, larger form: pass a `sql()` object to `tbl()` in place of a table name and a whole hand-written query becomes a lazy table. Use it when the query already exists (a colleague's, or one tuned in the Databricks SQL editor) rather than translating it into verbs. `[verified: ran it on 2026-08-24]`
+
+```r
+q <- tbl(con, sql("SELECT id, site_name FROM catalog.schema.sites WHERE region = 'NW'"))
+q |> count(site_name) |> collect()
+```
+
+`dbplyr` does not reparse the query: it wraps it as a subquery and writes around it, so verbs piped on afterwards still push down. Confirm with `show_query()`. Works on both the `odbc` and `brickster` connection paths. `[verified: ran it on 2026-08-24]`
+
+The wrapper is load-bearing. A bare character string is read as a table *name*, and fails with `TABLE_OR_VIEW_NOT_FOUND` quoting the whole SELECT back as an identifier, which reads as a server fault rather than a missing `sql()`. `[verified: ran it on 2026-08-24]`
 
 ## A known backend gap, attributed correctly
 

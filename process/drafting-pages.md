@@ -19,9 +19,11 @@ acon <- wq_connect_brickster()
 readings <- wq_tbl(con, "hydrology_readings")
 ```
 
-Known gap, so this instruction is not mistaken for a description of the current state: **no page calls the connection helpers yet.** Three `example/` pages source the file and use only `wq_cores()`, `wq_cpu_quota()` and `wq_tbl()`, so `R/setup.R` still reads as mostly dead code to anyone who opens it. Reuse them anyway in verification scripts, which is where the saving is. Wiring them into a page, or deleting the ones nothing will ever call, is open work: it costs a re-render, so it belongs in whichever pass already renders that page.
+**No page calls the connection helpers, and that is deliberate.** `CLAUDE.md` wants a reader to see the connection being opened, so the pages inline `dbConnect()` rather than hiding it behind `wq_connect_odbc()`. The helpers exist for verification scripts, which is where the saving is: use them there, and do not "fix" the pages to call them.
 
-`example/connecting.qmd` likewise still hand-rolls the profile guard that `dbx-config.R` implements, on the page that teaches the guard.
+The same reasoning settles `example/connecting.qmd`, which defines its own profile guard rather than calling `dbx_cluster_id()`. That page is *teaching* the guard, and it demonstrates the failure with `#| error: true`. Replacing the definition with a call would hide the mechanism the section exists to explain. `dbx-config.R` was brought up to the page's standard instead, since the page used `cli_abort()` with structured bullets while the helper still used `stop()` and `sprintf()`.
+
+One duplicate is knowingly left. `wq_cluster_notice()` has a verbatim twin inside `example/bootstrap.qmd`. Removing it is a one-line edit, but that page re-renders only with `WQ_RUN_CLUSTER=true` against the multi-node cluster, and rendering it without that flag drops its cluster output. The cost is out of proportion to a twelve-line duplicate the reader never sees, because it is `echo: false`.
 
 **3. Batch by compute, then parallelise.** Sort the pages by what they need before dispatching anything.
 
