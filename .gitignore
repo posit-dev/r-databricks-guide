@@ -6,6 +6,16 @@
 # therefore cannot reach Databricks. Editing an example page invalidates its
 # freeze hash, so re-render locally and commit the result with the edit.
 /_site/
+
+# Rendered output that lands at the repo root rather than in _site/. Quarto
+# writes here when it is invoked on a single file from the project root, and
+# /_site/ above does not cover it. Committing these once was enough: they are
+# build artefacts, they rot against the source, and CI rebuilds the site from
+# scratch anyway.
+/site_libs/
+/index.html
+/*/*.html
+/*/*_files/
 /.quarto/
 
 # R
