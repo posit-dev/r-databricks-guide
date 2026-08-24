@@ -3,43 +3,184 @@ title: "Connect your R session to the data"
 subtitle: "Which connection to open, and why the choice matters before you write any code"
 ---
 
-::: {.callout-note appearance="simple"}
-
-**Not yet written.** The structure below is settled; the prose is not.
-
-:::
-
 ## Use `brickster::DatabricksSQL()` if geometry is involved. Otherwise either path works
 
-The decision is this small, and the page should resolve it in the first paragraph rather than build up to it. `odbc::databricks()` is the default and is fine for ordinary queries through `dbplyr`. The moment a `BINARY` column is in play, and geometry is stored as `BINARY`, the ODBC path cannot carry the data and the choice is made for her. This is not a preference between two working options.
+If your query touches a `BINARY` column, and geometry is stored as `BINARY`, open the connection with `brickster::DatabricksSQL()`. If it does not, `odbc::databricks()` is the default and is fine.
+
+That is the whole decision. It is not a preference between two working options: the ODBC path cannot carry a `BINARY` value intact, so the moment geometry is in play the choice is made for you.
+
+```r
+library(DBI)
+library(dplyr)
+library(dbplyr)
+library(tibble)
+library(glue)
+library(cli)
+
+catalog <- Sys.getenv("DATABRICKS_CATALOG")
+schema <- Sys.getenv("DATABRICKS_SCHEMA")
+
+# Ordinary queries through dbplyr.
+con <- dbConnect(
+  odbc::databricks(),
+  httpPath = Sys.getenv("DATABRICKS_PATH"),
+  DefaultStringColumnLength = 65535
+)
+
+# Anything reading a BINARY column.
+acon <- dbConnect(
+  brickster::DatabricksSQL(),
+  warehouse_id = basename(Sys.getenv("DATABRICKS_PATH"))
+)
+```
+
+Both point at the same warehouse, and both read your credentials from the environment rather than from anything you type. On Posit Workbench those variables are set for you when you sign in. If `DATABRICKS_HOST` is empty, you are not signed in, and no amount of connection debugging will fix that.
+
+Two connections open at once is normal here. Use `con` for the work and reach for `acon` only where geometry crosses.
 
 ## Why: ODBC silently truncates `BINARY`
 
-A 1,025-byte polygon comes back as 1 byte, and it is a correct prefix, so nothing errors. Upstream issue `r-dbi/odbc#1024`.
+A `BINARY` value longer than 1,024 bytes arrives in R with `length mod 1024` bytes. A 1,025-byte polygon becomes 1 byte. A 5,670-byte one becomes 550. Nothing errors, nothing warns, and the fetch reports success. This is upstream issue `r-dbi/odbc#1024`.
 
-The fact that makes this dangerous, and which the page must not bury: the failure is silent in both directions. Nothing errors, and what arrives is a valid prefix rather than obvious rubbish, so a pipeline runs clean and produces a wrong answer. On one measured table the default connection discarded about 87% of the geometry while reporting success.
+The arithmetic is exact, which makes it easy to see once you look for it:
 
-There is a second trap behind the first, and the page has to carry both or it sends the reader into it. The documented way round the `BINARY` bug is to encode the value as text server-side. Text columns are themselves silently truncated at 1,023 characters by default, and encoded geometry runs well past that, so following the first workaround alone yields about a tenth of the data and a decode error that reads like corrupt input rather than truncation. Both have to be worked around together: encode server-side *and* raise the driver's string-length setting above the longest encoded value. Round numbers are a trap in that setting, and can be silently dropped, so a value like 65535 rather than 100000.
+```r
+tibble(asked = c(512, 1024, 1025, 2000, 5000)) |>
+  mutate(returned = map_int(asked, \(n) {
+    length(dbGetQuery(con, glue("SELECT unhex(repeat('AB', {n})) AS b"))$b[[1]])
+  }))
+```
 
-Both bugs now have fix pull requests open against the driver package. Neither is merged, so the workarounds are needed today, but the page should say "until the fix ships" rather than present them as permanent.
+```
+# A tibble: 5 × 2
+  asked returned
+  <dbl>    <int>
+1   512      512
+2  1024     1024
+3  1025        1
+4  2000      976
+5  5000      904
+```
 
-Because both failures are silent, the page owes the reader a check as well as a recipe: compare the length the server reports against the length that arrives, and validate decoded geometry against a declared area or length column rather than merely confirming it parses. A geometry that parses can still be a fraction of the real thing.
+Under 1,024 bytes everything is fine, which is the trap: a small geometry survives, so a test on simple shapes passes and the real data fails. On the catchment table used throughout this guide, 4,040 of 4,080 catchment polygons exceed 1,024 bytes, and 91.5% of the stored geometry never reaches R.
+
+`brickster::DatabricksSQL()` returns the same column byte-exact. Decode a polygon it fetched and the area agrees with the server's own `ST_Area()` to within a fraction of a square metre on a catchment of 25 million.
+
+## The second trap, behind the first
+
+The documented way round the `BINARY` bug is to encode the value as text on the server, with `base64()`, and decode it in R. Follow that alone and you walk into a different silent truncation.
+
+Text columns are clipped at 1,023 characters by default. Encoded geometry runs well past that: on the same catchment table the longest encodes to over 200,000 characters. Measured across that table, the default connection discards about 87% of the encoded geometry while reporting success, and the failure surfaces as a decode error that reads like a corrupt payload rather than anything mentioning length.
+
+Both have to be worked around together. Encode server-side **and** raise the driver's string-length setting above the longest encoded value:
+
+```r
+con <- dbConnect(
+  odbc::databricks(),
+  httpPath = Sys.getenv("DATABRICKS_PATH"),
+  DefaultStringColumnLength = 65535
+)
+```
+
+Use 65535 rather than a round number like 100000. Round values can be silently dropped, because they render in scientific notation on the way to the driver and arrive as something it does not read as a number. The setting is not a ceiling on the payload: with it in place a 206,338-character value arrives intact.
+
+Both truncation bugs now have fix pull requests open against the driver package. Neither has merged, so the workarounds are needed today, and this section describes the situation until those fixes ship rather than a permanent property of the stack.
+
+## Check, do not assume
+
+Both failures are silent, so the recipe is worth nothing without a check. Two checks, and they answer different questions.
+
+Compare the length the server reports against the length that arrives. This catches truncation directly:
+
+```r
+tbl_name <- function(table) {
+  glue("{catalog}.{schema}.{table}")
+}
+
+dbGetQuery(acon, glue(
+  "SELECT water_body_id,
+          octet_length(geom_wkb) AS declared
+   FROM {tbl_name('wfd_catchments')}
+   WHERE geom_wkb IS NOT NULL
+   LIMIT 3"
+))
+```
+
+```
+# A tibble: 3 × 2
+  water_body_id  declared
+  <chr>             <int>
+1 GB105035046170     5670
+2 GB109055036620     3222
+3 GB112069061390     4662
+```
+
+Then validate the decoded geometry against something recorded independently, rather than merely confirming it parses. The catchment table carries its own area column, computed before any of this transport happened, so comparing your computed area against it tests the whole round trip:
+
+```r
+catchments <- dbGetQuery(acon, glue(
+  "SELECT water_body_id, water_body_area_m2, geom_wkb
+   FROM {tbl_name('wfd_catchments')} LIMIT 5"
+)) |>
+  as_tibble() |>
+  mutate(
+    geometry = st_as_sfc(structure(geom_wkb, class = "WKB"), EWKB = TRUE),
+    area_r = as.numeric(st_area(st_set_crs(geometry, 27700))),
+    agreement = area_r / water_body_area_m2
+  )
+```
+
+```
+# A tibble: 5 × 3
+  water_body_area_m2    area_r agreement
+               <dbl>     <dbl>     <dbl>
+1          25802596. 25807299.     1.00 
+2          15911995. 15914043.     1.00 
+3          19657768. 19662869.     1.00 
+4          40515723. 40458110.     0.999
+5          53512602. 53522561.     1.00 
+```
+
+The recomputed areas agree with the declared column to within a tenth of a percent. That is the answer you want: agreement at this level says the bytes survived and the CRS is right. It is not exact agreement, and it should not be, because the two numbers were computed by different software at different times. What matters is that the disagreement is small enough to be uninteresting and stays that way as you add rows.
+
+A parse check on its own is weaker than it looks in both directions. On this data a truncated polygon usually fails to parse outright, so the loud error arrives before any check does. But that is a property of where the bytes happen to be cut, not a guarantee, and a geometry that parses can still be the wrong geometry: a silent CRS mismatch produces a perfectly valid polygon in the wrong place. The area comparison catches that too, which is why it is the check worth keeping.
 
 ## Finding your table
 
-Catalogs, schemas and tables, and what Unity Catalog is doing for you.
+Names in Unity Catalog have three parts: catalog, schema, table. Read the first two from the environment rather than writing them into your script, so the same code runs against a different catalog without editing.
 
-Three levels, and the fact worth stating is that the three-part name is not bureaucracy: it is how permission is granted, which is why she may see a catalog and not its contents.
+The three-part name is not bureaucracy. It is the unit that permission is granted on, which is why you can see a catalog listed and not see anything inside it. If a table you were told exists is missing, that is a grant, not a typo, and it is a question for whoever administers the workspace rather than something to debug in R.
 
 ## Configuring more than one compute target
 
-If she works against both a warehouse and a cluster, or two clusters, this is where the shape belongs. The trap to name: `config::get()` treats an unrecognised profile name as absent and silently falls back to the default profile, so a mistyped name does not fail. It runs the job against whichever target the default names and returns results that look entirely ordinary, with nothing in the output saying which compute answered. The page should show how to validate a profile name against the configuration file's own keys, and how to report which target a session actually resolved.
+If you work against a warehouse and a cluster, or two clusters, keep the identifiers in a configuration file rather than scattered through scripts. One trap makes this worth doing carefully: `config::get()` treats an unrecognised profile name as absent and falls back to the default profile without warning. A mistyped profile name does not fail. The job runs against whichever target the default names, returns results that look entirely ordinary, and nothing in the output says which compute answered.
 
-A related shape worth recommending here: store the warehouse identifier on its own rather than as part of a connection path. Different clients want different forms of it, one the path and one the bare identifier, and storing the longer form means call sites take it apart again, which is how the two drift out of step.
+So validate the name against the file's own keys instead of trusting it:
+
+```r
+compute_id <- function(profile, file = "compute.yml") {
+  known <- names(yaml::yaml.load_file(file))
+
+  if (!profile %in% known) {
+    cli_abort(c(
+      "Unknown profile {.val {profile}}.",
+      i = "{.file {file}} defines: {.val {known}}.",
+      x = "config::get() would have fallen back to
+           {.val default} and given you the wrong compute."
+    ))
+  }
+
+  config::get("cluster_id", config = profile, file = file)
+}
+```
+
+Store the warehouse identifier on its own rather than as part of a longer connection path. Different clients want different forms of it: `odbc` wants the HTTP path, `brickster` wants the bare identifier. Storing the path means every `brickster` call takes it apart again with `basename()`, and the two drift out of step the first time one is edited and the other is not.
 
 ## What your connection is, and is not
 
-A client to remote compute, not a session on it.
+Your connection is a client to remote compute, not a session on it. The R process is yours, running where you started it. `con` is a handle that sends SQL somewhere else and brings answers back.
+
+That distinction decides what your code can do. An object in your R session is not visible to the warehouse, and a table in the warehouse is not in your memory until you ask for it. Everything else in this guide is a consequence of where that line falls and how much crosses it.
 
 ## Next
 

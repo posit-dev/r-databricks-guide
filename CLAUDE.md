@@ -194,8 +194,20 @@ Each page here should carry a short note naming the claims it rests on, phrased 
 
 Entries are dated and newest-first upstream, so a date and a heading is enough to say where the guide has read up to. The marker below is the only state this side keeps about the other repo, and it deliberately records no path, no commit and no file name.
 
-**Consumed through: 2026-08-22, "Standard access mode does not support R" is wrong as usually written.**
+**Consumed through: 2026-08-23, "The future-based parallel packages are not on the cluster's runtime".**
 
 To bring the guide up to date, read the entries above that marker, match each `Bears on:` line against the `rests on:` lines here, change what needs changing, then move the marker. Matching is a judgement, not a string comparison: an entry can leave a claim standing but incomplete, which reads as agreement until you look at what it adds. Move the marker only for entries you have actually acted on or actively declined, and note a declined one in the commit message, or the next reader will re-litigate it.
 
-Three entries above the current marker are known not to be spent. Two of them, the river network reading as basins and the silent `config` profile fallback, bear on no page yet. The third, moving a cluster to DBR 18, contradicts version pins that `admin/geospatial-setup.qmd` still rests on, and settling it means deciding which runtime the guide addresses.
+The 2026-08-23 batch was read on 2026-08-24 while drafting the nine `howdoi/` pages, and this is where it landed:
+
+- **Spatial functions depend on the warehouse type.** The "23 of 23 probed `ST_` functions" figure was measured on a Pro warehouse running serverless and is not general: the functions are documented as unavailable on the older Classic type. `howdoi/polygons.qmd` now states the coverage alongside the warehouse type, and tells a reader whose spatial query fails with an unknown-function error to check what she was given rather than debug her SQL.
+- **Server-side spatial aggregation is narrower than the documentation implies.** Grouping by an ordinary key while aggregating geometry works; only grouping by a raw geometry column fails, for want of an ordering. `polygons.qmd` recommends the working pattern and does not repeat the broader-sounding warning.
+- **`dbWriteTable()` on an `sf` object silently writes geometry as a string column** through the brickster backend. `howdoi/results.qmd` says so, and says a table round trip is therefore not lossless for spatial data.
+- **`future` and `furrr` are absent from the runtime while base `parallel` is present.** This is the environmental fact `CODE-STYLE.md` rests on, and `howdoi/monte-carlo.qmd` keeps the framing environmental rather than presenting `parallel` as the better tool.
+- **Partition count is the dial controlling how much of a machine a job uses**, and the worker sees the whole machine rather than its slice. Recorded here but not put on a page: it overlaps `example/parallel.qmd`, which is finished and already covers the ground.
+- **Native geometry arrives as prefixed text** (`SRID=4326;POINT(1 2)`), a different path from the `BINARY`/WKB route. Not on a page: no page's `rests on:` line carries it, and conflating it with the truncation story on `connect.qmd` would be worse than omitting it.
+- **A cluster id and a warehouse id want opposite storage rules**, and neither is a credential. `howdoi/connect.qmd` already says to keep identifiers in a configuration file and validate the profile name; the split precedence and the not-a-credential point are consistent refinements that have not been added.
+
+Declined for now, and why: the last two in that list, native geometry as prefixed text and the identifier storage rules, bear on no page's factual budget as written. Acting on either would mean widening a `rests on:` line, which is a scaffolding decision rather than a drafting one.
+
+Earlier entries not spent: the river network reading as basins, and the silent `config` profile fallback, neither of which bears on a page yet. The DBR 18 entry **is** now spent: `admin/geospatial-setup.qmd` states that the guide addresses DBR 18.1 and names the rolling-alias hazard.

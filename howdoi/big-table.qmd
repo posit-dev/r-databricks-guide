@@ -3,49 +3,347 @@ title: "Work with a table that will not fit in your session"
 subtitle: "Where each step of your pipeline runs, and how much data comes back"
 ---
 
-::: {.callout-note appearance="simple"}
-
-**Not yet written.** The structure below is settled; the prose is not.
-
-:::
-
 ## One line decides where the work happens
 
-The annotated `collect()` pipeline. Above the line, Databricks. Below it, R.
+`collect()` is the line. Everything you write above it is translated into SQL and runs on Databricks; everything below it runs in your R session, on whatever `collect()` returned. Nothing moves until you call it.
 
-The single fact this page exists to install: `dbplyr` sends everything above `collect()` to the server, and the only data that moves is what is left after it. Everything else here is a consequence. The page should give her a way to see the line for herself, in her own pipeline, rather than trusting the site's example.
+That single sentence is the whole page. Everything else is a consequence of it.
+
+```r
+library(DBI)
+library(dplyr)
+library(dbplyr)
+library(tibble)
+library(glue)
+library(cli)
+
+catalog <- Sys.getenv("DATABRICKS_CATALOG")
+schema <- Sys.getenv("DATABRICKS_SCHEMA")
+
+con <- dbConnect(
+  odbc::databricks(),
+  httpPath = Sys.getenv("DATABRICKS_PATH"),
+  DefaultStringColumnLength = 65535
+)
+
+tbl_name <- function(table) {
+  glue("{catalog}.{schema}.{table}")
+}
+
+readings <- tbl(con, I(tbl_name("hydrology_readings")))
+```
+
+`readings` is a query, not a table. It prints like a tibble, which is the point and also the trap: printing it runs a `LIMIT` on the server and shows you a handful of rows, and it never tells you how many there are.
+
+```r
+readings |>
+  select(date, value, quality) |>
+  head(5)
+```
+
+```
+# A query:  ?? x 3
+# Database: Spark SQL 3.1.1[@Spark SQL/hive_metastore]
+  date       value quality
+  <date>     <dbl> <chr>
+1 2023-01-10  9.72 Unchecked
+2 2023-02-10  2    Unchecked
+3 2023-02-10 NA    Missing
+4 2023-05-10  2.94 Unchecked
+5 2023-02-04  4.25 Unchecked
+```
+
+`?? x 3` is `dbplyr` telling you it does not know the row count and has not asked. Ask, and the counting happens on the server:
+
+```r
+readings |>
+  summarise(rows = n()) |>
+  collect()
+```
+
+```
+# A tibble: 1 × 1
+      rows
+   <int64>
+1 32540721
+```
+
+### Seeing the line in your own pipeline
+
+Do not take the site's word for where the boundary falls in your code. `show_query()` prints the SQL `dbplyr` will send, so you can read exactly what the server is being asked to do:
+
+```r
+readings |>
+  filter(quality == "Good", value >= 0) |>
+  summarise(.by = measure, n_days = n(), mean_value = mean(value)) |>
+  show_query()
+```
+
+```
+<SQL>
+SELECT `measure`, COUNT(*) AS `n_days`, AVG(`value`) AS `mean_value`
+FROM your_catalog.your_schema.hydrology_readings
+WHERE (`quality` = 'Good') AND (`value` >= 0.0)
+GROUP BY `measure`
+```
+
+The filter, the grouping and both aggregates are all in the SQL, so all of them run on Databricks. Anything you write after `collect()` will not appear here, and that absence is how you tell the two halves apart. Run `show_query()` on your own pipeline before you run the pipeline, especially when you are about to leave it going while you make coffee.
 
 ## What "too big" means here
 
-32.5 million rows is about 2.5 GB in R and fits in a 32 GB session. The point is that the next dataset will not, and the technique does not change.
+The readings table is 32,540,721 rows, and collecting the whole thing would put a couple of gigabytes in your R session. On the 32 GB session this guide was written against, that fits. So this table is not, strictly, too big.
 
-State the session size with the number, and do not present it as a benchmark. The honest framing is that this table happens to fit and is used because the technique is visible on it, not because it is at the limit.
+It is used here anyway, because the technique is visible on it and because the next table will not fit. The reduction below takes 32.5 million rows down to about a thousand, and that ratio does not change when the input is a hundred times larger. Learn the shape on something you could have collected, and it keeps working on something you could not.
+
+Worth saying plainly: if your data does fit in your laptop's memory and nobody is dictating where it lives, working locally is faster to set up and better for your science. This page is for when it does not, or when someone else decided.
 
 ## Three things can happen at that line
 
+Every step in your pipeline is one of three cases, and which one it is depends on two questions. Does Databricks have the function? And does the step produce one row out per row in, or fewer?
+
 ### Shrink first
 
-Only R has the function, but the data summarises down before it gets there. The measured case reduced by three orders of magnitude before anything crossed, which is the ordinary outcome and the one worth showing first.
+Only R has the function you need, but the steps before it collapse the data. This is the ordinary case and the one to reach for first: do the reduction server-side, then cross with something small.
+
+The analysis wants per-station flow variability. Choosing the right measures narrows one side of the join to about a thousand rows before it touches the readings at all:
+
+```r
+measures <- tbl(con, I(tbl_name("hydrology_measures")))
+
+flow_measures <- measures |>
+  filter(
+    parameter == "flow",
+    period == 86400L,
+    sql("value_statistic LIKE '%/mean'")
+  )
+
+flow_measures |>
+  summarise(measures = n()) |>
+  collect()
+```
+
+```
+# A tibble: 1 × 1
+  measures
+   <int64>
+1     1103
+```
+
+Then the reduction itself, with the boundary marked:
+
+```r
+per_station <- readings |>
+  inner_join(flow_measures, by = join_by(measure == notation)) |>
+  filter(quality == "Good", !is.na(value), value >= 0) |>
+  summarise(
+    .by = station_id,
+    n_days = n(),
+    mean_flow = mean(value, na.rm = TRUE),
+    sd_flow = sd(value, na.rm = TRUE)
+  ) |>
+  filter(n_days >= 1000) |>
+  # <== everything above this line ran on Databricks
+  collect() |>
+  mutate(cv = sd_flow / mean_flow)
+
+cli_alert_info(
+  "{nrow(per_station)} rows, \\
+   {round(as.numeric(object.size(per_station)) / 1024)} KB"
+)
+```
+
+```
+ℹ 1029 rows, 138 KB
+```
+
+The server read 3,239,134 rows to produce those 1,029, and none of the three million crossed:
+
+```r
+readings |>
+  inner_join(flow_measures, by = join_by(measure == notation)) |>
+  filter(quality == "Good", !is.na(value), value >= 0) |>
+  summarise(rows = n()) |>
+  collect()
+```
+
+```
+# A tibble: 1 × 1
+     rows
+  <int64>
+1 3239134
+```
+
+Three orders of magnitude, from millions to a thousand, and 138 KB in your session. That is the ordinary outcome. Note where `mutate(cv = ...)` sits: it could have run on either side, and putting it below the line keeps the SQL to the part that has to be SQL.
+
+The other thing to notice is the join order. Filtering `measures` down to 1,103 rows *before* the join is what keeps the join small. Filtering the readings first and joining afterwards gives the same answer and makes the server join against every `Good` row in the table. Filter the small side before the join, not the large side after it.
 
 ### Stay server-side
 
-You need one row out per row in, and Databricks has the function.
+You need one row out per row in, and Databricks has the function. Then nothing has to cross at all until the very end, and the intermediate table never exists in your session.
+
+Flagging outliers against each measure's own distribution is one row out per row in, and every piece of it translates:
+
+```r
+readings |>
+  filter(quality == "Good", value > 0) |>
+  mutate(
+    .by = measure,
+    z = (value - mean(value, na.rm = TRUE)) / sd(value, na.rm = TRUE)
+  ) |>
+  filter(z > 5) |>
+  summarise(flagged = n()) |>
+  collect()
+```
+
+```
+# A tibble: 1 × 1
+  flagged
+  <int64>
+1   83666
+```
+
+The windowed mean and standard deviation become a Spark window function. The 24.7 million rows the `z` column is computed over never leave the warehouse, and one number comes back. If you wanted the flagged rows themselves rather than a count, 83,666 rows is a perfectly reasonable thing to `collect()`.
 
 ### The hard case
 
-Only R has the function, and you need one row out per row in. This is the case with no comfortable answer, and the page should say so rather than manufacture one. It is also the case that leads to [Run a Monte Carlo simulation](monte-carlo.qmd), where the repeats rather than the crossing are the cost.
+Only R has the function, and you need one row out per row in. There is no comfortable answer to this one, and it would be dishonest to manufacture one. Either the data crosses, or the function has to be made to run where the data is.
+
+If your R function is genuinely irreducible and has to see every row, the honest options are to collect what you can, to narrow the input until it fits, or to send the function to the data. None of those is free.
+
+Where this case usually turns out to be tractable is when the expensive part is not the crossing but the *repetition*: a small result crossed once, then simulated or resampled thousands of times. That has a good answer, and it is on [Run a Monte Carlo simulation](monte-carlo.qmd).
 
 ## Reaching a function `dbplyr` cannot translate, with `dplyr::sql()`
 
-The fact: `dbplyr`'s translation is not the boundary of what the server can do. `dplyr::sql()` reaches Spark SQL functions it cannot translate, so "dbplyr does not know this function" is not the same as "this has to happen in R", and the page should keep the two apart.
+`dbplyr` not knowing a function is not the same as the server not having it. Those two get conflated constantly, and conflating them pushes work into R that never needed to leave the warehouse.
+
+`grepl()` is the case you will meet first. `dbplyr` has no translation for it, so it goes into the SQL unchanged and fails on the server:
+
+```r
+measures |>
+  filter(grepl("mean", value_statistic)) |>
+  summarise(n = n()) |>
+  collect()
+```
+
+```
+Failed to collect lazy table.
+Caused by error in `try()`:
+! ODBC failed with error 00000 from
+  [RStudio][Hardy][UNRESOLVED_ROUTINE][UNRESOLVED_ROUTINE].
+✖  (80) Syntax or semantic analysis error thrown in server while executing
+  query. Error message from server:
+  org.apache.hive.service.cli.HiveSQLException: Error running query:
+  org.apache.spark.sql.AnalysisException: Cannot resolve routine `grepl` on
+  search path [`system`.`session`, `system`.`builtin`, `system`.`ai`, `hiv
+• <SQL> 'SELECT COUNT(*) AS `n`
+• FROM your_catalog.your_schema.hydrology_measures
+• WHERE (grepl('mean', `value_statistic`))'
+```
+
+`UNRESOLVED_ROUTINE` is the signature. It says the query reached the server and the server did not recognise a function name, which means the problem is translation and not your logic. Read that error as an invitation rather than a wall.
+
+The escape hatch is `dplyr::sql()`, which passes a fragment through untouched. You are writing Spark SQL inside it, so the dialect is theirs, not R's:
+
+```r
+flow_measures <- measures |>
+  filter(
+    parameter == "flow",
+    period == 86400L,
+    sql("value_statistic LIKE '%/mean'")
+  )
+```
+
+That is the same `flow_measures` the reduction above uses, and it still runs entirely on the server. The pattern match never became an R problem.
+
+So when `dbplyr` refuses a function, the question to ask is whether Spark SQL has an equivalent, not whether you now have to collect the table. Usually it does, and `sql()` reaches it.
 
 ## Fitting a model on what came back
 
-This is the first case, and there is nothing special about it.
+Once the data is in your session, there is nothing special about it. `per_station` is a 1,029-row tibble and everything you already know applies:
+
+```r
+stations <- tbl(con, I(tbl_name("hydrology_stations")))
+
+station_area <- stations |>
+  select(station_id, catchment_area_km2) |>
+  collect()
+
+model_data <- per_station |>
+  inner_join(station_area, by = "station_id") |>
+  filter(catchment_area_km2 > 0, mean_flow > 0)
+
+fit <- lm(log(mean_flow) ~ log(catchment_area_km2), data = model_data)
+summary(fit)
+```
+
+```
+Call:
+lm(formula = log(mean_flow) ~ log(catchment_area_km2), data = model_data)
+
+Residuals:
+    Min      1Q  Median      3Q     Max
+-3.1546 -0.6086 -0.0096  0.6496  3.5681
+
+Coefficients:
+                        Estimate Std. Error t value Pr(>|t|)
+(Intercept)             -4.30336    0.12352  -34.84   <2e-16 ***
+log(catchment_area_km2)  0.95728    0.02514   38.07   <2e-16 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.9195 on 708 degrees of freedom
+Multiple R-squared:  0.6718,	Adjusted R-squared:  0.6714
+F-statistic:  1450 on 1 and 708 DF,  p-value: < 2.2e-16
+```
+
+That is the shrink-first case finishing. The second `collect()` brings back 9,536 rows of station metadata, the join happens in R because both sides are now small, and `lm()` never knew Databricks was involved.
 
 ## Where this stops
 
-Spark SQL has no ordinal-regression or cumulative-link primitive, which is what forces that class of model into R. Worth naming the specific gap rather than saying "some models", because the reader can then check her own.
+Not every model has a server-side counterpart, and the gap is worth naming precisely rather than as "some models".
+
+Spark SQL has no ordinal-regression or cumulative-link primitive. If your response is an ordered factor, as ecological status classes are, there is nothing on the server to push the fit down to. The fit happens in R:
+
+```r
+library(MASS)
+
+catchments <- tbl(con, I(tbl_name("wfd_catchments")))
+
+eco <- catchments |>
+  filter(!is.na(ecological_class), ecological_class != "Not assessed") |>
+  dplyr::select(water_body_id, ecological_class, water_body_area_m2) |>
+  collect() |>
+  mutate(
+    class = factor(
+      ecological_class,
+      levels = c("Bad", "Poor", "Moderate", "Good", "High"),
+      ordered = TRUE
+    ),
+    log_area = log(water_body_area_m2)
+  )
+
+polr(class ~ log_area, data = eco, Hess = TRUE)
+```
+
+```
+Call:
+polr(formula = class ~ log_area, data = eco, Hess = TRUE)
+
+Coefficients:
+  log_area
+-0.1872495
+
+Intercepts:
+     Bad|Poor Poor|Moderate Moderate|Good     Good|High
+    -6.559283     -4.384965     -1.410708      3.610569
+
+Residual Deviance: 7216.738
+AIC: 7226.738
+```
+
+This is fine, because 3,553 rows fit comfortably. It is the shrink-first case again: the selection and the filtering happened server-side, and only the columns the model needs crossed. The `dplyr::` prefix is there because attaching `MASS` masks `select()`, which is a nuisance you already know about and not a Databricks problem.
+
+The reason to name the gap rather than gesture at it is that you can then check your own model the same way. Ask whether Spark SQL has a primitive for the fit you want. If it does not, the fit is an R step, and the question becomes how small you can make the data before it gets there.
 
 ## Next
 

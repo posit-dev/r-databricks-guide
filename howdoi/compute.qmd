@@ -3,47 +3,100 @@ title: "Work out what the cluster you have can do"
 subtitle: "Reading the compute you were given, and what you can and cannot change about it"
 ---
 
-::: {.callout-note appearance="simple"}
-
-**Not yet written.** The structure below is settled; the prose is not.
-
-:::
-
 ## You can start and stop what you have. You cannot change its shape
 
-The premise the whole page is designed around. She is not choosing a cluster and will not be, so the page teaches her to read the one she has and design inside it. Any advice here that amounts to "use a bigger cluster" is off-target by construction.
+You can almost certainly start a stopped cluster, stop a running one, and connect to either. You almost certainly cannot change how many machines it has, how much memory each one gets, or which runtime it boots. Those were decided when someone provisioned it.
+
+So the useful skill is not choosing a cluster. It is reading the one you have, and designing the work to fit it. Everything below is aimed at that, and any advice amounting to "use a bigger cluster" is beside the point.
 
 ## What you have
 
-A group cluster that is probably already running, and a personal cluster you can start and stop yourself.
+Most likely two things. A group cluster, shared with colleagues, that is probably already running because somebody else started it. And possibly a personal cluster that only you use, which you can start and stop yourself and which shuts down on its own after a period of inactivity.
+
+The group cluster is warm and free to reach. The personal one is yours to control but costs minutes to wake. That difference drives most of the practical decisions on this page.
 
 ## Reading a cluster
 
-Cores, memory, and how many nodes. `num_workers = 0` means everything is one machine, whatever else the interface implies. Three lines that report your own cluster's node count and access mode, so you can answer this for yourself rather than taking the site's word for it.
+Three lines, and you have the facts that matter:
 
-The node count is the fact that matters most, because it decides whether anything on [Run a Monte Carlo simulation](monte-carlo.qmd) about distributing work applies to her at all. A single-node cluster is not a small distributed cluster: it is a different thing, and `num_workers = 0` is how it says so.
+```r
+library(brickster)
+library(tibble)
+
+info <- db_cluster_get(cluster_id = Sys.getenv("DATABRICKS_CLUSTER_ID"))
+
+tibble(
+  workers = info$num_workers,
+  runtime = info$spark_version,
+  access  = info$data_security_mode
+)
+```
+
+```
+# A tibble: 1 × 3
+  workers runtime          access
+    <int> <chr>            <chr>
+1       0 18.1.x-scala2.13 SINGLE_USER
+```
+
+`num_workers = 0` means one machine. Not a small cluster, not a cluster with the workers switched off: one machine, running the driver, with nothing to distribute to. Whatever the workspace interface implies by showing it in a list of clusters, this is the number that settles it.
+
+That single fact decides whether anything on [run a Monte Carlo simulation](monte-carlo.qmd) about distributing work applies to you at all. On a single-node cluster, distribution has nowhere to go, and reaching for it costs the serialisation without buying the parallelism.
+
+One catch worth knowing before you trust the number. On a cluster configured to autoscale, `num_workers` is not `0`, it is absent entirely, because the count is a range rather than a value:
+
+```
+default    num_workers=0      autoscale=no   tag=SingleNode
+multinode  num_workers=NULL   autoscale=yes  tag=-
+```
+
+So a test written as `num_workers == 0` returns `logical(0)` on an autoscaling cluster rather than `FALSE`, and an `if` on that errors. Check whether `autoscale` is present before reading `num_workers`, or read the `ResourceClass` tag, which says `SingleNode` on a genuinely single-machine cluster.
+
+The same object carries the node type and the idle timeout, which are the other two things worth knowing about compute you did not choose.
 
 ## Access modes, and the honest state of it
 
-A Standard cluster refuses R *notebooks*, but a client connection to one works. Whether `spark_apply()` works on Standard is open, and this guide will not assert it either way. It matters because your group cluster is quite likely Standard.
+A Standard access mode cluster refuses R **notebooks**. A client connection to the same cluster works.
 
-The single word "notebooks" carries the whole claim, and the page must not lose it in a summary table. The unqualified sentence, the one she will meet elsewhere, is false, and a reader who believes it abandons a cluster that would have served her and picks up a per-person cluster cost she never needed.
+That single word carries the whole claim, and it is worth being careful with because the unqualified version, the one you are likely to meet elsewhere, is simply false. "Standard access mode does not support R" reads as a wall. It is not one. If you believed it, you would abandon a cluster that would have served you and ask for a per-person cluster you never needed, which costs money and takes a conversation.
+
+Your group cluster is quite likely Standard, which is exactly the case where this matters most. If someone has told you that you cannot use R on it, the thing to test is a client connection, not a notebook.
+
+What is genuinely open: whether `spark_apply()` works under Standard access mode. This guide will not assert it either way, because nobody has established it. If you need distributed R specifically and your only cluster is Standard, that is a question to settle by trying it rather than a fact to look up.
 
 ## What costs time
 
-Starting a stopped personal cluster takes minutes, an already-running cluster is warm, and a cluster bills until it auto-terminates.
+Starting a stopped personal cluster takes minutes. On the cluster used throughout this guide, terminated to running took between seven and eleven minutes across several starts. That is long enough to matter to how you plan an afternoon, and long enough that you should start it before you need it rather than when you need it.
+
+An already-running cluster is warm and connects in seconds.
+
+A running cluster bills until it stops. Yours is likely configured to terminate itself after a period of inactivity, and that setting is on the object you already read, as `autotermination_minutes`. Knowing it tells you how long a coffee break can be before your next query pays the cold-start cost again.
+
+A SQL warehouse is a different proposition, and worth preferring for exploratory querying: it wakes far faster than an all-purpose cluster. Move to the cluster when you need something a warehouse cannot do, such as distributed R or a live Spark session.
 
 ## Which cluster answered
 
-If she has more than one compute target configured, the page owes her a way to confirm which one actually ran the job. Nothing in a result says where it came from, and a mistyped profile name silently falls back to the default rather than failing. Someone comparing a single-node against a multi-node cluster, which is the main reason to keep two, can draw a confident wrong conclusion from a clean run. Setup is in [Connect your R session to the data](connect.qmd); this page is where the reason to care belongs.
+If you have more than one compute target configured, nothing in a result tells you which one produced it. A mistyped profile name does not fail, it silently falls back to the default, so the job runs on the wrong compute and returns something entirely plausible.
+
+That matters most in the one situation where people keep two clusters: comparing a single-node run against a multi-node one. A clean run, a sensible number, and a confident wrong conclusion, because both halves of the comparison ran on the same machine.
+
+So confirm which cluster answered rather than assuming. [Connect your R session to the data](connect.qmd) has the setup, including how to validate a profile name against the configuration file's own keys. This page is only here to say why you should care.
 
 ## The one thing you have to ask for
 
-A new cluster, and therefore a different shape. What to ask for, and why. The runtime version is part of the request rather than a separate matter: it and the cluster's setup script are one decision, and asking for one without the other produces a cluster that either lacks the packages or recompiles them at every start.
+If the shape of the cluster is genuinely wrong for your work, that is a request to whoever provisions compute, and it is worth making it once, completely.
+
+Ask for the runtime version and the setup script together. They are one decision, not two. A cluster's setup script installs the packages your work needs, and it is compiled against the runtime. Change the runtime and leave the script attached and you get one of two outcomes: the packages are missing, or they recompile from source at every single start, turning a seven-minute wake into something much worse. Neither failure announces itself as a runtime mismatch.
+
+So the request is "this runtime, with this setup script, tested together", not "please upgrade the runtime". [Setting up a cluster for geospatial R](../admin/geospatial-setup.qmd) is written for the person who will action it, and is meant to be forwarded.
 
 ## What is still unknown
 
-Listed, with the reason it is unknown. Two belong here: whether `spark_apply()` runs under Standard access mode, and how work spread across workers scales beyond the two-worker case that has actually been observed.
+Two things, and they are unknown rather than unpublished.
+
+Whether `spark_apply()` runs under Standard access mode. Nobody has tested it, so this guide says nothing about it in either direction.
+
+How work spread across worker machines scales. Distribution has been observed on a two-worker cluster, by counting distinct machine names. That answers whether it distributes at all and nothing else. It says nothing about four workers, or forty, or about what shuffle costs at any size. If your plan depends on scaling, that is a measurement to make on your own cluster rather than a claim to take from here.
 
 ---
 

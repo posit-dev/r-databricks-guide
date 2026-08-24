@@ -3,35 +3,119 @@ title: "Write and run R against the cluster, without leaving your editor"
 subtitle: "An interactive R session with cluster compute behind it, rather than a notebook"
 ---
 
-::: {.callout-note appearance="simple"}
-
-**Not yet written.** The structure below is settled; the prose is not. Needs one walkthrough, recorded step by step.
-
-:::
-
 ## You do not have to write R inside a Python notebook
 
-The facts this page has to establish, before anything else: an interactive R session on your own machine can drive cluster compute through a client connection, with no R notebook attached to the cluster at any point. That is the whole premise, and it is worth stating first because the Databricks documentation route leads to notebooks and nothing signposts the alternative. You keep your editor, your project, your `renv` library and your version control.
+An interactive R session drives cluster compute through a client connection, with no R notebook attached to the cluster at any point. You keep your editor, your project, your `renv` library and your version control, and the cluster becomes something your script talks to rather than somewhere your script lives.
+
+This is worth stating first because the documentation route leads to notebooks and nothing signposts the alternative. If you have been assuming that using the cluster means moving your work into the workspace UI, you have been assuming a constraint that is not there.
 
 ## The setup
 
-Your session, the connection, and where your code actually executes.
+Three things, and telling them apart is most of what makes this workable.
 
-The page needs the three-part picture: the R session that is yours, the connection object, and the remote compute the connection points at. The reader has to be able to say which of the three a given line of her script touches. One walkthrough, start to finish, recorded as it actually ran rather than reconstructed.
+Your R session is yours. It runs where you started it, holds your objects, and loads packages from your own library. The connection object is a handle in that session. The remote compute is a different machine entirely, with its own R installation and its own library.
+
+```r
+library(sparklyr)
+library(dplyr)
+library(glue)
+
+catalog <- Sys.getenv("DATABRICKS_CATALOG")
+schema <- Sys.getenv("DATABRICKS_SCHEMA")
+
+sc <- spark_connect(
+  method = "databricks_connect",
+  cluster_id = Sys.getenv("DATABRICKS_CLUSTER_ID")
+)
+```
+
+The cluster identifier comes from the environment, not from your script. It names one cluster in one workspace and is specific to you, so a value written into a file is wrong for everyone else who reads it.
+
+Connecting to an already-running cluster takes a few seconds. Starting one from cold is a different matter: on the cluster used for this guide, terminated to running took between seven and eleven minutes. That is worth knowing before you plan a working session around it, and it is the strongest argument for doing exploratory work against a SQL warehouse and moving to the cluster only when you need something a warehouse cannot do.
+
+A table reference then behaves the way you expect:
+
+```r
+stations <- tbl(sc, I(glue("{catalog}.{schema}.hydrology_stations")))
+
+stations |>
+  count() |>
+  collect()
+```
+
+```
+# A tibble: 1 × 1
+      n
+  <dbl>
+1  9536
+```
+
+The two machines are genuinely separate, and you can see it. Ask each one to name itself:
+
+```r
+Sys.info()[["nodename"]]
+#> "session-3fce270-my-workbench-session"
+
+stations |>
+  select(station_id) |>
+  head(4) |>
+  spark_apply(
+    function(df) data.frame(
+      host = Sys.info()[["nodename"]],
+      rver = as.character(getRversion()),
+      stringsAsFactors = FALSE
+    ),
+    columns = "host string, rver string"
+  ) |>
+  collect()
+```
+
+```
+# A tibble: 1 × 2
+  host                          rver
+  <chr>                         <chr>
+1 <cluster-id>-10-139-64-10     4.5.1
+```
+
+Different machine, and a different R version from the 4.5.2 in the local session. Nothing guarantees those two match, which is the practical reason not to depend on a package version, a locale or an option being the same on both sides.
 
 ## Which side of the boundary each line of your script is on
 
-The rule to state: a line runs locally unless something in it forces the crossing, and the things that force it are few enough to list. This is the same boundary [Work with a table that will not fit in your session](big-table.qmd) draws around `collect()`, seen from the session's side rather than the data's, and the two pages must not contradict each other on where the line falls.
+A line runs in your session unless something in it forces the crossing, and the things that force it are few enough to hold in your head. `collect()` brings results back. `spark_apply()` sends a function out. A `dbplyr` verb on a table reference builds up a query that has not run yet.
+
+Everything else is local. Assigning a variable, writing a function, loading a package, reading a file from your project: all yours, none of it visible to the cluster.
+
+That last point catches people out, because it is invisible until it bites. A variable defined in your session is not in scope inside a `spark_apply()` worker, because the function is serialised and sent without the environment around it. The failure looks like the worker function is broken rather than like a missing variable.
+
+This is the same boundary that [work with a table that will not fit in your session](big-table.qmd) draws around `collect()`, seen from the session's side rather than the data's. That page is where the reasoning about how much crosses belongs.
 
 ## Session lifetime, reconnecting, and what you lose when the connection drops
 
-Facts needed: what survives a dropped connection and what does not. A local R object is yours and survives. Anything holding a handle to remote state does not, and the failure appears at next use rather than at the moment of the drop, which is what makes it confusing. Also needed: whether reconnecting restores a usable session or requires rebuilding the pipeline.
+Your local objects survive anything that happens to the connection. They are in your R session, and a dropped connection does not touch them.
+
+Anything holding a handle to remote state does not survive. A `tbl()` reference, a Spark DataFrame, a temporary view: all of them point at something on the other side, and when the connection goes, the thing they point at goes too. The confusing part is the timing. Nothing announces the drop. The object still exists in your session and still prints as though it were fine, and the error arrives at the next use, which may be many lines later and looks like a problem with that line.
+
+Reconnecting gives you a working connection, not your previous state. `spark_connect()` again returns a usable `sc`, and every reference built on the old one stays dead. Rebuild them from the table names, which is straightforward if your script assigns references near where it uses them and awkward if a reference was built once at the top and used far below.
+
+That is the argument for keeping the pipeline that builds a reference close to the work that consumes it, and for writing results you care about to a local object with `collect()` at the point you get them rather than leaving them remote.
 
 ## When you do need a notebook, and what changes
 
-Two facts. A notebook is required for the paths a client connection cannot reach, and the page should name those rather than gesture at them. And `spark_apply()`'s `columns` argument changes meaning between the two contexts: a Spark type string when connecting from your own machine, a plain character vector when running on the cluster itself. Neither form is rejected by the other path, and the resulting error never names `columns`, so code copied between the two fails in a way that looks like the worker function misbehaving.
+A notebook is required for paths a client connection cannot reach. `sdf_len()` and much of the rest of the `sdf_*` family do not work over this connection: calling it here fails with an `AttributeError` about `defaultMinPartitions` rather than anything saying "not supported". Reach for a table reference instead, which is the idiom this guide uses throughout.
 
-A caution for whoever writes this: access mode is not the same question as notebook versus client. A Standard cluster refuses R *notebooks* while a client connection to one works, which is exactly the case where this page's premise matters most. Keep the claim qualified, and leave the detail to [Work out what the cluster you have can do](compute.qmd).
+`spark_apply()`'s `columns` argument also changes meaning between the two contexts, and this is the one that costs time. From a client connection it takes a Spark type string. On the cluster's own R session it takes a plain character vector.
+
+```r
+# From a client connection, this is the required form.
+columns = "host string, rver string"
+
+# The cluster-side form. From here it fails.
+columns = c("host", "rver")
+```
+
+Neither form is rejected by the other path with anything useful. The character vector fails from a client connection with a `ParseException`, and the message never mentions `columns` at all, so code copied between the two contexts breaks in a way that reads as the worker function misbehaving. If a `spark_apply()` call fails with a parse error and the function looks correct, check this argument first.
+
+Access mode is a separate question from notebook versus client, and it is easy to conflate them. A Standard access mode cluster refuses R *notebooks*, while a client connection to one works, which is exactly the case where this page's premise matters most. [Work out what the cluster you have can do](compute.qmd) is where that belongs.
 
 ---
 

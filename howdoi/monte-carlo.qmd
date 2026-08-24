@@ -5,81 +5,164 @@ subtitle: "Simulating, bootstrapping, resampling or fitting many times over: onc
 
 ::: {.callout-note appearance="simple"}
 
-**Not yet written.** The structure below is settled; the prose is not. Two open items: the `furrr` re-run, and one geospatial replicate run end to end in a worker.
+Two items on this page are still open: the `furrr` comparison has been run in a Workbench session but not re-run on cluster compute, and no geospatial replicate has been taken end to end inside a worker.
 
 :::
 
 ## The crossing is free, the repetition is not
 
-A large table shrinks server-side to a small one, and only then does the expensive work start.
+The expensive part of this work is not getting the data out. A large table shrinks server-side to a small one, and only then does the real cost start.
+
+That inverts the situation on [work with a table that will not fit in your session](big-table.qmd). There, the question was how much crosses the wire. Here, what crosses is a summary that fits comfortably in memory, and the cost is that you then do something to it ten thousand times.
+
+So the design question changes. Not "how do I move less data" but "how do I get through the repeats".
 
 ## Memory is not the constraint here
 
-Across four forked workers, peak R memory fell rather than rose, because each worker holds only its slice. The opposite of the big-table case.
+Forking to run the repeats in parallel does not raise peak memory. It lowers it.
+
+```r
+peak_mb <- function(expr) {
+  invisible(gc(reset = TRUE))
+  force(expr)
+  g <- gc()
+  round(sum(g[, "max used"] * c(56, 8)) / 1e6, 1)
+}
+
+peak_mb(map(1:8, sim_one) |> list_rbind())
+peak_mb(mclapply(1:8, sim_one, mc.cores = 4) |> list_rbind())
+```
+
+```
+peak R memory, serial : 101.5 Mb
+peak R memory, forked : 40 Mb
+```
+
+Each worker holds only its own slice and returns a small summary, so the parent never has every intermediate in memory at once. This is the opposite of the big-table case, where pulling more rows into the session is exactly what hurts, and it is worth knowing because it removes a worry that would otherwise stop you parallelising.
 
 ## The shape
 
 One independent unit per site, per polygon, per resample or per replicate.
 
-The test to give her: if replicate 200 does not need anything replicate 199 produced, the work is this shape and everything below applies. Almost all simulation, bootstrapping and resampling is. Naming the test matters more than naming the examples, because she will recognise her own problem faster than she will match it to a list.
+The test: if replicate 200 does not need anything replicate 199 produced, the work is this shape, and everything below applies. Almost all simulation, bootstrapping and resampling is. If your replicates do depend on each other, in a Markov chain for instance, none of this applies and the page stops being useful to you.
+
+Recognising the shape matters more than matching your problem to an example. You will know your own problem faster than you will find it in a list.
 
 ## Running the repeats serially, with `purrr::map()`
 
-The baseline, and the page should keep it rather than treat it as the thing to escape. It is the version she can debug, and the one everything else has to agree with.
+Start here and keep it. The serial version is the one you can debug, and it is what every faster version has to agree with.
+
+```r
+sim_one <- function(i) {
+  set.seed(i)
+  x <- rlnorm(200000, meanlog = 0, sdlog = 1)
+  b <- map_dbl(1:60, \(k) mean(sample(x, length(x), replace = TRUE)))
+  tibble(rep = i, boot_se = sd(b))
+}
+
+results <- map(1:24, sim_one) |> list_rbind()
+```
+
+```
+serial purrr::map      : 15.3 s
+```
+
+Single run in a Workbench session, not a benchmark. The number is here to make the comparisons below meaningful, not to characterise your machine.
 
 ## Running them across the cores you have, with `furrr::future_map()`
 
-With `future::plan(multicore)`. The change from the serial version is one line, and the page should show that it is one line: the argument for trying the cluster's own cores first rests on how little it costs to try.
+One line changes:
+
+```r
+library(future)
+library(furrr)
+
+plan(multicore, workers = 4)
+
+results <- future_map(1:24, sim_one, .options = furrr_options(seed = TRUE)) |>
+  list_rbind()
+```
+
+```
+serial purrr::map      : 15.3 s
+furrr, 4 forked workers:  6.5 s
+```
+
+That is the whole argument for trying your own cores first. `map()` becomes `future_map()`, you add a plan, and nothing else about the code moves. Given how little it costs to try, try it before you consider anything involving the cluster.
+
+`furrr_options(seed = TRUE)` is not optional decoration. Without it the workers do not get independent, reproducible streams, and `furrr` will warn you about exactly that.
 
 ## `plan(multisession)` does not carry the memory finding
 
-Each session gets its own full copy rather than a fork. `multisession` is the plan people reach for by default, and it is the one that works on Windows. You are on Linux, where forking is available and better.
+`multisession` starts fresh R processes and copies what they need. `multicore` forks, so each child starts as a copy-on-write view of the parent and pays nothing for data it only reads.
+
+The memory result above depends on forking. Under `multisession` each worker gets its own full copy, and the peak goes up rather than down.
+
+`multisession` is the plan people reach for by default, partly because it is what works on Windows. You are on Linux here, where forking is available, so prefer `multicore` and know that the two are not interchangeable for this purpose.
 
 ## Is the cluster worth it?
 
-On the arithmetic alone. Session sizes stated with every number. Single runs, not benchmarks.
+Often not, and it is worth saying so plainly.
 
-The honest answer the page has to be willing to give: often not. If the repeats finish on her own cores in an afternoon, that is the better route, and reaching for distribution costs setup time and buys nothing. This section earns the credibility for the ones after it.
+If your repeats finish on your own cores in an afternoon, that is the better route. Reaching for distribution costs setup time, adds a serialisation step, and introduces a second environment whose package library you do not control. None of that buys anything if the work already fits.
+
+The arithmetic is usually enough to decide. Time one replicate, multiply by how many you need, divide by the cores you have. If the answer is hours, you are done thinking. If the answer is days, read on.
+
+Sometimes the honest answer is that your laptop is the right machine. If the data fits and nobody dictates where the computation happens, local R is faster to set up and better for your science.
 
 ## Getting the worker count wrong is cheap
 
-Worth stating because it removes a decision she might otherwise agonise over. The penalty for a wrong count is mild and the fix is one number, so a reasonable guess and a re-run beats calculating it.
+Do not agonise over the number. The penalty for a wrong count is mild in both directions, and the fix is one number and a re-run.
+
+Too few workers and you leave cores idle, which costs you some time. Too many and they contend, which costs you a little more. Neither corrupts anything. A reasonable guess, run it, adjust if it matters.
+
+One caution specific to containers: `detectCores()` reports the machine's cores, not the share your container is allowed. On the session used here it reported 8 while the cgroup quota allowed 8 full cores, so the two agreed. They do not always, and the direction that hurts is asking for more workers than your quota permits.
 
 ## If your replicates do polygon work, `sf` has to load inside the worker too
 
-Check, then see [Packages](../ref/packages.qmd). This depends on your admin having built a library volume: if they have not, this section does not apply to you.
+A forked worker inherits your session's loaded packages, so a local fork is fine. A worker on cluster compute is a different R process on a different machine, and it needs `sf` installed there.
+
+Check before you build a pipeline on it, then see [Packages](../ref/packages.qmd). This depends on your administrator having built a library volume. If they have not, this section does not apply to you, and that is a conversation rather than something to solve in R.
 
 ## Bootstrapping and resampling are the same shape
 
-Nothing new to teach here, and the page should be brief about it. She knows what a bootstrap is; the only claim is that it maps onto the shape above unchanged.
+They map onto the shape above unchanged. A bootstrap replicate does not need the previous replicate, so everything on this page applies without modification.
+
+That is the entire claim, and there is nothing else to teach here.
 
 ## Tuning across resamples
 
-The tidymodels path, and why it works without you doing anything. The fact: `tune` already parallelises over resamples through the same `future` plan, so the plan she set earlier applies and there is no separate step.
+`tune` already parallelises over resamples through the same `future` plan. The plan you set earlier applies, and there is no separate step to take.
+
+So if you have set `plan(multicore, workers = 4)` and then call `tune_grid()`, the resamples spread across those workers. You do not pass anything to the tuning call, and you do not need a `tune`-specific option.
+
+The corollary is worth holding on to: if you have not set a plan, tuning runs serially and nothing tells you so.
 
 ## If you reach for `spark_apply()`
 
-Last, and only after the cores of her own session have been ruled out, because that ordering is the page's actual recommendation. The subsections below are what she needs to know once she has a reason to be here.
+Last, and only once your own cores have been ruled out. That ordering is the recommendation, not a rhetorical device.
 
 ### On a single node it was slower than forked workers
 
-It pays serialisation for no distribution benefit.
+It pays serialisation for no distribution benefit. On a single-node cluster there is nowhere for the work to go, so you buy the cost of shipping functions and data to a worker without buying any parallelism you did not already have.
 
 ### It does distribute across worker machines
 
-Observed on a two-worker cluster, counting distinct machine names rather than process ids. Two workers answers whether it distributes at all, and nothing about how it scales.
+Observed on a two-worker cluster by counting distinct machine names, not process ids. Two workers answers whether it distributes at all, and nothing about how it scales. Nothing here supports a claim about four machines, or forty, or about what shuffle costs at any size.
 
 ### Count machines, not processes
 
-Two machines can report the same process id, so a process count cannot tell a single-node cluster from a distributed one.
+Two machines can report the same process id, so a process count cannot tell a single-node cluster from a distributed one. If you want to know whether your work is actually spreading, have the worker return `Sys.info()[["nodename"]]` and count the distinct values.
 
 ### Naming the output columns is context-dependent
 
-`spark_apply(columns =)` takes a Spark type string from a client connection and a plain character vector on the cluster's own R session. Neither form is rejected by the other path, and the failure never names the argument: it surfaces as a complaint that a column does not exist, which reads like the worker function returned the wrong thing. Leaving the argument out works on both paths, which is what an example should do unless it needs to fix the types.
+`spark_apply(columns = )` takes a Spark type string from a client connection and a plain character vector on the cluster's own R session. Neither form is rejected by the other path with a useful message, and the failure never names the argument: it surfaces as a complaint about a column, which reads as though your worker function returned the wrong thing.
+
+Leaving the argument out works on both paths, which is what an example should do unless it needs to fix the types. [Write and run R against the cluster, without leaving your editor](interactive.qmd) shows both forms and the error the wrong one produces.
 
 ### The grouped path does not run on a current runtime
 
-`spark_apply(group_by = ...)` fails outright on `rpy2` 3.6.x. Where it did run, it used one R process where the default used four, and was slower on identical work with the same answer. The mechanism behind that is unexplained.
+`spark_apply(group_by = )` fails outright on `rpy2` 3.6.x. Where it did run, it used one R process where the default partitioning used four, and was slower on identical work for the same answer. The mechanism behind that is unexplained, so treat the grouped path as unavailable rather than as a slower alternative.
 
 ---
 

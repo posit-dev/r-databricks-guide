@@ -3,39 +3,131 @@ title: "Get results out, and get the same answer next year"
 subtitle: "Writing results back, exporting for the paper, and keeping the run reproducible"
 ---
 
-::: {.callout-note appearance="simple"}
-
-**Not yet written.** The structure below is settled; the prose is not. The reproducibility sections will ship with open questions rather than an invented workflow.
-
-:::
-
 ## Writing results back
 
-To a volume, or to a table, and which to choose.
+A volume takes anything file-shaped; a table is for what will be queried again. That is the whole choice, and it is usually made for you by what happens next. If a colleague or a dashboard will query the result, write a table. If the result is an `.rds`, a figure, a shapefile or a model object, write it to a Unity Catalog volume and stop thinking about it.
 
-The deciding fact: a volume takes anything file-shaped and a table is for what will be queried again. The trap on the table route is a size limit that arrives as a hard error rather than a slowdown, above roughly 50,000 rows without a staging volume, so the page should name it here as well as in [Sending things to where your code runs](../ref/sending-things.qmd).
+A volume behaves like a directory. Write to it from your session, read it back, and the object arrives as it left:
+
+```r
+library(brickster)
+library(tibble)
+library(glue)
+
+catalog <- Sys.getenv("DATABRICKS_CATALOG")
+schema <- Sys.getenv("DATABRICKS_SCHEMA")
+vol <- glue("/Volumes/{catalog}/{schema}/code")
+
+local <- tempfile(fileext = ".rds")
+saveRDS(results, local)
+
+db_volume_write(
+  glue("{vol}/flow_variability/results.rds"),
+  file = local,
+  overwrite = TRUE
+)
+```
+
+Reading it back needs a local destination, and there is no `overwrite` argument on that side:
+
+```r
+back <- tempfile(fileext = ".rds")
+db_volume_read(glue("{vol}/flow_variability/results.rds"), back)
+readRDS(back)
+```
+
+```
+# A tibble: 2 × 2
+  water_body_id  median_cv
+  <chr>              <dbl>
+1 GB105035046170     0.612
+2 GB109055036620     0.884
+```
+
+[Sending things to where your code runs](../ref/sending-things.qmd) has the size limits and the other routes.
+
+The table route has a trap worth knowing before you meet it. `dbWriteTable()` hard errors above roughly 50,000 rows without a staging volume, and it errors rather than slowing down, so a script that worked on a pilot subset fails outright on the full run. Under that size it is unremarkable:
+
+```r
+dbWriteTable(
+  con,
+  DBI::Id(
+    catalog = catalog,
+    schema = schema,
+    table = "flow_variability_results"
+  ),
+  results,
+  overwrite = TRUE
+)
+```
+
+Above it, write the data to a volume as Parquet and have the server build the table from the file, which is the same shape [Getting the data into Databricks](../example/ingest.qmd) uses in the other direction. The rows travel as one file rather than as a statement, which is why the limit goes away.
+
+Geometry does not go back this way. Handing `dbWriteTable()` an `sf` object through the `brickster` backend creates a string column for the geometry and writes into it without warning: nothing errors, and the table afterwards looks entirely plausible. So a round trip out of a table and back into one is **not** lossless for spatial data. Convert the geometry to something you have chosen deliberately, such as WKB or WKT in a column whose type you specify yourself, before it goes anywhere near a write.
 
 ## Figures and tables out, for the paper
 
+By this point Databricks is out of the picture. Your figures come from a data frame in your session, and you make them the way you always have.
+
+The one thing worth deciding early is where the boundary sits, because it decides what your figure code can see. Bring back the smallest thing you can plot from, not the rows behind it. A summary of four thousand catchments is a figure; the thirty-two million readings it was computed from are not, and they will not fit anyway. [Work with a table that will not fit in your session](big-table.qmd) is where that reasoning lives.
+
+Two consequences follow for the paper. Write the reduced data frame to disk next to the figure, so the figure can be redrawn without the cluster. And keep the query that produced it in the same file, because the query is the part that is reproducible against next year's data with no edit at all.
+
 ## Three places your library state has to match
 
-Your session, the worker, and any scheduled run.
+Your session, the worker, and any scheduled run. They look like one environment and they are three, and a result that reproduces in two of them can still fail in the third.
 
-The point is that these are three separate environments that look like one, and a result reproduced in two of them can still fail in the third. A scheduled run is the one most likely to drift, because nobody is watching it fail.
+Your session is the one you control. It has your library, your `renv` project, and the R version you installed.
+
+The worker is a different machine with its own R installation and its own library, and neither is yours. It runs whatever R version the cluster runtime ships and whatever packages an administrator put there. The R version on the two sides is not guaranteed to match, and on the cluster used for this guide it does not: [Write and run R against the cluster](interactive.qmd) shows the two reporting different versions from the same script.
+
+The scheduled run is the one most likely to drift, because nobody is watching it fail. It starts a fresh context, and every R context gets its own ephemeral library. An `install.packages()` you ran interactively last week is not there. This is also why an upgrade can appear not to have taken: you install a newer version, the next context starts clean, and the old one loads again. Running the install a second time produces exactly the same result. Do everything that depends on an install inside one context.
+
+If your workspace has a prebuilt library tree on a volume, that is the good case, and it is worth recognising because someone has already paid the build cost. Prepend it and the packages are there:
+
+```r
+.libPaths(c(
+  glue("/Volumes/{catalog}/{schema}/code/rlib-4.3"),
+  .libPaths()
+))
+library(sf)
+```
+
+Note the R version in the directory name. A tree of compiled packages is reusable, which is the point of it, and what it is reusable by is a later context on the same R version and image rather than any context at all. That is why the version is in the name, and it is the first thing to check when the prepend appears to have done nothing. [Packages](../ref/packages.qmd) covers what to do when there is no such tree.
 
 ## Recording the environment so the run can be repeated
 
-Whether `renv` behaves usefully across the driver and worker boundary is open. This page will say what is known and no more.
+`renv` is the right tool for your own session, and it reaches only that one of the three. Use it, and do not expect it to do more.
 
-The state to record honestly: `renv` is the right tool in her own session and the question is what it does at the boundary. The page should not invent a workflow to fill the gap. An open question stated plainly is worth more to her than a recipe that has not been run.
+What a lockfile pins is real and worth having: the package versions in the session where you wrote the analysis, restorable a year later with one call. What it does not pin is the cluster runtime version and the packages in the worker library. Neither is visible to `renv`, and no lockfile can reach them, because they are installed on machines your project does not own and are changed by whoever administers the workspace.
+
+What happens when the two disagree is genuinely unknown here, and this guide would rather say so than invent a procedure. Nobody has established what `renv` does at that boundary: whether a restored lockfile in your session has any effect on what a worker loads, what a worker does when its version of a package differs from yours, or whether there is a supported way to make the two agree. Treating that as solved would be worse than leaving it open, because the failure it produces is a result that is quietly different rather than an error.
+
+So record what you can, and be explicit about what you have not recorded. Commit the lockfile. Alongside it, write down the runtime version of the cluster you ran on and the versions of the packages that actually did the work, read from the context they ran in rather than from yours. That is a note in the repository, not a mechanism, and it is enough to tell a year from now whether something moved.
+
+The check that closes the gap is empirical rather than declarative: run the computation in both places and compare the answers. [Check that you get the same answer wherever it ran](check-the-answer.qmd) is that check, and it is the only thing here that detects a worker library change at all.
+
+Two other things do not survive in a lockfile and are worth writing down beside it. A seed reproduces a simulation only for a fixed division of the work, because the division decides which units share a worker. And upstream data can be revised after you read it, so re-running an ingest is not a guarantee of the same table.
 
 ## Publishing and scheduling
 
+A scheduled run is a fresh context every time, which is the whole of what makes it different from your session. Everything in the previous two sections applies to it, and applies without you there to notice.
+
+So make the script self-sufficient. It reads its connection details from the environment, restores its own library rather than assuming one, prepends any volume library tree it needs, and writes its output somewhere durable rather than leaving it in memory. Anything it does interactively that you would have fixed by hand is a failure waiting for a night when you are not looking.
+
+Give it something to fail loudly on, too. A run that produces a plausible number from the wrong package version looks exactly like a run that worked. A stated tolerance checked at the end of the script is what turns that into an error you find in the morning.
+
 ## Citing the data
 
-See [The data and its licences](../ref/data.qmd). The two licences are different, and the difference matters. Environmental agency data is OGL v3.0; the storm overflow locations are CC BY 4.0, which requires its own credit line rather than sharing the other's.
+See [The data and its licences](../ref/data.qmd). Two licences, and they are not the same one. Environmental agency data is OGL v3.0; the storm overflow locations are CC BY 4.0, which requires its own credit line rather than sharing the other's.
 
-If a page uses the river network data, that carries a third set of attribution wording, different again from both.
+> Contains public sector information licensed under the Open Government Licence v3.0. Source: Environment Agency hydrology data.
+
+> Storm overflow outfall locations © the water companies, licensed under CC BY 4.0 and published via Stream / Water UK's National Storm Overflow Hub.
+
+Copy them verbatim rather than paraphrasing. CC BY requires attribution in a way OGL does not, so collapsing the two into one credit line loses something the licence asks for.
+
+If your analysis uses the river network data, that carries a third set of attribution wording, different again from both, and it needs its own line.
 
 ---
 

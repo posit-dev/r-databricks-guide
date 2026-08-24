@@ -3,43 +3,206 @@ title: "Check that you get the same answer wherever it ran"
 subtitle: "Confirming that a computation done on the server and the same one done in R agree, and by how much"
 ---
 
-::: {.callout-note appearance="simple"}
-
-**Not yet written.** The structure below is settled; the prose is not. Needs the recipe run on a second, structurally different computation before it can teach a technique rather than an anecdote.
-
-:::
-
 ## The two sides agree, and here is how closely
 
-Worker-computed polygon area matched the warehouse's own to a relative difference of 3.1e-12. The number is here to settle the question rather than to impress: the answer to "can I trust work that ran somewhere else" is yes, and the page should say so before explaining anything.
+Worker-computed polygon area matched the warehouse's own to a relative difference of 3.1e-12. So the answer to "can I trust work that ran somewhere else" is yes. That number is here to settle the question rather than to impress: agreement at the twelfth decimal place is agreement, and nothing downstream of it will notice the difference.
 
-The honest limit belongs next to it. This is one comparison on one kind of computation. Until the recipe has been run on a second, structurally different case, the page teaches a technique on the strength of a single example, and it should not pretend otherwise.
+The honest limit belongs next to it. This is one comparison on one kind of computation. Until the same recipe has been run on a second, structurally different case, this page is teaching a technique on the strength of a single example, and you should read it that way. The recipe below is worth copying; the confidence that it generalises has not been earned yet.
 
 ## Why they can disagree at all
 
-Floating point, aggregation order, and a CRS you set in one place and not the other.
+Three things make two correct machines return different numbers: floating point, aggregation order, and a coordinate system you set in one place and not the other.
 
-Three causes, and they are not equally likely. The CRS one is the only one that produces a difference large enough to notice, and it is a genuine mistake rather than a rounding artefact. The other two are expected and small. Ranking them this way is the page's main service, because a reader who finds a discrepancy needs to know which she is looking at.
+They are not equally likely and they are not equally serious, and telling them apart is most of what you need.
+
+Floating point is the smallest. The warehouse and your R session are running different implementations of the same geometry library, compiled differently, on different hardware. Neither is wrong. The last few bits of a double simply do not have to match, and once you sum a few thousand of them they match slightly less.
+
+Aggregation order is the next. When the server computes a sum, it computes it in partitions and adds the partial results together, and the partitioning is not guaranteed to be stable between runs. Floating-point addition is not associative, so a different order gives a different last bit. The same query run twice can differ from itself by this route, which is worth knowing before you conclude that the difference is between the two machines.
+
+The coordinate system is the only one of the three that produces a difference you can see, and it is the only one that is a genuine mistake. WKB carries no SRID, so nothing in the bytes tells `sf` which projection they are in. Set it wrong, or forget to set it, and you get a valid polygon with a completely wrong area. That difference is a factor, not a rounding artefact, and it is the first thing to check when a comparison fails.
+
+So rank a discrepancy by its size before you go looking for a cause. A relative difference around 1e-12 is the first two causes and needs no action. Anything you can see in the first few significant figures is the third, and it is a bug in your code rather than a property of the platform.
 
 ## The recipe
 
-Compute it server-side, compute it in R on a sample you can hold, compare relative difference against a tolerance you choose, and record the tolerance.
+Compute the quantity on the server, compute it in R on data you can hold, compare the relative difference against a tolerance you have chosen, and write the tolerance down.
+
+The catchment table makes this concrete because both sides can compute the same thing from the same bytes. Ask the warehouse for its own `ST_Area()` and for the geometry, then recompute the area in R.
+
+Geometry is `BINARY`, so this needs the `brickster` connection rather than the ODBC one. [Connect your R session to the data](connect.qmd) covers why.
+
+```r
+library(DBI)
+library(dplyr)
+library(tibble)
+library(glue)
+library(cli)
+library(sf)
+
+catalog <- Sys.getenv("DATABRICKS_CATALOG")
+schema <- Sys.getenv("DATABRICKS_SCHEMA")
+
+acon <- dbConnect(
+  brickster::DatabricksSQL(),
+  warehouse_id = basename(Sys.getenv("DATABRICKS_PATH"))
+)
+
+tbl_name <- function(table) {
+  glue("{catalog}.{schema}.{table}")
+}
+
+both <- dbGetQuery(acon, glue(
+  "SELECT water_body_id,
+          ST_Area(ST_GeomFromWKB(geom_wkb)) AS area_server,
+          geom_wkb
+   FROM {tbl_name('wfd_catchments')}
+   WHERE geom_wkb IS NOT NULL
+   ORDER BY water_body_id
+   LIMIT 200"
+)) |>
+  as_tibble() |>
+  mutate(
+    area_r = st_as_sfc(structure(geom_wkb, class = "WKB"), EWKB = TRUE) |>
+      st_set_crs(27700) |>
+      st_area() |>
+      as.numeric(),
+    rel_diff = abs(area_r - area_server) / area_server
+  ) |>
+  select(area_server, area_r, rel_diff)
+
+both
+```
+
+```
+# A tibble: 200 × 3
+   area_server    area_r rel_diff
+         <dbl>     <dbl>    <dbl>
+ 1      94801.    94801. 6.08e-13
+ 2   87978306. 87978306. 4.35e-14
+ 3   46311288. 46311288. 2.99e-14
+ 4   38852544. 38852544. 3.09e-14
+ 5   73737445. 73737445. 3.23e-14
+ 6     249703.   249703. 5.71e-15
+ 7        257.      257. 6.82e-13
+ 8     674459.   674459. 1.04e-13
+ 9    1140717.  1140717. 1.47e-13
+10     869317.   869317. 9.83e-14
+# ℹ 190 more rows
+```
+
+Two properties of that column are the point. The differences are around 1e-13, far below anything an area in square metres will be reported to. And they do not grow with the polygon: the largest relative difference in the run above is on a catchment of 257 square metres, the smallest on one of 250,000. That is what a floating-point artefact looks like. A CRS mistake would not behave this way, because it scales everything by roughly the same wrong factor.
+
+Note what this comparison is not. The table also carries a `water_body_area_m2` column, recorded by whoever prepared the data, and your computed area will differ from that by a fraction of a percent rather than a fraction of a part per trillion. That is a useful check of a different thing: it tells you the bytes survived transport and the CRS is right. It cannot tell you whether two implementations of the same calculation agree, because the recorded column was not produced by either of them.
 
 ## Choosing a tolerance, and why "identical" is the wrong test
 
-The fact to establish: exact equality will fail on correct results, so a test written that way reports corruption that is not there. Relative difference against a stated tolerance is the check, and the tolerance is a judgement she records rather than a constant the page supplies.
+Exact equality fails on correct results. Write the test that way and it will report corruption that is not there, on data where nothing is wrong.
+
+Run all three tests against the comparison above and only one of them passes:
+
+```r
+tibble(
+  test = c("identical()", "all(mine == theirs)",
+           "max relative difference < 1e-9"),
+  passes = c(
+    identical(both$area_r, both$area_server),
+    all(both$area_r == both$area_server),
+    max(both$rel_diff) < 1e-9
+  )
+)
+```
+
+```
+# A tibble: 3 × 2
+  test                           passes
+  <chr>                          <lgl>
+1 identical()                    FALSE
+2 all(mine == theirs)            FALSE
+3 max relative difference < 1e-9 TRUE
+```
+
+That is the whole argument. Both machines are correct, both answers are usable, and two of the three tests call it a failure. A check written on exact equality does not become more rigorous by being stricter; it becomes useless, because it fires every time and you stop reading it.
+
+So the check is a relative difference against a tolerance. The tolerance is yours to choose and this page will not supply a constant, because the right value depends on what the number is for. A catchment area feeding a map wants something looser than a mass balance feeding a published figure. What matters is that you pick it deliberately, before you look at the result, and write it down next to the answer.
+
+Wrap it so the failure says something useful:
+
+```r
+agrees <- function(mine, theirs, tolerance) {
+  rel <- abs(mine - theirs) / abs(theirs)
+  worst <- max(rel, na.rm = TRUE)
+
+  if (worst >= tolerance) {
+    cli_abort(c(
+      "Worst relative difference {signif(worst, 2)} exceeds {tolerance}.",
+      i = "{sum(rel >= tolerance)} of {length(mine)} values fall outside it.",
+      x = "Check the CRS on both sides before blaming rounding."
+    ))
+  }
+
+  cli_alert_success(
+    "{length(mine)} values agree, worst relative difference \\
+     {signif(worst, 2)}, tolerance {tolerance}"
+  )
+  invisible(worst)
+}
+
+agrees(both$area_r, both$area_server, tolerance = 1e-9)
+```
+
+```
+✔ 200 values agree, worst relative difference 1.5e-12, tolerance 1e-09
+```
+
+Reporting the worst difference on success, not just the pass, is what makes this worth running more than once. A run that passes at 1e-12 and later passes at 1e-4 has told you something changed, and a bare `TRUE` would have hidden it.
+
+`all.equal()` is the base R version of the same idea and it is fine for an interactive look. It defaults to a tolerance of about 1.5e-8 and returns a message rather than `FALSE` on failure, so wrap it in `isTRUE()` if you branch on it. The reason to write your own is the tolerance: `all.equal()`'s default is a number somebody else chose, and the point of this section is that the number should be one you chose.
 
 ## What to check when the work ran in a worker rather than in your session
 
-The extra variable is the worker's library. A different package version in the worker can change a result legitimately, which is indistinguishable from a bug unless she has checked. See [Packages](../ref/packages.qmd).
+Everything above assumed the R side ran in your session. When it ran in a worker instead, there is one extra variable, and it is the worker's library.
+
+Your session's packages and the worker's packages are separate installations. A different version of `sf`, or of the geometry library underneath it, can change a result legitimately: a bug fixed between versions, a different default, an algorithm changed. The number that comes back is then correct for the code that ran, and different from the number you would have got, and nothing about the difference looks like a version difference. It looks exactly like a bug.
+
+So establish which versions ran before you try to explain a discrepancy. [Packages](../ref/packages.qmd) covers getting a worker's library into a state you can name. The order matters: a version mismatch you have not ruled out will send you debugging your own code for a difference that is not in it.
 
 ## Do not compare hashes
 
-They are not portable across R minor versions, and a false mismatch looks exactly like corruption. Compare content.
+Hashing an R object is not portable across R minor versions, so a hash comparison between two machines can report a mismatch when the values are identical.
 
-Worth stating firmly, because hashing is the obvious approach and it fails in the most misleading possible way: it reports a difference when the values are equal.
+This is worth stating firmly because hashing is the obvious approach, and it fails in the most misleading possible way. A hash is designed so that any difference at all produces a completely different digest, which means a false mismatch is indistinguishable from real corruption. You get a wall of hex that agrees on nothing, and no way to tell whether the numbers underneath differ in the last bit or in the first.
+
+It also cannot work here even when the R versions match, because of everything above. Two correct answers differ in the last bit, which is precisely what a hash is built to detect. A hash comparison would fail on the 200 catchments above, correctly by its own logic and uselessly by yours.
+
+Compare content. If you need a compact summary rather than the full vectors, compare a few rounded aggregates: a sum, a range, a count, each with a stated tolerance. Those degrade gracefully, and they tell you how far apart two answers are rather than only that they are not the same.
 
 ## Recording the check alongside the result, so the paper can refer to it
+
+Save the tolerance and the worst observed difference next to the answer, not in your head or your terminal scrollback. It is a row of data, so store it as one:
+
+```r
+checked <- tibble(
+  quantity  = "catchment polygon area",
+  n         = nrow(both),
+  in_r      = "sf::st_area(), EPSG:27700",
+  on_server = "ST_Area()",
+  tolerance = 1e-9,
+  worst     = max(both$rel_diff)
+)
+
+checked
+```
+
+```
+# A tibble: 1 × 6
+  quantity                   n in_r                 on_server tolerance    worst
+  <chr>                  <int> <chr>                <chr>         <dbl>    <dbl>
+1 catchment polygon area   200 sf::st_area(), EPSG… ST_Area()      1e-9 1.47e-12
+```
+
+Two reasons to bother. A reviewer asking how you know the server-side result is trustworthy gets a sentence and a number instead of an assurance. And the tolerance recorded before the run is the only thing that stops it drifting afterwards: a tolerance chosen once the answer is in front of you is not a check, it is a description.
+
+Keep the row with the result it describes, in the same file or the same directory, and write it out at the same moment. [Get results out, and repeat them](results.qmd) covers where that file should go.
 
 ---
 
