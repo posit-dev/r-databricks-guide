@@ -179,6 +179,7 @@ Editing a contributed script is fine and expected, but the measurements in it ar
 - **Lead with the answer.** State the conclusion, then support it.
 - **Do not hard-wrap.** One line per paragraph in every `.md` and `.qmd` file, soft-wrapped by the editor. Code blocks keep their own line structure and are formatted for code readability. Pipe tables and hard line breaks keep theirs too.
 - **Base pipe `|>` only, never `%>%`.** Most Spark-related R documentation uses `%>%`, so translate anything borrowed.
+- **Method is in `process/`, and drafting more than one page starts there.** `process/drafting-pages.md` records the order that works: read the changelog batch before writing rather than during, reuse `R/setup.R` rather than rebuilding its helpers, batch the work by which compute it needs, and verify by reading rendered output rather than trusting exit 0. It exists because each of those was learned by paying for the alternative.
 - **Code style is in `CODE-STYLE.md`, and it is not advisory.** The tidyverse is the default idiom because the reader is fluent in it: `glue()` rather than `paste()` or `sprintf()`, `cli` rather than `message()` or `stop()`, `dplyr` and `purrr` rather than `[` and `lapply()`. `example/reducing.qmd` carries the reference preamble. Read that file before writing R for this repo.
 - **Prefer saying where the code runs** to saying "pushdown". At most once per page, as a parenthetical gloss, so the term still connects to vendor documentation.
 

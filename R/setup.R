@@ -63,6 +63,27 @@ wq_mask <- function(x) gsub(wq_catalog(), WQ_MASK_CATALOG, x, fixed = TRUE)
 #' spells it. Use in any chunk whose output is published.
 wq_name_shown <- function(table) wq_mask(wq_name(table))
 
+#' Mask everything that identifies this workspace, not just the catalog.
+#'
+#' wq_mask() handles the catalog and nothing else, which is right for the
+#' worked example: its chunks print table names and little else. Output that
+#' came back from *compute* is a different problem. A worker's hostname embeds
+#' the cluster id, and a Workbench session name embeds a person's name, so
+#' pasting a raw `Sys.info()[["nodename"]]` into a page fails
+#' scripts/check-public.sh. That has happened, on howdoi/interactive.qmd,
+#' and it was caught by the check rather than by review.
+#'
+#' Use this on anything captured from a cluster, a REST call or a session,
+#' before it goes anywhere near a page.
+wq_mask_all <- function(x) {
+  x <- wq_mask(x)
+  x <- gsub("[0-9]{4}-[0-9]{6}-[a-z0-9]{8,}", "<cluster-id>", x)
+  x <- gsub("session-[a-z0-9]+-[a-z0-9-]+", "<my-session>", x)
+  host <- Sys.getenv("DATABRICKS_HOST")
+  if (nzchar(host)) x <- gsub(host, "<host>", x, fixed = TRUE)
+  x
+}
+
 # --- the two connections ---------------------------------------------------
 
 # Why there are two, and when each is required, is the subject of
