@@ -1,7 +1,7 @@
 /*-- scss:defaults --*/
 
 // site.scss: house style for this guide, layered on cosmo.
-// Sized for reading rather than projection: 20px root, capped measure.
+// Sized for reading rather than projection: 17px root, capped measure.
 //
 // Use with: theme: {light: [cosmo, site.scss], dark: [darkly, site-dark.scss]}
 //
@@ -18,11 +18,13 @@ $posit-blue:         #447099;
 $posit-orange:       #EE6331;
 $posit-dark-blue-3:  #17212B;
 
-// Type. Root size 20px against Bootstrap's 16px default: prose
-// documentation is read, not scanned. Verified to compile to 1.25rem.
+// Type. 17px root, matching spark.posit.co and style.tidyverse.org, both of
+// which sit at 17px with Bootstrap's scale left alone. Bootstrap's default is
+// 16px; every heading size is a ratio off this one variable, so an h1 lands at
+// 2rem = 34px. Measured against those two sites, not estimated.
 $font-family-sans-serif: 'Open Sans', sans-serif !default;
 $font-family-monospace:  'Source Code Pro', monospace !default;
-$font-size-root: 20px !default;
+$font-size-root: 17px !default;
 $headings-font-weight: 600 !default;
 
 // Light mode. Paper is tinted rather than pure white, so code blocks and
@@ -33,11 +35,12 @@ $link-color: $posit-blue !default;        // 5.00:1 on $body-bg
 $link-hover-color: darken(saturate($link-color, 40%), 10%) !default;
 $code-color: $posit-orange !default;
 
-// Measure. Long lines are hard to track back at 20px, so the body column is
-// widened from Quarto's 800px default only as far as the larger type needs.
+// Measure. Quarto's 800px default is right at a 17px root, and is what both
+// reference sites use. Usable column is 800px less Quarto's 3em gutter (51px
+// here) less about 16px of `pre` padding, so 733px.
 // This must be $grid-body-width, in px: Quarto has no $content-max-width, and
 // a rem value here fails compilation against quarto-math.min(500px, ...).
-$grid-body-width: 900px !default;
+$grid-body-width: 800px !default;
 
 /*-- scss:rules --*/
 
@@ -56,14 +59,15 @@ h2 {
 // Hover is an underline, never a fill.
 a:hover { text-decoration: underline; }
 
-// Code sits smaller than prose. At the shared 0.875em this 42rem-of-text
-// measure (900px less Quarto's 3em gutter) holds
-// only about 78 characters, and an annotated pipeline does not fit: lines wrap,
+// Code sits smaller than prose, at Bootstrap's own 0.875em, which is also what
+// both reference sites ship. At a 17px root that is 14.9px, and Source Code Pro
+// advances 0.6em, so a character is 8.93px and the 733px column holds about 82
+// characters. An annotated pipeline fits: lines that exceed the measure wrap,
 // and `code-overflow: wrap` means that degrades silently rather than showing a
-// scrollbar. 0.75em raises the ceiling to about 91 characters. Code here is
-// written to a 60-character target, so the slack absorbs deep indentation.
+// scrollbar. Code here is written to a 60-character target, so the slack
+// absorbs deep indentation.
 pre code, pre code.sourceCode, .sourceCode pre code {
-  font-size: 0.75em;
+  font-size: 0.875em;
 }
 
 code:not(.sourceCode) {
