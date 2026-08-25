@@ -1,38 +1,107 @@
 ---
-title: "Words"
-subtitle: "Your word, the word you will see in Databricks documentation, and what it means for your work"
+title: "Same thing, different words"
+subtitle: "Your word, the platform's word, and what the difference costs you"
 ---
 
-::: {.callout-note appearance="simple"}
+Being overwhelmed by the Databricks documentation is very often a vocabulary problem rather than a conceptual one. You know what you are trying to do. You cannot find the page that describes it, because the page uses a different word.
 
-**Not yet written.** The structure below is settled; the prose is not.
-
-One discipline makes this page worth writing: source every entry from an error message or a documentation page you would actually meet, not from a glossary. The test for an entry is whether it would have saved somebody a search.
-
-:::
-
-Bidirectional, because the translation is needed in both directions. Being overwhelmed by documentation is very often a vocabulary problem.
+So this works in both directions. If you have a word and need theirs, start below. If you have met one of their words in an error message and need to know what it changes about your work, skip to [the platform's words](#the-platforms-words).
 
 ## Your words
 
-`sf`, `terra`, `purrr`, `furrr`, polygon, raster, CRS, EPSG, replicate, resample, fit, tune.
+These need no explaining, only mapping. In several cases the useful answer is that the platform has no word for the thing, which is worth knowing: it stops you searching.
 
-These need no explanation, only a mapping. The entry for each says what the platform calls the thing, or says plainly that the platform has no word for it, which is itself useful: a reader who stops searching for the Databricks term for a resample has got what she came for.
+| Your word | Theirs | Worth knowing |
+|----|----|----|
+| `sf` object | no equivalent | Geometry is stored as `BINARY` and arrives as bytes you decode yourself. Nothing on the platform holds a geometry column with a CRS attached. |
+| CRS, EPSG code | no equivalent | The platform carries an SRID integer on native geometry and nothing at all on `BINARY`. A CRS is yours to keep track of. |
+| polygon, raster | geometry, no equivalent | Vector geometry has server-side functions. Raster has none, so `terra` work happens in R. |
+| replicate, resample, bootstrap | no equivalent | The platform has no vocabulary for repeats. Searching for one wastes an afternoon: what you want is a page about partitions. |
+| fit, tune | no equivalent for your case | Their machine learning vocabulary describes Spark MLlib, not `tidymodels`. It will not help you. |
+| `purrr::map()` | no equivalent | The nearest thing is `spark_apply()`, which is a different shape and carries a serialisation cost. See [Run a Monte Carlo simulation](../howdoi/monte-carlo.qmd). |
+| `furrr`, `future` | no equivalent, and absent | Not installed on the runtime. Base `parallel` is. |
+| my laptop | no equivalent, and the point | Nothing on the platform corresponds to "the machine I am sitting at". That distinction is the whole of [What changes when the data is not on your laptop](../concepts/index.qmd). |
+
+A domain noun needs no translation. A catchment is not a Databricks word, and there is no platform term for it to map onto.
 
 ## The platform's words
 
-Driver, executor, worker, node, partition, serialisation, pushdown, UDF, artifact, volume, DBFS, catalog, schema, access mode, cluster lifecycle, warehouse.
+This is where the explaining budget goes. Each entry says what the word means and, more usefully, what it changes about your work.
 
-This is where the explaining budget goes. Each entry has to do two things: say what the word means, and say what it changes about her work. "Driver" is not a definition exercise. It is the machine her code runs on unless she does something specific, and that is the fact that makes the rest of the site readable.
+### Driver
 
-Three of these carry a consequence sharp enough that the entry should state it outright rather than leave it to a job page. A **partition** is the unit of parallel work, so the count of them, and not the count of rows, decides how much runs at once. **Serialisation** is the cost paid to move work to another machine, which is why distributing can be slower than not distributing when there is no other machine to reach. And an **access mode** decides which languages a cluster will accept, in a way that is narrower than it first appears.
+The machine your code runs on unless you have done something specific to send it elsewhere. When you connect from R and call `collect()`, the driver is what you are talking to.
 
-No domain nouns belong in this table. A catchment is not a Databricks word and needs no translation.
+This is the single most load-bearing word on the page, because almost every surprise documented on this site is work happening on the driver when you assumed it was spread out, or the reverse.
+
+### Executor, worker, node
+
+The machines that do work in parallel, as distinct from the one that coordinates. "Worker" and "executor" are used almost interchangeably in Databricks documentation; "node" usually means any machine in the cluster including the driver.
+
+Your cluster may have none of these. A single-node cluster is one machine that is both driver and the only place work can happen, which is ordinary rather than broken. [Work out what the cluster you have can do](../howdoi/compute.qmd) tells you which you have, and it matters more than any other fact about your compute.
+
+### Partition
+
+The unit of parallel work: a chunk of a dataset that one task processes. The count of partitions, and not the count of rows, decides how much runs at once.
+
+That is the consequence worth carrying away. If you split work into four partitions, at most four things happen at a time, however many rows or cores there are. Partition count is the dial, and it is often the only dial you can reach.
+
+### Serialisation
+
+The cost of moving work to another machine: your function, everything it refers to, and the data it needs all have to be converted to bytes, shipped, and rebuilt on the far side.
+
+The counterintuitive consequence, which this site relies on repeatedly: distributing work is not free, so distributing something small can be slower than not distributing it at all. That is not a misconfiguration. It is the cost exceeding the saving.
+
+### Pushdown
+
+Work happening on the server rather than in your session. When you write `dplyr` against a database table and the filter runs inside Databricks, that filter has been pushed down.
+
+This guide mostly says "where the code runs" instead, because that is clearer, but the vendor's word is worth recognising.
+
+### UDF
+
+User-defined function: your own function, run by the platform on data it holds. `spark_apply()` is how you get an R one.
+
+### Volume, DBFS
+
+Storage you can read and write as though it were a filesystem. A Unity Catalog **volume** appears at `/Volumes/...` and is the current, recommended form. **DBFS** is the older mechanism, still present and still referenced by a lot of documentation you will find.
+
+Prefer a volume. It is also the answer to most questions about getting a file to where your code runs, which is [Sending things to where your code runs](sending-things.qmd).
+
+### Catalog, schema
+
+Two levels of naming above a table, so a full table name has three parts: `catalog.schema.table`. If you have used `database.table` elsewhere, "schema" is that middle level, and Databricks documentation sometimes uses "database" for it interchangeably.
+
+### Unity Catalog
+
+The governance layer holding catalogs, schemas, tables, volumes and who may see them. Mostly it is the reason a permission error is a permission error rather than a bug, and the reason your tables live at a three-part name.
+
+### Access mode
+
+A property of a cluster deciding, among other things, which languages it will accept. It matters to you because it is narrower than it first appears: a Standard access mode cluster refuses R **notebooks**, while a client connection from your own R session to the same cluster works.
+
+### Cluster lifecycle
+
+That compute starts, runs, goes idle and terminates, and that state is not yours to assume. A cluster you used yesterday is probably stopped today. Starting one takes minutes, not seconds, and nothing shortens that wait.
+
+### Artifact
+
+Anything a run produces that gets stored: a model, a file, a plot. You will meet it in MLflow documentation. For most of what this guide covers, it is a word you can note and move past.
 
 ## Where a word means two things
 
-The page should carry a short list of terms the reader will meet with two incompatible meanings, because these cost more search time than unfamiliar words do. "Worker" is the clearest case: a worker machine in a cluster, and a forked R worker process inside one machine, are different things, and most parallel-R writing means the second while most Databricks writing means the first. A reader who does not have that distinction cannot read [Run a Monte Carlo simulation](../howdoi/monte-carlo.qmd) correctly, because the whole page turns on it.
+These cost more search time than unfamiliar words do, because you read them confidently and wrongly.
+
+**Worker.** A worker machine in a cluster, or a forked R process inside one machine. Most parallel-R writing means the second; most Databricks writing means the first. Without that distinction [Run a Monte Carlo simulation](../howdoi/monte-carlo.qmd) cannot be read correctly, because the whole page turns on which one you are adding.
+
+**Cluster.** A set of machines in Databricks, or in your own vocabulary the output of a clustering algorithm. Rarely confusing in context, but it makes searching for either one noisy.
+
+**Schema.** The middle level of a table name, or the column types of a dataset. Both appear in Databricks documentation, sometimes on the same page.
+
+**Node.** A machine in a cluster, or a vertex in a river network. The second is your word and the collision is accidental, but the river network tables on this site do use it.
+
+**Job.** A scheduled unit of work in Databricks. In ordinary speech, the thing you are trying to get done. When documentation says "job" it means the former, which is a specific object with a definition and a run history.
 
 ## Next
 
-If a word sent you here from the middle of something, go back to it. If the word was about where your code runs, [Sending things to where your code runs](sending-things.qmd) is the page that uses this vocabulary most heavily; if it was about the machine, see [Work out what the cluster you have can do](../howdoi/compute.qmd).
+If a word sent you here from the middle of something, go back to it. If it was about getting something to the machine your code runs on, that is [Sending things to where your code runs](sending-things.qmd); if it was about the machine itself, see [Work out what the cluster you have can do](../howdoi/compute.qmd).

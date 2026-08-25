@@ -3,17 +3,29 @@ title: "Sending things to where your code runs"
 subtitle: "Getting an object or a file to the machine that will use it"
 ---
 
-::: {.callout-note appearance="simple"}
-
-**Not yet written.** The structure below is settled; the prose is not.
-
-:::
-
 ## The default, in one sentence
 
 Write the thing to a Unity Catalog volume with `brickster::db_volume_write()`, and read it in the worker as an ordinary local file from `/Volumes/...`. That is the answer up to 5 GiB, and it is the answer for anything file-shaped.
 
-The table below is the page. The prose around it should stay short, because a reader arrives here mid-task with a specific thing she is trying to move and wants the row that matches it.
+```r
+library(brickster)
+
+db_volume_write(
+  path = "/Volumes/your_catalog/your_schema/scratch/model.rds",
+  file = "model.rds"
+)
+```
+
+Inside the worker it is just a file, and `readRDS()` reads it:
+
+```r
+f <- function(df) {
+  model <- readRDS("/Volumes/your_catalog/your_schema/scratch/model.rds")
+  # ... use it
+}
+```
+
+That is the whole recipe. If it covers your case, the table below tells you where it stops and you can leave.
 
 ## Three situations
 
@@ -23,21 +35,35 @@ The table below is the page. The prose around it should stay short, because a re
 | A small R object, a few kB, and you have no volume | Serialise it into the function body | Needs `serialize(version = 2)`, and the line breaks stripped from the base64. Both failures report `unknown type 0`, which tells you nothing |
 | A table you will query again later | Write it as a table | Hard error above 50,000 rows without a staging volume |
 
+The middle row is a fallback, not a preference. Use it when you have no volume to write to, and expect to spend time on it.
+
 ## Traps on the way through
 
 ### A `BINARY` column reaches a worker as a text representation, not as bytes
 
-Base64 on the way out, decode in the worker. Worth connecting to [Connect your R session to the data](../howdoi/connect.qmd), where the same column type fails differently on the way in: this is the third place `BINARY` behaves unlike bytes, and a reader who has met the other two will expect it.
+Base64 on the way out, decode in the worker. If you skip that, what arrives is a string that looks structurally plausible and is not your geometry.
+
+This is the third place `BINARY` behaves unlike bytes, and if you have met either of the others you should expect this one. The first is on the way in, where `odbc` silently returns part of a `BINARY` value, which is why [Connect your R session to the data](../howdoi/connect.qmd) requires the `brickster` path for geometry. The second is the string-length limit on that same page.
 
 ### `spark_apply()`'s documented `columns = list(...)` form fails here
 
-Use a Spark DDL string. Upstream issue `sparklyr/sparklyr#3529`.
+Use a Spark DDL string instead:
 
-There is a further wrinkle the page should carry: the correct form differs by context. A Spark type string is right from a client connection, and a plain character vector is right on the cluster's own R session. Neither is rejected by the other path, and the error never names `columns`, so code moved between the two fails as a missing-column complaint that looks like a fault in the worker function. Omitting the argument works on both.
+```r
+spark_apply(src, f, columns = "pkg string, ok boolean")
+```
+
+Upstream issue `sparklyr/sparklyr#3529`.
+
+There is a further wrinkle, and it is the kind that costs a morning. The correct form differs by where you are running. A Spark type string, as above, is right from a client connection. A plain character vector is right on the cluster's own R session. Neither form is rejected by the other path, and the error never mentions `columns`, so code moved between the two fails as a complaint about a missing column and reads like a bug in your worker function.
+
+Omitting the argument entirely works on both, and is the safest thing to do if you can let the types be inferred.
 
 ### Do not compare hashes across R minor versions
 
-Compare content.
+Compare content instead. A worker can be on a different R patch release from your session: at the time of writing this repository's session runs 4.5.2 and its cluster's workers run 4.5.1. Serialisation details differ across versions, so identical objects can hash differently, and you will conclude something is corrupted when nothing is.
+
+If you need to check that an object survived the trip, compare the thing you care about. Row counts, a summary, `all.equal()` on the reconstructed object.
 
 ## What else was tried, and what it did
 
@@ -45,10 +71,20 @@ Compare content.
 
 ## The full comparison
 
-For the reader auditing the claims rather than getting work done. Includes the two mechanisms that are not recommended: `spark_apply(context =)`, which does not work on this backend, and an unexported internal function.
+For anyone auditing the claims rather than getting work done.
+
+`spark_apply(context =)` is the documented mechanism for exactly this problem, and it does not work on the `databricks_connect` backend. If you find it in sparklyr documentation, that documentation is not wrong, it just does not describe the backend you are on.
+
+An unexported internal function also moves objects, and is not recommended here for the obvious reason: it is unexported, so it can change without notice, and code resting on it breaks silently on upgrade.
+
+Serialising into the function body, the middle row of the table above, works but is fiddly enough to be a last resort. `serialize(version = 2)` is required, and the base64 must have its line breaks stripped. Getting either wrong produces `unknown type 0`, which names neither cause.
 
 :::
 
+## Next
+
+If what you are moving is a package rather than an object, that is [Packages](packages.qmd). If something failed in a way this page did not predict, [When it breaks](when-it-breaks.qmd) is organised by symptom.
+
 ---
 
-This page rests on: `brickster::db_volume_write()` works and the worker reads the result as a local file, up to 5 GiB; serialising into the closure body works but needs `version = 2` and stripped line breaks; `dbWriteTable()` hard errors above 50,000 rows without a staging volume; `spark_apply(context =)` does not work on the `databricks_connect` backend; a `BINARY` column arrives in a worker as a text representation; `columns = list(...)` fails where a Spark DDL string works.
+This page rests on: `brickster::db_volume_write()` works and the worker reads the result as a local file, up to 5 GiB; serialising into the closure body works but needs `version = 2` and stripped line breaks, and both failures report `unknown type 0`; `dbWriteTable()` hard errors above 50,000 rows without a staging volume; `spark_apply(context =)` does not work on the `databricks_connect` backend; a `BINARY` column arrives in a worker as a text representation; `columns = list(...)` fails where a Spark DDL string works, the correct form differs between a client connection and the cluster's own R session, and omitting it works on both; a worker's R patch version can differ from the session's.

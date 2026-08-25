@@ -74,13 +74,17 @@ website:
       - text: Reference
         menu:
           - href: ref/words.qmd
-            text: Words
+            text: Same thing, different words
           - href: ref/sending-things.qmd
             text: Sending things to where your code runs
           - href: ref/packages.qmd
             text: Packages
+          - href: ref/spatial-functions.qmd
+            text: Which spatial functions you have
           - href: ref/when-it-breaks.qmd
             text: When it breaks
+          - href: ref/related-work.qmd
+            text: Related work
           - text: "---"
           - href: ref/data.qmd
             text: The data and its licences

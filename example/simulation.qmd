@@ -264,17 +264,17 @@ That is the shape a sampling-error argument predicts, and seeing it is the check
 
 ## This one is finished
 
-The honest checkpoint. The page reaches it and stops, rather than reaching for the cluster to complete a demonstration.
+This is the checkpoint, and the stage stops here rather than reaching for the cluster to complete a demonstration.
 
-The arithmetic is small: about a thousand stations, a thousand parameter draws each. That finishes on a handful of cores in a time that does not justify starting anything, and the correct thing to do is nothing further.
+The arithmetic is small: about a thousand stations, a thousand parameter draws each. That finishes on a handful of cores in a time that does not justify starting anything, so the right thing to do is nothing further.
 
-Saying so is what earns the credibility for the next page, where the answer is different.
+On the next page the answer is different.
 
 ## When this shape does need the cluster
 
 The example's own simulation is small. The shape is not inherently small, and yours may not be.
 
-The arithmetic rather than a threshold, because the threshold depends on your machine: the number of independent units, the cost of one unit, and the cores you can reach in your own session. When the product of the first two outgrows the third by enough that the run stops fitting in a working day, the same code moves to cluster compute with the unit of work unchanged.
+There is no useful threshold to quote, because it depends on your machine. Do the arithmetic instead: the number of independent units, the cost of one unit, and the cores you can reach in your own session. When the product of the first two outgrows the third by enough that the run stops fitting in a working day, the same code moves to cluster compute with the unit of work unchanged.
 
 Two things carry over unchanged, and both matter for the next page:
 

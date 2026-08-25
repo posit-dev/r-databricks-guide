@@ -3,35 +3,47 @@ title: "The data and its licences"
 subtitle: "Provenance, contents, and the attribution each licence requires"
 ---
 
-::: {.callout-note appearance="simple"}
-
-**Not yet written.** The structure below is settled; the prose is not. The one substantive task is confirming the exact attribution wording each licence requires.
-
-:::
+The examples on this site use open UK water data. This page says what each table holds and what each licence requires you to say if you reuse it.
 
 ## What each table contains
 
-Provenance and row counts. Enough for a reader to tell whether an example matches the table in front of her, and no more: this is a reference page, not a data dictionary.
+Enough to tell whether an example matches the table in front of you. This is not a data dictionary.
+
+| Table | Rows | What it is |
+|----|----|----|
+| `hydrology_stations` | 9,536 | Monitoring station locations and metadata, with eastings and northings, river and catchment names, and catchment area |
+| `hydrology_measures` | 32,443 | What each station measures: flow, level, rainfall, and at what interval |
+| `hydrology_readings` | 32,540,721 | The measurements themselves. This is the table too large to pull into a session, and the one [Work with a table that will not fit in your session](../howdoi/big-table.qmd) is written around |
+| `storm_overflows` | 14,190 | Storm overflow outfall locations, as points |
+| `wfd_catchments` | 4,080 | Water Framework Directive catchment polygons, with geometry stored as `BINARY` |
+| `bathing_water_sites` | 489 | Designated bathing water locations |
+| `bathing_water_classifications` | 15,210 | Annual classifications per site |
+| `river_links` | 193,040 | River network segments |
+| `river_nodes` | 197,734 | River network junctions |
+
+Two notes on shape rather than content. The geometry columns are `BINARY`, which is why [Connect your R session to the data](../howdoi/connect.qmd) insists on the `brickster` path for anything spatial. And `river_links` and `river_nodes` are a network rather than a set of catchments, which is easy to assume they are and they are not.
 
 ## Licences
 
-Two, and they are different. The environmental agency data is OGL v3.0. The storm overflow locations are CC BY 4.0, not OGL. The difference has to survive into every page that describes the data.
+Two licences, and they are different. The difference has to survive into anything you publish.
 
-If the river network data is used anywhere on the site, it carries a third set of attribution wording, different again from both, and needs its own credit line rather than sharing theirs.
-
-The wording each licence requires, to be copied verbatim rather than paraphrased:
+The Environment Agency hydrology data, the catchments and the bathing water tables are OGL v3.0:
 
 > Contains public sector information licensed under the Open Government Licence v3.0. Source: Environment Agency hydrology data.
 
+The storm overflow locations are **CC BY 4.0, not OGL**:
+
 > Storm overflow outfall locations © the water companies, licensed under CC BY 4.0 and published via Stream / Water UK's National Storm Overflow Hub.
 
-The first is the wording the Open Government Licence itself prescribes where the information provider specifies none, which is the case here: the Environment Agency's hydrology pages point at the licence without adding an attribution statement of their own. The licence also asks that the source be acknowledged, which is what the second sentence does.
+Copy both verbatim rather than paraphrasing. The first is the wording the Open Government Licence itself prescribes where the information provider specifies none, which is the case here: the Environment Agency's hydrology pages point at the licence without adding an attribution statement of their own. The licence also asks that the source be acknowledged, which is what the second sentence does.
+
+The river network data carries a third set of attribution wording, different again from both, and needs its own credit line rather than sharing either of these. Check the current terms at source before republishing anything derived from it.
 
 ## Nothing here is a finding about water
 
-The data is a vehicle for demonstrating technique. No page on this site makes a substantive claim about water quality.
+The data is a vehicle for demonstrating technique, and no page on this site makes a substantive claim about water quality.
 
-Worth keeping prominent. The reader is an environmental scientist and will read the examples with a domain eye, so the disclaimer stops her weighing a number that was chosen to make a technique visible rather than to be true.
+This is worth saying plainly to you in particular, because you will read the examples with a domain eye. Numbers in the examples were chosen to make a technique visible: a sample size that keeps a page fast, a threshold that produces a legible figure, a filter that makes a join small enough to check by hand. Do not weigh any of them as a result. The [worked example](../example/index.qmd) asks a real question and answers it honestly about its own limits, and even there the answer is a demonstration rather than a finding.
 
 ## Next
 

@@ -42,7 +42,7 @@ The test, which is what transfers: **if every iteration perturbs something the s
 
 Resample the catchments with replacement, jitter each overflow point by an assumed positional error, and count how many points fall inside a polygon. Per resample, seeded on the resample id. Each resample returns two numbers: how many outfalls landed in some catchment, and the mean number of catchments each one landed in.
 
-The jitter deserves its own sentence, and it should be honest about being a design decision rather than a discovery. It represents assumed positional uncertainty in the outfall locations, and it is also what keeps the point-in-polygon genuinely inside the loop. Without it the geometry is identical on every iteration and the whole thing collapses into a single query answering a different question.
+The jitter is a design decision rather than a discovery, and it does two things. It represents assumed positional uncertainty in the outfall locations, and it is what keeps the point-in-polygon genuinely inside the loop. Without it the geometry is identical on every iteration and the whole thing collapses into a single query answering a different question.
 
 Fifty metres sounds too small to matter until you look at an outfall that sits near a catchment boundary. This one is 14 m from the edge, and the cloud is 200 jittered positions of that single point: most stay inside the catchment and a substantial minority land outside it, so which catchment it counts towards is decided by the jitter rather than by the record.
 
@@ -420,7 +420,7 @@ tibble(
 )
 ```
 
-Two worker machines, neither of them the driver, with `sf` loaded and doing real work on real polygons. That answers whether it distributes at all. It says nothing about how it scales, and this page must not imply otherwise: two workers is the entire basis of the claim.
+Two worker machines, neither of them the driver, with `sf` loaded and doing real work on real polygons. That answers whether it distributes at all, and nothing more: two workers is the entire basis of the claim, so take nothing from it about how the work scales.
 
 ## What this cost, and what it did not buy
 

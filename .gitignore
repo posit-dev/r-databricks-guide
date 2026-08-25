@@ -38,6 +38,11 @@ renv/staging/
 
 **/*.quarto_ipynb
 
+# knitr's intermediate, left behind in example/ when a render is interrupted.
+# It is a near-copy of the .qmd beside it, so it rots against the source and
+# reads as a second, stale version of a page.
+**/*.rmarkdown
+
 # Compute targets. config.yml carries a real warehouse and cluster id, and this
 # repo is public by default, so it stays local. dbx-config.R reads it and is
 # safe to track; the ids never appear in the helper itself.

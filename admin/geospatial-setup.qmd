@@ -3,54 +3,78 @@ title: "Setting up a cluster for geospatial R"
 subtitle: "Written for whoever administers the workspace, not for the person using it"
 ---
 
-::: {.callout-note appearance="simple"}
-
-**Not yet written.** The structure below is settled; the prose is not.
-
-:::
-
 If you have arrived here from another page, this one is not addressed to you. Pass it on.
 
-This was verified in a test workspace, and in your workspace much of it may already be done.
+This was verified in a test workspace, and in yours much of it may already be done. It addresses **DBR 18.1**; where a detail is runtime-specific that is called out, because several of these answers have changed.
 
 ## What an R user needs from a runtime image to do geospatial work
 
-The stock runtime image ships no GDAL, GEOS or PROJ, so `install.packages("sf")` fails at configure. That single fact is the whole reason this page exists, and it should lead.
+The stock runtime image ships no GDAL, GEOS or PROJ, so `install.packages("sf")` fails while configuring. That single fact is the whole reason this page exists.
+
+The person who sent you here cannot fix it. System libraries need root and need to be present on every machine in the cluster, so no amount of work in an R session gets there. The error surfaces in R, which is why it is usually reported to you as an R problem.
 
 ## System libraries and R packages are two separate problems
 
-Conflating them costs a week. The system layer needs an init script and root; the R layer needs a repository and a library path. Fixing either alone leaves the same symptom, which is why the two get conflated in the first place.
+Conflating them costs a week. The system layer needs an init script and root privileges. The R layer needs a package repository and a library path. Fixing either one alone leaves the same symptom, which is precisely why the two get conflated.
+
+So expect to do both, and expect the first to look like it did nothing until the second is also done.
 
 ## The init script, and why it must be an init script
 
 It runs on every node. An interactive install touches only the driver.
 
-## Version constraints found in practice
-
-This section is runtime-specific and must say which runtime it describes, because the answer has changed. On older runtimes `terra` needed pinning against the image's GDAL and `Rcpp` needed upgrading before `units` would install. On DBR 18 both have stopped being necessary, and carrying the old script forward keeps constraints that no longer apply while leaving packages missing or recompiling at every start.
-
-Two things follow. The runtime version and the setup script are one decision rather than two, so a script has to be revised when the runtime moves. And a runtime should be pinned to a specific version rather than a rolling alias if this page quotes measured library versions, because the alias moves and the quoted GDAL or GEOS versions silently stop matching.
-
-This guide addresses **DBR 18.1**, so the constraints above are the DBR 18 ones: neither the `terra` pin nor the `Rcpp` upgrade is needed, and a script carrying them forward is a script to revise.
-
-Worth knowing that this repository is currently an example of the pinning hazard rather than an exception to it. The single-node cluster behind these pages is pinned to `18.1.x-scala2.13`, but the multi-node cluster runs on the rolling `18.x` alias, which can move to 18.2 and quietly date any library version quoted here. Pin both to a specific version if you are going to quote measured versions back to anyone.
+That is the whole argument, and it is worth being firm about, because an interactive install appears to work. Someone tries it by hand, `sf` loads, the problem looks solved, and then it fails inside a worker where the libraries were never installed. An init script is the only form that reaches every machine.
 
 ## Build times, and why a binary repository does not help
 
-Binaries are keyed to both the distribution and the R minor version.
+Point the install at a binary repository and it will still compile from source, taking about fifteen minutes per node instead of seconds. There are two reasons, and the second is the one nobody guesses.
 
-There is a second reason, and it is the one nobody guesses. The repository decides whether to serve binaries by reading the `R/<version>` token at the front of the request's user agent. An interactive R session sends it; `Rscript` does not, and an init script is exactly that case. So the repository serves sources and the install compiles: same command, same repository, correct URL, and the only symptom is setup taking about fifteen minutes per node instead of seconds. Setting the user agent explicitly is the fix.
+The first is ordinary: binaries are keyed to both the Linux distribution and the R minor version, so the generic repository URL serves sources unless you use the distribution-specific path.
 
-This is worth stating carefully, because pointing at the distribution-specific URL is still necessary and is not wrong, just incomplete. Fixing only the URL changes nothing observable, which makes correct advice look wrong when it is half right.
+The second is that the repository decides whether to serve binaries by reading the `R/<version>` token at the front of the request's user agent. An interactive R session sends it. `Rscript` does not, and an init script is exactly that case. So you get sources: same command, same repository, correct URL, and the only symptom is the fifteen minutes.
+
+Set the user agent explicitly to fix it:
+
+```r
+options(HTTPUserAgent = sprintf(
+  "R/%s R (%s)",
+  getRversion(),
+  paste(getRversion(), R.version$platform, R.version$arch, R.version$os)
+))
+```
+
+Worth stating carefully, because pointing at the distribution-specific URL is still necessary and is not wrong, merely incomplete. Fixing only the URL changes nothing observable, which makes correct advice look wrong when it is half right.
+
+## Version constraints found in practice
+
+This section is runtime-specific, and the answer has changed.
+
+On older runtimes, `terra` needed pinning against the image's GDAL version, and `Rcpp` needed upgrading before `units` would install. On DBR 18 neither is necessary.
+
+Two things follow. A script carrying those constraints forward keeps pins that no longer apply, which leaves packages missing or recompiling at every start, so the runtime version and the setup script are one decision rather than two: moving the runtime means revising the script.
+
+And if you are going to quote measured library versions to anyone, pin the runtime to a specific version rather than a rolling alias. An alias moves, and the GDAL or GEOS version you documented silently stops matching.
+
+This repository is currently an example of that hazard rather than an exception to it. The single-node cluster behind these pages is pinned to `18.1.x-scala2.13`, while the multi-node cluster runs on the rolling `18.x` alias, which can move to 18.2 and quietly date anything quoted from it.
 
 ## Pay it once
 
-Build to local disk, copy the tree to a Unity Catalog volume, prepend that path to `.libPaths()`. Reusable by any later cluster with the same R version and image, and verified working inside a `spark_apply()` worker.
+The durable arrangement, and the one worth the extra half hour:
+
+1. Build the packages to local disk on a cluster with the system libraries present.
+2. Copy the resulting library tree to a Unity Catalog volume.
+3. Have users prepend that path to `.libPaths()`.
+
+Any later cluster with the same R version and image can reuse the tree, so the build cost is paid once rather than at every cluster start. It has been verified working inside a `spark_apply()` worker, which matters: a fix that only works on the driver does not help anyone doing distributed work.
+
+Tell the person who sent you here that the volume exists and what its path is. From their side it is one line, and they have no way to discover it.
 
 ## Every R context gets its own ephemeral library
 
 Which is why the volume above is the durable fix and an install is not.
 
+An install goes away. Users read that as the upgrade having failed, run it again, get the same result, and eventually ask you. The library on a volume is the thing that stops the cycle.
+
 ---
 
-This page rests on: the stock runtime image ships no GDAL, GEOS or PROJ, so `install.packages("sf")` fails at configure; an init script fixes the system layer and runs on every node where an interactive install touches only the driver; on older runtimes the image's pinned `Rcpp` is older than current `units` requires and `terra` must be pinned against the image's GDAL, and on DBR 18 neither pin is needed; a runtime version and its setup script are one decision; a binary repository serves sources unless the request's user agent carries an `R/<version>` token, which `Rscript` omits, costing about fifteen minutes per node; a prebuilt library tree on a volume is reusable and works inside a `spark_apply()` worker.
+This page rests on: the stock runtime image ships no GDAL, GEOS or PROJ, so `install.packages("sf")` fails at configure; an init script fixes the system layer and runs on every node where an interactive install touches only the driver; on older runtimes the image's pinned `Rcpp` is older than current `units` requires and `terra` must be pinned against the image's GDAL, and on DBR 18 neither pin is needed; a runtime version and its setup script are one decision; a binary repository serves sources unless the request's user agent carries an `R/<version>` token, which `Rscript` omits, costing about fifteen minutes per node; a prebuilt library tree on a volume is reusable and works inside a `spark_apply()` worker; every R context gets its own ephemeral library.

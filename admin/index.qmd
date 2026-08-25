@@ -3,27 +3,25 @@ title: "What to ask for, and how to ask"
 subtitle: "Getting a workspace change made when you do not administer the workspace"
 ---
 
-::: {.callout-note appearance="simple"}
-
-**Not yet written.** The structure below is settled; the prose is not.
-
-:::
-
-Some of what stops you is not fixable from your session, and no amount of persistence in R will change that. This page is about recognising those cases quickly and asking for the right thing, so that one exchange settles it rather than four.
+Some of what stops you is not fixable from your session, and no amount of persistence in R will change it. This page is about recognising those cases quickly and asking for the right thing, so one exchange settles it rather than four.
 
 ## How to tell it is not yours to fix
 
-The distinguishing question is whether the change has to happen on every machine, or before your session starts. If it does, it needs an administrator, and trying it yourself costs an afternoon and leaves no trace.
+The distinguishing question is whether the change has to happen on every machine, or before your session starts. If it does, it needs an administrator, and trying it yourself costs an afternoon and leaves nothing behind.
 
-Three symptoms that always mean this, worth listing so she can match against them rather than reason from first principles:
+Three symptoms always mean this:
 
-- `install.packages("sf")` fails at configure. The system libraries are missing from the image, you cannot install those, and no R-level fix exists.
-- A package loads in your session but not in a worker. The worker's library is a different thing from yours.
-- An install appears not to have taken, repeatedly. Each R context gets its own ephemeral library, so it did take, and then went away.
+- **`install.packages("sf")` fails at configure.** The system libraries are missing from the image. You cannot install those, and no R-level fix exists.
+- **A package loads in your session but not in a worker.** The worker's library is a different thing from yours, and installing into yours does not reach it.
+- **An install appears not to have taken, repeatedly.** Each R context gets its own ephemeral library, so it did take, and then went away. Running it again produces the same result.
+
+The common thread is that all three appear as R errors in your R session, which is why they read as things you should be able to fix.
 
 ## Ask for the outcome, not the mechanism
 
-The failure mode in these conversations is asking for a specific fix and getting a debate about it. Describe what you need to be able to do, name the constraint you have hit, and let the person who owns the platform choose how. They may already have a solution you do not know the name of.
+The failure mode in these conversations is asking for a specific fix and getting a debate about the fix.
+
+Describe what you need to be able to do, name the constraint you have hit, and let the person who owns the platform choose how to solve it. They may already have a solution you do not know the name of: a cluster policy, an existing library volume, a standard init script they attach on request. Asking for "an init script that installs GDAL" invites a discussion about init scripts. Saying "I need to read polygon data with the R `sf` package, and it will not install because GDAL is missing" invites a solution.
 
 ## The three requests worth knowing by name
 
@@ -31,24 +29,54 @@ Most of what a research scientist needs from a Databricks workspace is one of th
 
 ### The geospatial system libraries
 
-GDAL, GEOS and PROJ, installed by an init script so they land on every node. Hand over [Setting up a cluster for geospatial R](geospatial-setup.qmd), which is written for them rather than for you.
+GDAL, GEOS and PROJ, installed by an init script so they land on every node.
+
+Forward [Setting up a cluster for geospatial R](geospatial-setup.qmd), which is written for them rather than for you. It covers the init script, the build-time trap that makes setup take fifteen minutes per node instead of seconds, and the runtime-specific version constraints.
 
 ### A package library that persists
 
-So that `sf` and `terra` are simply present, in your session and in workers, without a fifteen-minute wait at every cluster start. The durable form is a prebuilt library tree on a volume.
+So `sf` and `terra` are simply present, in your session and in workers, without a wait at every cluster start.
+
+The durable form is a prebuilt library tree on a Unity Catalog volume. Someone builds it once, and thereafter you prepend one path to `.libPaths()`. Worth asking whether one already exists before asking for one to be made: it is a common arrangement, and you have no way to discover it from your side.
 
 ### A cluster of a different shape
 
-The one thing you cannot approximate. Worth being specific about what you need and why, because this is the request most likely to have a cost attached, and the answer may reasonably be no. Read [Work out what the cluster you have can do](../howdoi/compute.qmd) first, so you are asking for the right shape.
+The one thing you cannot approximate. More memory, more machines, a different runtime.
+
+Be specific about what you need and why, because this is the request most likely to have a cost attached, and the answer may reasonably be no. Read [Work out what the cluster you have can do](../howdoi/compute.qmd) first, so you are asking for the right shape rather than just a bigger one. Knowing that your current cluster has a single machine, and that your work needs several, is a much stronger request than asking for more memory because something was slow.
 
 ## What to include in the message
 
-A short template she can adapt: what you are trying to do, what you tried, the exact error, and what you believe is needed. Written so it can be pasted into a ticket without editing.
+Four things, and it can be short:
+
+> **What I am trying to do.** Read catchment polygons from Unity Catalog into R and do a spatial join against monitoring station locations.
+>
+> **What I tried.** `install.packages("sf")` in my R session on cluster `<name>`.
+>
+> **The exact error.** Configuration failed because GDAL was not found. Full log attached.
+>
+> **What I think is needed.** GDAL, GEOS and PROJ on the cluster nodes. I am told this needs an init script rather than an interactive install, because it has to be on every machine. There is a setup guide I can forward.
+
+Paste the real error rather than describing it. It is the part that lets someone recognise the problem in seconds, and paraphrasing it is how a five-minute fix becomes a thread.
 
 ## What is reasonable to expect
 
-Managing expectations honestly, in both directions. An init script is a small change and a common request. A new cluster is a budget conversation. Knowing which you are in prevents both frustration and over-asking.
+An init script is a small, common change, and asking for one is unremarkable. A library volume is slightly more work and saves everyone time thereafter. A new cluster is a budget conversation, and may involve someone who has never heard of you.
+
+Knowing which of the three you are in prevents both frustration and over-asking. It also tells you how long to wait before following up: days for the first, longer for the last.
+
+Expect to be asked why R, occasionally. The honest answer is that your analysis is in R, the packages you need are in R, and rewriting it is not a small task. You do not need to argue the general case.
 
 ## If the answer is no
 
-There is usually still a route, and it is worth naming rather than leaving her stuck: reduce the data server-side and work locally, or do the parts that need the missing capability on your own machine. Sometimes the laptop is the right answer, and this is one of the times.
+There is usually still a route.
+
+Reduce the data server-side and bring a manageable extract back to work on locally. That is the pattern in [Work with a table that will not fit in your session](../howdoi/big-table.qmd), and it needs nothing from anyone.
+
+Or do the parts that need the missing capability on your own machine. If the geospatial libraries are not going to appear on the cluster, and your extract fits in memory, `sf` on your laptop is not a workaround: it is faster to set up, faster to iterate on, and better for your science.
+
+Sometimes the laptop is the right answer, and this is one of the times.
+
+## Next
+
+If you are not sure whether the problem is a missing package or something else, [Packages](../ref/packages.qmd) has the check. If you saw a specific error, [When it breaks](../ref/when-it-breaks.qmd) is organised by symptom and says for each one whether it is yours or theirs.
