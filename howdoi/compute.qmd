@@ -19,7 +19,24 @@ The group cluster is warm and free to reach. The personal one is yours to contro
 
 Three lines, and you have the facts that matter:
 
-```r
+```{r}
+#| label: mask
+#| include: false
+# This site is public, so no printed output may carry the catalog this page
+# happens to run against. Only what is *shown* is masked; every query below
+# runs against the real tables. See R/setup.R.
+source(here::here("R/setup.R"))
+local({
+  mask_hook <- function(x, options) paste0("```\n", wq_mask_all(x), "```\n")
+  knitr::knit_hooks$set(
+    output = mask_hook, error = mask_hook,
+    warning = mask_hook, message = mask_hook
+  )
+})
+```
+
+```{r}
+#| label: read-cluster
 library(brickster)
 library(tibble)
 
@@ -30,13 +47,6 @@ tibble(
   runtime = info$spark_version,
   access  = info$data_security_mode
 )
-```
-
-```
-# A tibble: 1 × 3
-  workers runtime          access
-    <int> <chr>            <chr>
-1       0 18.1.x-scala2.13 SINGLE_USER
 ```
 
 `num_workers = 0` means one machine. Not a small cluster, not a cluster with the workers switched off: one machine, running the driver, with nothing to distribute to. Whatever the workspace interface implies by showing it in a list of clusters, this is the number that settles it.

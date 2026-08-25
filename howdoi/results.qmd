@@ -36,13 +36,9 @@ db_volume_read(glue("{vol}/flow_variability/results.rds"), back)
 readRDS(back)
 ```
 
-```
-# A tibble: 2 × 2
-  water_body_id  median_cv
-  <chr>              <dbl>
-1 GB105035046170     0.612
-2 GB109055036620     0.884
-```
+What comes back is the object you saved, not a copy of it converted into
+something else: an `.rds` round trip through a volume preserves the tibble,
+its column types and its attributes exactly.
 
 [Sending things to where your code runs](../ref/sending-things.qmd) has the size limits and the other routes.
 

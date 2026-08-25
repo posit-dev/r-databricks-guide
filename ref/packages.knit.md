@@ -7,40 +7,93 @@ subtitle: "Checking, and fixing, which packages exist where your code runs"
 
 Run this, and if it loads you are done. Most likely you are done.
 
-```{r}
-#| label: mask
-#| include: false
-# This site is public, so no printed output may carry the catalog this page
-# happens to run against. Only what is *shown* is masked; every query below
-# runs against the real tables. See R/setup.R.
-source(here::here("R/setup.R"))
-local({
-  mask_hook <- function(x, options) paste0("```\n", wq_mask_all(x), "```\n")
-  knitr::knit_hooks$set(
-    output = mask_hook, error = mask_hook,
-    warning = mask_hook, message = mask_hook
-  )
-})
-```
 
-```{r}
-#| label: local-check
+
+
+::: {.cell}
+
+```{.r .cell-code}
 requireNamespace("sf", quietly = TRUE)
 ```
+:::
+
 
 Run it in the context you are asking about. That is the whole discipline of this page: a package that loads in your session tells you nothing about whether it loads in a worker, because those are different R installations with different library paths. To ask about a worker, ask inside one:
 
-```{r}
-#| label: worker-check
+
+::: {.cell}
+
+```{.r .cell-code}
 library(sparklyr)
+```
+
+```
+
+Attaching package: 'sparklyr'
+```
+```
+The following object is masked from 'package:stats':
+
+    filter
+```
+
+```{.r .cell-code}
 library(dplyr)
+```
+
+```
+
+Attaching package: 'dplyr'
+```
+```
+The following objects are masked from 'package:stats':
+
+    filter, lag
+```
+```
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+```
+
+```{.r .cell-code}
 library(glue)
 
 sc <- spark_connect(
   method = "databricks_connect",
   cluster_id = Sys.getenv("DATABRICKS_CLUSTER_ID")
 )
+```
 
+```
+ℹ Retrieving info for cluster:'<cluster-id>'
+```
+```
+✔ Cluster: '<cluster-id>' | DBR: '18.1' [453ms]
+```
+```
+
+```
+```
+ℹ 
+```
+```
+✔ Python environment: 'Managed `uv` environment' [3s]
+```
+```
+
+```
+```
+ℹ Connecting to '<cluster-name>'
+```
+```
+✔ Connected to: '<cluster-name>' [14ms]
+```
+```
+
+```
+
+```{.r .cell-code}
 tbl_name <- function(table) {
   glue("{Sys.getenv('DATABRICKS_CATALOG')}.\
         {Sys.getenv('DATABRICKS_SCHEMA')}.{table}")
@@ -60,6 +113,17 @@ tbl(sc, I(tbl_name("hydrology_stations"))) |>
   spark_apply(check, columns = "pkg string, ok boolean") |>
   collect()
 ```
+
+```
+# A tibble: 3 × 2
+  pkg   ok   
+  <chr> <lgl>
+1 sf    TRUE 
+2 terra TRUE 
+3 dplyr TRUE 
+```
+:::
+
 
 If they all come back `TRUE`, stop reading. The rest of this page is for the case where they do not.
 
@@ -106,3 +170,4 @@ If a package is present but something else broke, [When it breaks](when-it-break
 ---
 
 This page rests on: every R context gets its own ephemeral library; a prebuilt library tree on a volume, prepended to `.libPaths()`, is reusable by a later cluster with the same R version and image and works inside a `spark_apply()` worker; the stock runtime image ships no GDAL, GEOS or PROJ, so `install.packages("sf")` fails at configure; an init script runs on every node where an interactive install touches only the driver; a worker's R patch version can differ from the session's.
+
