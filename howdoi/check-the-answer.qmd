@@ -31,6 +31,8 @@ Compute the quantity on the server, compute it in R on data you can hold, compar
 
 The catchment table makes this concrete because both sides can compute the same thing from the same bytes. Ask the warehouse for its own `ST_Area()` and for the geometry, then recompute the area in R.
 
+Both calls are spelled `st_area()` below, and they are different functions. The one inside `transmute()` runs on the server, because everything above `collect()` does; the one inside `mutate()` is `sf`'s, because everything below it is. That is the whole point of the comparison, and it is worth seeing written out, since a spatial pipeline gives you no other clue which implementation answered.
+
 Geometry is `BINARY`, so this needs the `brickster` connection rather than the ODBC one. [Connect your R session to the data](connect.qmd) covers why.
 
 ```r
@@ -53,16 +55,16 @@ tbl_name <- function(table) {
   glue("{catalog}.{schema}.{table}")
 }
 
-both <- dbGetQuery(acon, glue(
-  "SELECT water_body_id,
-          ST_Area(ST_GeomFromWKB(geom_wkb)) AS area_server,
-          geom_wkb
-   FROM {tbl_name('wfd_catchments')}
-   WHERE geom_wkb IS NOT NULL
-   ORDER BY water_body_id
-   LIMIT 200"
-)) |>
-  as_tibble() |>
+both <- tbl(acon, I(tbl_name("wfd_catchments"))) |>
+  filter(!is.na(geom_wkb)) |>
+  transmute(
+    water_body_id,
+    area_server = st_area(st_geomfromwkb(geom_wkb)),
+    geom_wkb
+  ) |>
+  arrange(water_body_id) |>
+  head(200) |>
+  collect() |>
   mutate(
     area_r = st_as_sfc(structure(geom_wkb, class = "WKB"), EWKB = TRUE) |>
       st_set_crs(27700) |>

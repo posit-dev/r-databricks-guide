@@ -9,7 +9,20 @@ The server has getting on for a hundred built-in `ST_` functions, so needing a s
 
 That matters because the obvious chain of reasoning is wrong. Spatial work means `sf`, `sf` means R, R means collecting everything first: each step follows from the last and the conclusion is that geometry always crosses. It does not. You can put a spatial question to the server and get back a number.
 
-Here is the shape, on the catchment polygons used throughout this guide. Four thousand polygons are read, unioned and measured, and one row comes back. Two connections are open because this page needs both: `con` runs the spatial SQL, and `acon` is the one that can carry raw geometry back, for the reason [Connect your R session to the data](connect.qmd) sets out.
+Here is the shape, on the catchment polygons used throughout this guide. Four thousand polygons are read, unioned and measured, and one row comes back. Two connections are open because this page needs both: `con` runs the spatial work, and `acon` is the one that can carry raw geometry back, for the reason [Connect your R session to the data](connect.qmd) sets out.
+
+The `st_` functions below are Databricks functions, not `sf` ones, even though several share a name. They are written inside an ordinary `dplyr` pipeline: `dbplyr` passes a function it does not recognise straight through to the server, so a spatial expression needs no translation to push down.
+
+Worth being clear about what that means, because it is the one thing on this page that can mislead you. Inside a `dplyr` verb on a remote table, `st_area(g)` is not a call to `sf::st_area()`. Nothing in R evaluates it: `dbplyr` captures the name and sends it as text, and the server resolves it. Attaching `sf` changes nothing, and detaching it changes nothing. The same expression below `collect()` is the `sf` function, and above it is the server's.
+
+A name the server does not have fails loudly, with `UNRESOLVED_ROUTINE`, whether it is a typo or a real `sf` function with no server equivalent. That is the safe case, and it is not the one to plan around.
+
+The case to plan around is a name that exists on both sides and does not mean the same thing, because that runs cleanly and answers wrongly. It comes in two kinds, and both are live on this page:
+
+- **Different value.** Server-side distance, length and area are planar where `sf` on unprojected coordinates is geodesic. [The section below](#distance-and-area-on-the-server-are-planar-and-sf-is-not) works this through: same call, same-looking number, five orders of magnitude apart.
+- **Different shape.** `st_contains()` gives one boolean per row on the server and a sparse index list in `sf`; `st_distance()` gives a scalar per row against a matrix; `st_buffer()` takes two arguments and rejects `sf`'s `nQuadSegs`. [Which spatial functions you have](../ref/spatial-functions.qmd#where-the-semantics-differ-from-sf) tabulates them.
+
+So the position of `collect()` is not a stylistic detail in a spatial pipeline: it decides which implementation of a shared name you get. When you are unsure which side you are on, `show_query()` settles it, and anything it shows you is the server's.
 
 ```r
 library(DBI)
@@ -38,13 +51,16 @@ tbl_name <- function(table) {
   glue("{catalog}.{schema}.{table}")
 }
 
-dbGetQuery(con, glue(
-  "SELECT count(*) AS n_catchments,
-          round(sum(st_area(g)) / 1e6) AS area_km2
-   FROM (SELECT st_setsrid(st_geomfromwkb(geom_wkb), 27700) AS g
-         FROM {tbl_name('wfd_catchments')}
-         WHERE geom_wkb IS NOT NULL)"
-))
+catchments <- tbl(con, I(tbl_name("wfd_catchments")))
+
+catchments |>
+  filter(!is.na(geom_wkb)) |>
+  mutate(g = st_setsrid(st_geomfromwkb(geom_wkb), 27700L)) |>
+  summarise(
+    n_catchments = n(),
+    area_km2 = round(sum(st_area(g), na.rm = TRUE) / 1e6)
+  ) |>
+  collect()
 ```
 
 ```
@@ -65,13 +81,14 @@ That leaves you one ambiguous error to interpret. A function that does not exist
 The polygons are stored as WKB in a `BINARY` column, and WKB carries no SRID. Ask the server what coordinate system the stored bytes are in and it says zero, meaning it does not know:
 
 ```r
-dbGetQuery(con, glue(
-  "SELECT water_body_id,
-          st_srid(st_geomfromwkb(geom_wkb)) AS srid
-   FROM {tbl_name('wfd_catchments')}
-   WHERE geom_wkb IS NOT NULL
-   LIMIT 3"
-))
+catchments |>
+  filter(!is.na(geom_wkb)) |>
+  transmute(
+    water_body_id,
+    srid = st_srid(st_geomfromwkb(geom_wkb))
+  ) |>
+  head(3) |>
+  collect()
 ```
 
 ```
@@ -88,10 +105,11 @@ The number has to come from you. For this data it is EPSG:27700, the British Nat
 Skip it and the two sides fail differently, which is the part worth knowing before you pick where to work. R computes anyway. Decode a polygon, ask for its area without declaring anything, and you get numbers with no CRS, no warning and nothing wrong-looking about them:
 
 ```r
-rows <- dbGetQuery(acon, glue(
-  "SELECT geom_wkb FROM {tbl_name('wfd_catchments')}
-   WHERE geom_wkb IS NOT NULL LIMIT 3"
-))
+rows <- tbl(acon, I(tbl_name("wfd_catchments"))) |>
+  filter(!is.na(geom_wkb)) |>
+  select(geom_wkb) |>
+  head(3) |>
+  collect()
 
 geom <- st_as_sfc(structure(rows$geom_wkb, class = "WKB"), EWKB = TRUE)
 
@@ -116,7 +134,7 @@ The server is stricter, and its strictness is a gift here. It refuses rather tha
   or unsupported CRS transformation from SRI'.
 ```
 
-So the habit to build is to wrap `st_geomfromwkb()` in `st_setsrid()` every time, in the innermost subquery, and never let an un-labelled geometry out of it.
+So the habit to build is to wrap `st_geomfromwkb()` in `st_setsrid()` every time, in the `mutate()` that first decodes the bytes, and never let an un-labelled geometry reach the verbs downstream of it.
 
 ## Distance and area on the server are planar, and `sf` is not
 
@@ -139,17 +157,16 @@ Three smaller mismatches will catch you when porting an `sf` expression, and all
 `st_transform()` works server-side, so a reprojection can happen once, in the query, rather than in R on every pass of an analysis. The storm overflow locations are longitude and latitude, EPSG:4326, and the catchments are EPSG:27700, so something has to move before the two layers can meet:
 
 ```r
-dbGetQuery(con, glue(
-  "SELECT overflow_id,
-          round(st_x(p), 1) AS easting,
-          round(st_y(p), 1) AS northing
-   FROM (SELECT overflow_id,
-                st_transform(st_point(longitude, latitude, 4326),
-                             27700) AS p
-         FROM {tbl_name('storm_overflows')}
-         WHERE longitude IS NOT NULL
-         LIMIT 3)"
-))
+tbl(con, I(tbl_name("storm_overflows"))) |>
+  filter(!is.na(longitude)) |>
+  mutate(p = st_transform(st_point(longitude, latitude, 4326L), 27700L)) |>
+  transmute(
+    overflow_id,
+    easting = round(st_x(p), 1),
+    northing = round(st_y(p), 1)
+  ) |>
+  head(3) |>
+  collect()
 ```
 
 ```
@@ -170,18 +187,16 @@ This is the best case on the site, and the shape to look for in your own analysi
 Group by an ordinary column while aggregating the geometry. Here that is ecological class, six values, with the catchments in each class unioned and the union's area measured:
 
 ```r
-dbGetQuery(con, glue(
-  "SELECT ecological_class,
-          count(*) AS n,
-          round(st_area(st_union_agg(g)) / 1e6) AS area_km2
-   FROM (SELECT ecological_class,
-                st_setsrid(st_geomfromwkb(geom_wkb), 27700) AS g
-         FROM {tbl_name('wfd_catchments')}
-         WHERE geom_wkb IS NOT NULL
-           AND ecological_class IS NOT NULL)
-   GROUP BY ecological_class
-   ORDER BY area_km2 DESC"
-))
+catchments |>
+  filter(!is.na(geom_wkb), !is.na(ecological_class)) |>
+  mutate(g = st_setsrid(st_geomfromwkb(geom_wkb), 27700L)) |>
+  group_by(ecological_class) |>
+  summarise(
+    n = n(),
+    area_km2 = round(st_area(st_union_agg(g)) / 1e6)
+  ) |>
+  arrange(desc(area_km2)) |>
+  collect()
 ```
 
 ```
@@ -216,12 +231,10 @@ Bringing the polygons back is a legitimate answer, not a defeat. If the geometry
 The connection caveat decides how. Geometry cannot travel over the ODBC path, because `odbc` silently returns only part of a `BINARY` value, so this route needs `brickster::DatabricksSQL()`. See [Connect your R session to the data](connect.qmd) for why, and for the check that the bytes arrived whole.
 
 ```r
-catchments <- dbGetQuery(acon, glue(
-  "SELECT water_body_id, ecological_class, water_body_area_m2, geom_wkb
-   FROM {tbl_name('wfd_catchments')}
-   WHERE geom_wkb IS NOT NULL"
-)) |>
-  as_tibble() |>
+catchment_sf <- tbl(acon, I(tbl_name("wfd_catchments"))) |>
+  filter(!is.na(geom_wkb)) |>
+  select(water_body_id, ecological_class, water_body_area_m2, geom_wkb) |>
+  collect() |>
   mutate(
     geometry = st_as_sfc(structure(geom_wkb, class = "WKB"),
                          EWKB = TRUE) |>
@@ -230,7 +243,7 @@ catchments <- dbGetQuery(acon, glue(
   select(-geom_wkb) |>
   st_as_sf()
 
-catchments |> select(water_body_id, ecological_class)
+catchment_sf |> select(water_body_id, ecological_class)
 ```
 
 ```
@@ -261,21 +274,22 @@ Twenty-seven megabytes is small, and the honest reading of that is that this dat
 
 ## Points work the same way
 
-Nothing above is specific to polygons. Points get the same treatment, and the predicate join runs server-side too. Counting storm overflows inside catchments, grouped by the catchment's ecological class, takes both layers, transforms one of them and returns five rows:
+Nothing above is specific to polygons. Points get the same treatment, and the predicate join runs server-side too. Counting storm overflows inside catchments, grouped by the catchment's ecological class, takes both layers, transforms one of them and returns five rows.
+
+One wrinkle: `join_by()` accepts only equality and a few range helpers, so a spatial predicate cannot be written as the join condition. Pair the two tables with `cross_join()` and filter on the predicate instead. That reads as though every catchment is about to be compared with every overflow, and the query planner does not execute it that way: the filter becomes the join condition, exactly as it would have been in SQL.
 
 ```r
-dbGetQuery(con, glue(
-  "SELECT c.ecological_class, count(*) AS n_overflows
-   FROM {tbl_name('wfd_catchments')} c
-   JOIN {tbl_name('storm_overflows')} o
-     ON st_contains(
-          st_setsrid(st_geomfromwkb(c.geom_wkb), 27700),
-          st_transform(st_point(o.longitude, o.latitude, 4326),
-                       27700))
-   WHERE c.ecological_class IS NOT NULL
-   GROUP BY c.ecological_class
-   ORDER BY n_overflows DESC"
-))
+overflows <- tbl(con, I(tbl_name("storm_overflows"))) |>
+  mutate(p = st_transform(st_point(longitude, latitude, 4326L), 27700L))
+
+catchments |>
+  filter(!is.na(ecological_class)) |>
+  mutate(g = st_setsrid(st_geomfromwkb(geom_wkb), 27700L)) |>
+  cross_join(overflows) |>
+  filter(st_contains(g, p)) |>
+  count(ecological_class, name = "n_overflows") |>
+  arrange(desc(n_overflows)) |>
+  collect()
 ```
 
 ```
@@ -299,4 +313,4 @@ Gridded data does not work like this. The `ST_` functions are vector functions w
 
 ---
 
-This page rests on: the platform reports 97 distinct built-in `ST_` functions on a Pro warehouse running serverless, and 93 on an all-purpose cluster, where `st_makepoint`, `st_makeenvelope`, `st_pointonsurface` and `st_collect` are absent; `st_makevalid`, `st_relate`, `st_voronoi` and about twenty other `sf` staples are absent from both; an unknown-function error differs only in the name it quotes, whether the function exists on other compute or was never a function at all; `st_distance` rejects a geography argument, so geography is not a cast away from a planar answer, while `st_distancesphere` and `st_distancespheroid` return about 555,813 and 554,059 metres where the planar call returns 5; distance, length and area on the geometry type are planar in the coordinate system's own units, where `sf` on unprojected coordinates returns geodesic metres, and the two differ silently by five orders of magnitude; `st_transform` works server-side between EPSG:4326 and EPSG:27700; geometry is stored as WKB with no embedded SRID; polygon area aggregates server-side with only a scalar crossing.
+This page rests on: the platform reports 97 distinct built-in `ST_` functions on a Pro warehouse running serverless, and 93 on an all-purpose cluster, where `st_makepoint`, `st_makeenvelope`, `st_pointonsurface` and `st_collect` are absent; `st_makevalid`, `st_relate`, `st_voronoi` and about twenty other `sf` staples are absent from both; an unknown-function error differs only in the name it quotes, whether the function exists on other compute or was never a function at all; `st_distance` rejects a geography argument, so geography is not a cast away from a planar answer, while `st_distancesphere` and `st_distancespheroid` return about 555,813 and 554,059 metres where the planar call returns 5; distance, length and area on the geometry type are planar in the coordinate system's own units, where `sf` on unprojected coordinates returns geodesic metres, and the two differ silently by five orders of magnitude; `st_transform` works server-side between EPSG:4326 and EPSG:27700; geometry is stored as WKB with no embedded SRID; polygon area aggregates server-side with only a scalar crossing; `dbplyr` sends an untranslated function name to the server verbatim, so a spatial expression pushes down from an ordinary `dplyr` pipeline and is never evaluated by `sf`, whether or not `sf` is attached; a spatial predicate cannot be a `join_by()` condition, and `cross_join()` followed by a filter on the predicate is planned as the same join.

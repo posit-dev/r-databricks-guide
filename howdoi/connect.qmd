@@ -99,13 +99,11 @@ tbl_name <- function(table) {
   glue("{catalog}.{schema}.{table}")
 }
 
-dbGetQuery(acon, glue(
-  "SELECT water_body_id,
-          octet_length(geom_wkb) AS declared
-   FROM {tbl_name('wfd_catchments')}
-   WHERE geom_wkb IS NOT NULL
-   LIMIT 3"
-))
+tbl(acon, I(tbl_name("wfd_catchments"))) |>
+  filter(!is.na(geom_wkb)) |>
+  transmute(water_body_id, declared = octet_length(geom_wkb)) |>
+  head(3) |>
+  collect()
 ```
 
 ```
@@ -120,11 +118,10 @@ dbGetQuery(acon, glue(
 Then validate the decoded geometry against something recorded independently, rather than merely confirming it parses. The catchment table carries its own area column, computed before any of this transport happened, so comparing your computed area against it tests the whole round trip:
 
 ```r
-catchments <- dbGetQuery(acon, glue(
-  "SELECT water_body_id, water_body_area_m2, geom_wkb
-   FROM {tbl_name('wfd_catchments')} LIMIT 5"
-)) |>
-  as_tibble() |>
+catchments <- tbl(acon, I(tbl_name("wfd_catchments"))) |>
+  select(water_body_id, water_body_area_m2, geom_wkb) |>
+  head(5) |>
+  collect() |>
   mutate(
     geometry = st_as_sfc(structure(geom_wkb, class = "WKB"), EWKB = TRUE),
     area_r = as.numeric(st_area(st_set_crs(geometry, 27700))),

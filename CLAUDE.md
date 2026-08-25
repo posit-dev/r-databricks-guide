@@ -60,6 +60,18 @@ quarto preview                       # live preview
 R -e 'renv::restore()'               # restore the package environment
 ```
 
+Three scripts do the repeated work, so the sequences below are not retyped:
+
+```bash
+scripts/start-cluster.R              # idempotent start; --status reports and starts nothing
+scripts/rerender.sh <page.qmd>       # refresh one frozen page; --stale does every stale one
+scripts/rebuild-site.sh              # drop every cache and rebuild from source; --dry-run first
+```
+
+`rerender.sh` is the one to reach for after editing anything under `example/`: `quarto render <page>` alone will **not** refresh a frozen page, because freeze means never re-execute, so the cache has to be dropped first and that is what the script does. `rebuild-site.sh` is the whole-site version, for testing that the site still builds from nothing.
+
+Both refuse to run against a dirty tree. They delete tracked files under `_freeze/` that only a credentialed render can rebuild, so the refusal is the guard that keeps a bad rebuild one `git checkout` away. Both also stop before rendering `example/bootstrap.qmd` without `WQ_RUN_CLUSTER=true`, since that render silently drops the page's cluster output.
+
 ### Editing `example/` means re-rendering it
 
 The site publishes from a committed `_freeze/` cache, and every executable page sets `freeze: true`. That means **never re-execute**, not "re-execute when the source changes". So editing one of those pages and pushing publishes the *previous* output with the edit missing: no error, nothing in the render log, exit 0. Established by test on 2026-08-24, not inferred.
