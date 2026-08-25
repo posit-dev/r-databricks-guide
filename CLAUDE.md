@@ -193,6 +193,23 @@ Upstream contributes to `skills/` directly, and specifically contributes **runna
 
 Editing a contributed script is fine and expected, but the measurements in it are upstream's evidence: change what a script *says* without re-running it, never what it *found*.
 
+## Never paste code output
+
+**No output on a page may be typed, pasted or copied by hand. Output is produced by executing the code, or it does not appear.**
+
+This is absolute, and it outranks convenience. A pasted block is a claim that some code once printed something, with nothing checking it: the code changes, the output does not, and the page then lies at exit 0 with no warning in any log. That failure is silent, permanent, and invisible to every check in `scripts/`.
+
+It applies to all of it: printed results, `show_query()` SQL, error messages, `cli` alerts, timings, row counts, version strings. Editing a number inside a fenced block is the same offence as inventing one.
+
+Two consequences follow, and neither is optional:
+
+- **A page that shows output must execute.** Use ```` ```{r} ```` and let `freeze: true` cache it. A page that cannot execute must not show output.
+- **Where output genuinely cannot be executed** (it needs an administrator's permissions, a volume that is not provisioned, a cluster the reader has no equivalent of), do not paste it. Say in prose what happens, or gate the chunk and let it render as code alone. Describing a result in a sentence is honest; a fenced block that was never produced is not.
+
+If output needs reshaping before it is fit to show, that is a job for a chunk option or a knitr hook, applied to real output. It is never a reason to hand-write the result.
+
+The site currently violates this: 54 code blocks across `concepts/`, `howdoi/`, `ref/`, `admin/` and `index.qmd` are plain ```` ```r ```` blocks with output pasted beneath. Converting them is tracked work, not a licence to add more. Do not add a static block with pasted output to any page, for any reason.
+
 ## House style
 
 - **UK English.** `-ise` not `-ize`. Code identifiers keep their real spelling.

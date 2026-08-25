@@ -73,7 +73,9 @@ Anything captured from compute must go through `wq_mask_all()` before it reaches
 
 `example/` pages execute and are published from a committed `_freeze/` cache. Editing one and pushing without re-rendering publishes the previous output with the edit missing, silently, at exit 0.
 
-`howdoi/` pages do not execute. Their code blocks are plain fenced blocks with real output pasted beneath, so no page there ever needs a credentialed re-render and work on them can never invalidate the example's frozen output. The trade is that nothing recomputes those numbers, which is what the per-page verification script and the rendered-output read are guarding against.
+`howdoi/` pages do not execute. Their code blocks are plain fenced blocks with output pasted beneath, so no page there ever needs a credentialed re-render and work on them can never invalidate the example's frozen output.
+
+**That trade was a mistake, and it is being unwound.** Nothing recomputes those numbers, so the code and the output beneath it drift apart silently: the block is edited, the output is not, and no check in `scripts/` can see the difference. `CLAUDE.md` now forbids pasted output outright. Treat every remaining static block as debt to be converted to an executing chunk, and never add another.
 
 Do not put `#| eval: false` inside a plain fenced block. It is not consumed as a chunk option there and renders as visible text on the page.
 

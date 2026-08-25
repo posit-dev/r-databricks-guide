@@ -75,7 +75,11 @@ Do not take the site's word for where the boundary falls in your code. `show_que
 ```r
 readings |>
   filter(quality == "Good", value >= 0) |>
-  summarise(.by = measure, n_days = n(), mean_value = mean(value)) |>
+  summarise(
+    .by = measure,
+    n_days = n(),
+    mean_value = mean(value, na.rm = TRUE)
+  ) |>
   show_query()
 ```
 
