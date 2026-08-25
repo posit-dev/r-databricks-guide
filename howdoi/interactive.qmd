@@ -15,7 +15,24 @@ Three things, and telling them apart is most of what makes this workable.
 
 Your R session is yours. It runs where you started it, holds your objects, and loads packages from your own library. The connection object is a handle in that session. The remote compute is a different machine entirely, with its own R installation and its own library.
 
-```r
+```{r}
+#| label: mask
+#| include: false
+# This site is public, so no printed output may carry the catalog this page
+# happens to run against. Only what is *shown* is masked; every query below
+# runs against the real tables. See R/setup.R.
+source(here::here("R/setup.R"))
+local({
+  mask_hook <- function(x, options) paste0("```\n", wq_mask_all(x), "```\n")
+  knitr::knit_hooks$set(
+    output = mask_hook, error = mask_hook,
+    warning = mask_hook, message = mask_hook
+  )
+})
+```
+
+```{r}
+#| label: connect
 library(sparklyr)
 library(dplyr)
 library(glue)
@@ -35,7 +52,8 @@ Connecting to an already-running cluster takes a few seconds. Starting one from 
 
 A table reference then behaves the way you expect:
 
-```r
+```{r}
+#| label: count
 stations <- tbl(sc, I(glue("{catalog}.{schema}.hydrology_stations")))
 
 stations |>
@@ -43,19 +61,18 @@ stations |>
   collect()
 ```
 
-```
-# A tibble: 1 × 1
-      n
-  <dbl>
-1  9536
-```
-
 The two machines are genuinely separate, and you can see it. Ask each one to name itself:
 
-```r
+```{r}
+#| label: identity-local
 Sys.info()[["nodename"]]
-#> "session-3fce270-my-workbench-session"
+getRversion()
+```
 
+And the worker:
+
+```{r}
+#| label: identity-worker
 stations |>
   select(station_id) |>
   head(4) |>
@@ -70,14 +87,7 @@ stations |>
   collect()
 ```
 
-```
-# A tibble: 1 × 2
-  host                          rver
-  <chr>                         <chr>
-1 <cluster-id>-10-139-64-10     4.5.1
-```
-
-Different machine, and a different R version from the 4.5.2 in the local session. Nothing guarantees those two match, which is the practical reason not to depend on a package version, a locale or an option being the same on both sides.
+Different machine, and a different R version from the local session above. Nothing guarantees those two match, which is the practical reason not to depend on a package version, a locale or an option being the same on both sides.
 
 ## Which side of the boundary each line of your script is on
 
@@ -119,7 +129,9 @@ A notebook is required for paths a client connection cannot reach. `sdf_len()` a
 
 `spark_apply()`'s `columns` argument also changes meaning between the two contexts, and this is the one that costs time. From a client connection it takes a Spark type string. On the cluster's own R session it takes a plain character vector.
 
-```r
+```{r}
+#| label: columns-forms
+#| eval: false
 # From a client connection, this is the required form.
 columns = "host string, rver string"
 

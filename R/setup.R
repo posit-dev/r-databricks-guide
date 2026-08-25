@@ -79,6 +79,20 @@ wq_mask_all <- function(x) {
   x <- wq_mask(x)
   x <- gsub("[0-9]{4}-[0-9]{6}-[a-z0-9]{8,}", "<cluster-id>", x)
   x <- gsub("session-[a-z0-9]+-[a-z0-9-]+", "<my-session>", x)
+  # A cluster's *display name* is not its id and is not caught by the pattern
+  # above. sparklyr prints it on connect ("Connecting to '<name>'"), and these
+  # are conventionally named after their owner, so it is a personal identifier
+  # reaching a public page. Read the real name from the API rather than
+  # hard-coding it: this file is published too.
+  cluster_name <- tryCatch(
+    brickster::db_cluster_get(
+      cluster_id = Sys.getenv("DATABRICKS_CLUSTER_ID")
+    )$cluster_name,
+    error = function(e) ""
+  )
+  if (nzchar(cluster_name)) {
+    x <- gsub(cluster_name, "<cluster-name>", x, fixed = TRUE)
+  }
   host <- Sys.getenv("DATABRICKS_HOST")
   if (nzchar(host)) x <- gsub(host, "<host>", x, fixed = TRUE)
   x
