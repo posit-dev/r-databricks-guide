@@ -9,13 +9,32 @@ If your query touches a `BINARY` column, and geometry is stored as `BINARY`, ope
 
 That is the whole decision. It is not a preference between two working options: the ODBC path cannot carry a `BINARY` value intact, so the moment geometry is in play the choice is made for you.
 
-```r
+```{r}
+#| label: mask
+#| include: false
+# This site is public, so no printed output may carry the catalog this page
+# happens to run against. Only what is *shown* is masked; every query below
+# runs against the real tables. See R/setup.R.
+source(here::here("R/setup.R"))
+local({
+  mask_hook <- function(x, options) paste0("```\n", wq_mask_all(x), "```\n")
+  knitr::knit_hooks$set(
+    output = mask_hook, error = mask_hook,
+    warning = mask_hook, message = mask_hook
+  )
+})
+```
+
+```{r}
+#| label: setup
 library(DBI)
 library(dplyr)
 library(dbplyr)
 library(tibble)
+library(purrr)
 library(glue)
 library(cli)
+library(sf)
 
 catalog <- Sys.getenv("DATABRICKS_CATALOG")
 schema <- Sys.getenv("DATABRICKS_SCHEMA")
@@ -44,22 +63,12 @@ A `BINARY` value longer than 1,024 bytes arrives in R with `length mod 1024` byt
 
 The arithmetic is exact, which makes it easy to see once you look for it:
 
-```r
+```{r}
+#| label: truncation
 tibble(asked = c(512, 1024, 1025, 2000, 5000)) |>
   mutate(returned = map_int(asked, \(n) {
     length(dbGetQuery(con, glue("SELECT unhex(repeat('AB', {n})) AS b"))$b[[1]])
   }))
-```
-
-```
-# A tibble: 5 × 2
-  asked returned
-  <dbl>    <int>
-1   512      512
-2  1024     1024
-3  1025        1
-4  2000      976
-5  5000      904
 ```
 
 Under 1,024 bytes everything is fine, which is the trap: a small geometry survives, so a test on simple shapes passes and the real data fails. On the catchment table used throughout this guide, 4,040 of 4,080 catchment polygons exceed 1,024 bytes, and 91.5% of the stored geometry never reaches R.
@@ -76,7 +85,9 @@ This is not only about columns you read out of a table. Any long text value hits
 
 Both have to be worked around together. Encode server-side **and** raise the driver's string-length setting above the longest encoded value:
 
-```r
+```{r}
+#| label: fixedcon
+#| eval: false
 con <- dbConnect(
   odbc::databricks(),
   httpPath = Sys.getenv("DATABRICKS_PATH"),
@@ -94,7 +105,8 @@ Both failures are silent, so the recipe is worth nothing without a check. Two ch
 
 Compare the length the server reports against the length that arrives. This catches truncation directly:
 
-```r
+```{r}
+#| label: octet
 tbl_name <- function(table) {
   glue("{catalog}.{schema}.{table}")
 }
@@ -106,18 +118,10 @@ tbl(acon, I(tbl_name("wfd_catchments"))) |>
   collect()
 ```
 
-```
-# A tibble: 3 × 2
-  water_body_id  declared
-  <chr>             <int>
-1 GB105035046170     5670
-2 GB109055036620     3222
-3 GB112069061390     4662
-```
-
 Then validate the decoded geometry against something recorded independently, rather than merely confirming it parses. The catchment table carries its own area column, computed before any of this transport happened, so comparing your computed area against it tests the whole round trip:
 
-```r
+```{r}
+#| label: areacheck
 catchments <- tbl(acon, I(tbl_name("wfd_catchments"))) |>
   select(water_body_id, water_body_area_m2, geom_wkb) |>
   head(5) |>
@@ -127,17 +131,9 @@ catchments <- tbl(acon, I(tbl_name("wfd_catchments"))) |>
     area_r = as.numeric(st_area(st_set_crs(geometry, 27700))),
     agreement = area_r / water_body_area_m2
   )
-```
 
-```
-# A tibble: 5 × 3
-  water_body_area_m2    area_r agreement
-               <dbl>     <dbl>     <dbl>
-1          25802596. 25807299.     1.00 
-2          15911995. 15914043.     1.00 
-3          19657768. 19662869.     1.00 
-4          40515723. 40458110.     0.999
-5          53512602. 53522561.     1.00 
+catchments |>
+  select(water_body_area_m2, area_r, agreement)
 ```
 
 The recomputed areas agree with the declared column to within a tenth of a percent. That is the answer you want: agreement at this level says the bytes survived and the CRS is right. It is not exact agreement, and it should not be, because the two numbers were computed by different software at different times. What matters is that the disagreement is small enough to be uninteresting and stays that way as you add rows.
@@ -156,7 +152,9 @@ If you work against a warehouse and a cluster, or two clusters, keep the identif
 
 So validate the name against the file's own keys instead of trusting it:
 
-```r
+```{r}
+#| label: profile
+#| eval: false
 compute_id <- function(profile, file = "compute.yml") {
   known <- names(yaml::yaml.load_file(file))
 

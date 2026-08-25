@@ -35,7 +35,24 @@ Both calls are spelled `st_area()` below, and they are different functions. The 
 
 Geometry is `BINARY`, so this needs the `brickster` connection rather than the ODBC one. [Connect your R session to the data](connect.qmd) covers why.
 
-```r
+```{r}
+#| label: mask
+#| include: false
+# This site is public, so no printed output may carry the catalog this page
+# happens to run against. Only what is *shown* is masked; every query below
+# runs against the real tables. See R/setup.R.
+source(here::here("R/setup.R"))
+local({
+  mask_hook <- function(x, options) paste0("```\n", wq_mask_all(x), "```\n")
+  knitr::knit_hooks$set(
+    output = mask_hook, error = mask_hook,
+    warning = mask_hook, message = mask_hook
+  )
+})
+```
+
+```{r}
+#| label: setup
 library(DBI)
 library(dplyr)
 library(tibble)
@@ -77,23 +94,6 @@ both <- tbl(acon, I(tbl_name("wfd_catchments"))) |>
 both
 ```
 
-```
-# A tibble: 200 × 3
-   area_server    area_r rel_diff
-         <dbl>     <dbl>    <dbl>
- 1      94801.    94801. 6.08e-13
- 2   87978306. 87978306. 4.35e-14
- 3   46311288. 46311288. 2.99e-14
- 4   38852544. 38852544. 3.09e-14
- 5   73737445. 73737445. 3.23e-14
- 6     249703.   249703. 5.71e-15
- 7        257.      257. 6.82e-13
- 8     674459.   674459. 1.04e-13
- 9    1140717.  1140717. 1.47e-13
-10     869317.   869317. 9.83e-14
-# ℹ 190 more rows
-```
-
 Two properties of that column are the point. The differences are around 1e-13, far below anything an area in square metres will be reported to. And they do not grow with the polygon: the largest relative difference in the run above is on a catchment of 257 square metres, the smallest on one of 250,000. That is what a floating-point artefact looks like. A CRS mistake would not behave this way, because it scales everything by roughly the same wrong factor.
 
 Note what this comparison is not. The table also carries a `water_body_area_m2` column, recorded by whoever prepared the data, and your computed area will differ from that by a fraction of a percent rather than a fraction of a part per trillion. That is a useful check of a different thing: it tells you the bytes survived transport and the CRS is right. It cannot tell you whether two implementations of the same calculation agree, because the recorded column was not produced by either of them.
@@ -104,7 +104,8 @@ Exact equality fails on correct results. Write the test that way and it will rep
 
 Run all three tests against the comparison above and only one of them passes:
 
-```r
+```{r}
+#| label: compare
 tibble(
   test = c("identical()", "all(mine == theirs)",
            "max relative difference < 1e-9"),
@@ -116,22 +117,14 @@ tibble(
 )
 ```
 
-```
-# A tibble: 3 × 2
-  test                           passes
-  <chr>                          <lgl>
-1 identical()                    FALSE
-2 all(mine == theirs)            FALSE
-3 max relative difference < 1e-9 TRUE
-```
-
 That is the whole argument. Both machines are correct, both answers are usable, and two of the three tests call it a failure. A check written on exact equality does not become more rigorous by being stricter; it becomes useless, because it fires every time and you stop reading it.
 
 So the check is a relative difference against a tolerance. The tolerance is yours to choose and this page will not supply a constant, because the right value depends on what the number is for. A catchment area feeding a map wants something looser than a mass balance feeding a published figure. What matters is that you pick it deliberately, before you look at the result, and write it down next to the answer.
 
 Wrap it so the failure says something useful:
 
-```r
+```{r}
+#| label: tolerance
 agrees <- function(mine, theirs, tolerance) {
   rel <- abs(mine - theirs) / abs(theirs)
   worst <- max(rel, na.rm = TRUE)
@@ -152,10 +145,6 @@ agrees <- function(mine, theirs, tolerance) {
 }
 
 agrees(both$area_r, both$area_server, tolerance = 1e-9)
-```
-
-```
-✔ 200 values agree, worst relative difference 1.5e-12, tolerance 1e-09
 ```
 
 Reporting the worst difference on success, not just the pass, is what makes this worth running more than once. A run that passes at 1e-12 and later passes at 1e-4 has told you something changed, and a bare `TRUE` would have hidden it.
@@ -184,7 +173,8 @@ Compare content. If you need a compact summary rather than the full vectors, com
 
 Save the tolerance and the worst observed difference next to the answer, not in your head or your terminal scrollback. It is a row of data, so store it as one:
 
-```r
+```{r}
+#| label: record
 checked <- tibble(
   quantity  = "catchment polygon area",
   n         = nrow(both),
@@ -195,13 +185,6 @@ checked <- tibble(
 )
 
 checked
-```
-
-```
-# A tibble: 1 × 6
-  quantity                   n in_r                 on_server tolerance    worst
-  <chr>                  <int> <chr>                <chr>         <dbl>    <dbl>
-1 catchment polygon area   200 sf::st_area(), EPSG… ST_Area()      1e-9 1.47e-12
 ```
 
 Two reasons to bother. A reviewer asking how you know the server-side result is trustworthy gets a sentence and a number instead of an assurance. And the tolerance recorded before the run is the only thing that stops it drifting afterwards: a tolerance chosen once the answer is in front of you is not a check, it is a description.
