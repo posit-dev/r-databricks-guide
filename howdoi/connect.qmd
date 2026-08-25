@@ -72,6 +72,8 @@ The documented way round the `BINARY` bug is to encode the value as text on the 
 
 Text columns are clipped at 1,023 characters by default. Encoded geometry runs well past that: on the same catchment table the longest encodes to over 200,000 characters. Measured across that table, the default connection discards about 87% of the encoded geometry while reporting success, and the failure surfaces as a decode error that reads like a corrupt payload rather than anything mentioning length.
 
+This is not only about columns you read out of a table. Any long text value hits it, including one a server-side function just produced: asking for a computed geometry as text returned 1,023 characters of a value that was 114,609 long, and the truncated version still parsed. So it applies just as much to a spatial result you built in the query as to stored bytes, which is easy to miss because the workaround is usually explained as a way to read a `BINARY` column.
+
 Both have to be worked around together. Encode server-side **and** raise the driver's string-length setting above the longest encoded value:
 
 ```r
@@ -188,4 +190,4 @@ Whichever of these resembles the code you have written: [work with a table that 
 
 ---
 
-This page rests on: ODBC truncates `BINARY` values to length mod 1024 at every setting tried, returning a correct prefix so nothing errors; `brickster::DatabricksSQL()` returns `BINARY` byte-exact; the server-side text encoding workaround meets a separate silent truncation at 1,023 characters unless the driver's string-length setting is raised, and a round number there can be silently dropped; both truncation bugs have unmerged fix PRs open against the driver package; `config::get()` falls back to the default profile without warning when a profile name is unrecognised.
+This page rests on: ODBC truncates `BINARY` values to length mod 1024 at every setting tried, returning a correct prefix so nothing errors; the text truncation applies to any long string value, including geometry a server-side function produced rather than a column read from a table, and the truncated value still parses; `brickster::DatabricksSQL()` returns `BINARY` byte-exact; the server-side text encoding workaround meets a separate silent truncation at 1,023 characters unless the driver's string-length setting is raised, and a round number there can be silently dropped; both truncation bugs have unmerged fix PRs open against the driver package; `config::get()` falls back to the default profile without warning when a profile name is unrecognised.

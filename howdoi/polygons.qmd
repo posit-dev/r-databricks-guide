@@ -5,7 +5,7 @@ subtitle: "Real spatial work when the polygons start out in the table rather tha
 
 ## The spatial functions are on both sides of the line
 
-Every one of the 23 `ST_` functions probed for this guide works server-side, so needing a spatial operation is not by itself a reason to bring data back. Buffers, intersections, transforms, areas and predicates all run where the data is.
+The server has getting on for a hundred built-in `ST_` functions, so needing a spatial operation is not by itself a reason to bring data back. Buffers, intersections, transforms, areas and predicates all run where the data is.
 
 That matters because the obvious chain of reasoning is wrong. Spatial work means `sf`, `sf` means R, R means collecting everything first: each step follows from the last and the conclusion is that geometry always crosses. It does not. You can put a spatial question to the server and get back a number.
 
@@ -54,7 +54,11 @@ dbGetQuery(con, glue(
 1         4080   130229
 ```
 
-One caveat before you rely on that count. It was measured on a Pro warehouse running serverless, which is the kind of compute the spatial functions are documented to need. On the older Classic warehouse type they are documented as unavailable, and a coverage number means nothing without saying which warehouse it came from. If a spatial query of yours fails with an unknown-function error, the most likely explanation is the warehouse you were given rather than the SQL you wrote, and nothing in the error will say so. That is a question for whoever provisioned the compute.
+How many exactly depends on the compute, and not in the direction you would guess. There were 97 on a Pro warehouse running serverless when this was measured, and 93 on an all-purpose cluster. `st_makepoint()`, `st_makeenvelope()`, `st_pointonsurface()` and `st_collect()` are the four missing from the cluster. So the larger, more expensive compute has the smaller spatial vocabulary. If you need a point from two numbers on a cluster, `st_point()` works on both and does the same job. The older Classic warehouse type is a third case, where the functions are documented as unavailable, per function rather than anywhere you would find it by browsing.
+
+Ninety-seven is a lot, and it is still not all of `sf`. The absences worth knowing before you plan around them are `st_makevalid()`, `st_relate()`, `st_voronoi()`, `st_snap()`, `st_segmentize()`, `st_sample()`, `st_polygonize()` and `st_shortestline()`. `st_makevalid()` is the one likely to stop you, because repairing an invalid geometry is a routine step in `sf` and there is no server-side equivalent: the server will tell you a polygon is invalid with `st_isvalid()` and will not fix it. Repair before loading, or collect and repair in R.
+
+That leaves you one ambiguous error to interpret. A function that does not exist on your compute fails with the same message as a name you misspelled, differing only in the name it quotes, so it cannot tell you which mistake you made. Check the spelling and the compute together, because the platform will not separate them for you. A wrong number of arguments is the easy case, and does produce a distinguishable error naming how many the function wanted.
 
 ## Set the CRS yourself
 
@@ -113,6 +117,22 @@ The server is stricter, and its strictness is a gift here. It refuses rather tha
 ```
 
 So the habit to build is to wrap `st_geomfromwkb()` in `st_setsrid()` every time, in the innermost subquery, and never let an un-labelled geometry out of it.
+
+## Distance and area on the server are planar, and `sf` is not
+
+Setting the CRS is necessary and not sufficient. There is a second divergence underneath it that no error will ever tell you about, and it is the one most likely to end up in a paper.
+
+The server's `st_distance()`, `st_length()` and `st_area()` on the geometry type are planar. They do the arithmetic in whatever units the coordinates are in, with no notion that the Earth is round. `sf` on unprojected coordinates does the opposite: give `st_distance()` two points in EPSG:4326 and it returns geodesic metres. On two WGS84 points the server returned `5` and `sf` returned 555,813 metres. Neither is broken: the first is the separation in degrees, correctly computed, and the second is the same separation in metres, also correctly computed. Nothing warns, both are plausible-looking numbers, and they differ by five orders of magnitude.
+
+The rule that keeps you out of it: on the server, only ask for a distance or an area from coordinates that are already projected into a metric CRS. On this data that is what makes the areas above trustworthy, because EPSG:27700 is already in metres. Had the catchments been stored in EPSG:4326 the same `st_area()` call would have returned square degrees and the numbers would have looked like a unit mistake nobody made.
+
+If you need a geodesic answer on unprojected coordinates, ask for it by name. `st_distancesphere()` and `st_distancespheroid()` are the geodesic distances, and on the two points above they return about 555,813 and 554,059 metres. The difference between those two is the sphere against the ellipsoid, and it is the ordinary choice you already make in `sf`.
+
+The geography type is the other route, and it is not a drop-in. `st_distance()` refuses a geography argument outright with a datatype mismatch, so you cannot fix a planar answer by casting the input: use the geodesic functions, or work in geography throughout with `st_length()` and `st_area()`, which do accept it. Geography is also still Public Preview where the geometry type is generally available, which is worth knowing before you build on it.
+
+Mixing two coordinate systems is the good case by comparison: that fails loudly, as [the section above](#set-the-crs-yourself) shows. This one does not fail at all.
+
+Three smaller mismatches will catch you when porting an `sf` expression, and all three are shape rather than value. `sf::st_contains()` hands back a sparse index list; the server returns one boolean per row. `sf::st_distance()` gives you a matrix; the server gives one scalar per row. And `sf::st_buffer()` takes `nQuadSegs`, `endCapStyle` and the rest, where the server's takes two arguments and rejects a third. Buffers also differ slightly in value, because the two round a circle with a different default number of segments, which is approximation rather than disagreement.
 
 ## Transforming once, server-side, instead of per iteration
 
@@ -279,4 +299,4 @@ Gridded data does not work like this. The `ST_` functions are vector functions w
 
 ---
 
-This page rests on: 23 of 23 probed native `ST_` functions work on the SQL warehouse; `st_transform` works server-side between EPSG:4326 and EPSG:27700; geometry is stored as WKB with no embedded SRID; polygon area aggregates server-side with only a scalar crossing.
+This page rests on: the platform reports 97 distinct built-in `ST_` functions on a Pro warehouse running serverless, and 93 on an all-purpose cluster, where `st_makepoint`, `st_makeenvelope`, `st_pointonsurface` and `st_collect` are absent; `st_makevalid`, `st_relate`, `st_voronoi` and about twenty other `sf` staples are absent from both; an unknown-function error differs only in the name it quotes, whether the function exists on other compute or was never a function at all; `st_distance` rejects a geography argument, so geography is not a cast away from a planar answer, while `st_distancesphere` and `st_distancespheroid` return about 555,813 and 554,059 metres where the planar call returns 5; distance, length and area on the geometry type are planar in the coordinate system's own units, where `sf` on unprojected coordinates returns geodesic metres, and the two differ silently by five orders of magnitude; `st_transform` works server-side between EPSG:4326 and EPSG:27700; geometry is stored as WKB with no embedded SRID; polygon area aggregates server-side with only a scalar crossing.

@@ -240,7 +240,9 @@ Caused by error in `try()`:
 • WHERE (grepl('mean', `value_statistic`))'
 ```
 
-`UNRESOLVED_ROUTINE` is the signature. It says the query reached the server and the server did not recognise a function name, which means the problem is translation and not your logic. Read that error as an invitation rather than a wall.
+`UNRESOLVED_ROUTINE` is the signature. It says the query reached the server and the server did not recognise a function name, which is a narrower complaint than it looks: it is about one name, not about the shape of your query. Read that error as an invitation rather than a wall.
+
+It does not, though, say *why* the name was not recognised, and there are three reasons it can appear. `dbplyr` had no translation and passed your R function through, which is this case. The function exists on Databricks but not on the compute you are connected to. Or you misspelled it. The message is the same for all three, differing only in the name it quotes, so read the name in the error before assuming which one you are in. [Which spatial functions you have](../ref/spatial-functions.qmd) covers the second, where the split is real and counter-intuitive.
 
 The escape hatch is `dplyr::sql()`, which passes a fragment through untouched. You are writing Spark SQL inside it, so the dialect is theirs, not R's:
 
@@ -351,4 +353,4 @@ If the repeats are the expensive part, see [Run a Monte Carlo simulation](monte-
 
 ---
 
-This page rests on: a 32.5 million row table reduces by three orders of magnitude before crossing into R; `dplyr::sql()` reaches Spark SQL functions `dbplyr` cannot translate; Spark SQL has no ordinal-regression primitive.
+This page rests on: a 32.5 million row table reduces by three orders of magnitude before crossing into R; `dplyr::sql()` reaches Spark SQL functions `dbplyr` cannot translate; `UNRESOLVED_ROUTINE` is raised identically for an untranslated function, a function absent from the connected compute, and a misspelling; Spark SQL has no ordinal-regression primitive.
