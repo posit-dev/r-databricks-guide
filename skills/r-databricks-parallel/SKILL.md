@@ -116,7 +116,7 @@ The prerequisites above come from vendor documentation. A working end-to-end rec
 1.  Install `sparklyr` and `pysparklyr` locally, and nothing else. Do not hand-build a Python environment for this: `pysparklyr` ignores a hand-built one and provisions its own `uv` environment matching the cluster's DBR version, including its own CPython build. Hand-pinning a venv first is wasted effort.
 2.  Install `rpy2` as a **cluster library**, pinned to the version that matches the *cluster's* R, not the newest release. A `rpy2` built against a newer R C API than the cluster ships will fail; the failure surfaces as a serialization error from the worker, not as an obvious version mismatch, because the real fault is in the innermost frame of that traceback, underneath the serializer's own frames. Read past the serializer frames before concluding the problem is serialisation.
 3.  Restart the cluster after any library change before reconnecting.
-4.  Budget for a cold start of roughly five minutes, and a first-connection `uv` environment build of roughly ninety seconds; later connections took roughly three seconds. **Not a benchmark**: one workspace, one day, single node, results cached.
+4.  Budget for a cold start of roughly seven minutes, and a first-connection `uv` environment build of roughly ninety seconds; later connections took roughly three seconds. **Not a benchmark**: one workspace, one day, single node, results cached.
 
 The cluster measured had no worker nodes: the parallelism observed was across cores on that single node, not across multiple machines. **That run was not evidence that `spark_apply()` distributes across multiple Spark nodes.**
 

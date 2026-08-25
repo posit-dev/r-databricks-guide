@@ -33,7 +33,7 @@ cluster <- brickster::get_and_start_cluster(cluster_id = Sys.getenv("DATABRICKS_
 
 ## Warehouses before clusters, where there is a choice
 
-A warm serverless SQL warehouse answers in **0.70 s**. An all-purpose cluster takes **244 s** to go from `TERMINATED` to `RUNNING`. `[verified: ran it on 2026-08-05]` Recorded measurements, not benchmarks: they describe one setup on one day, not a guarantee for every workspace. Where the task can be done with a warehouse, prefer it; reach for a cluster only when the task needs something a warehouse cannot do, such as a live cluster context or distributed R.
+A warm serverless SQL warehouse answers in **0.70 s**. An all-purpose cluster takes minutes to go from `TERMINATED` to `RUNNING`: **438 s** single-node and **418 s** with two workers, both with an init script attached. `[verified: ran it on 2026-08-22]` Recorded measurements, not benchmarks: they describe one setup on one day, not a guarantee for every workspace. Where the task can be done with a warehouse, prefer it; reach for a cluster only when the task needs something a warehouse cannot do, such as a live cluster context or distributed R.
 
 ## Access modes and R
 
@@ -103,6 +103,8 @@ if (!running) warning("DATABRICKS_CLUSTER_ID is unset; skipping live chunks")
 ```
 
 ## Stopping
+
+**Stopping is a decision for whoever owns the compute, not a tidy-up step.** Do not terminate as the closing move of a task, and do not terminate something because you started it: a cold start is several minutes of VM provisioning that nothing on the client side shortens, so stopping between two pieces of work schedules that wait rather than saving it. Autotermination already handles the forgotten case. Terminate when asked to, or when a session is genuinely over and the owner has said so.
 
 `db_cluster_terminate()` stops a cluster without deleting its configuration. `db_cluster_delete()` and `db_cluster_perm_delete()` are a different action entirely, and the latter is irreversible, so do not reach for it when what you mean is `db_cluster_terminate()`. For a warehouse, the equivalent stop call is `db_sql_warehouse_stop()`.
 

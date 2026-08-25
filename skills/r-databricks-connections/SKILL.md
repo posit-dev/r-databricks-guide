@@ -21,7 +21,7 @@ There are five ways to connect R to Databricks, and picking the wrong one wastes
 
 ## Default to ODBC
 
-For interactive querying, default to the ODBC path against a serverless SQL warehouse. Cold start to a warm serverless SQL warehouse is **0.70 s**, against **244 s** for an all-purpose cluster going TERMINATED to RUNNING: a 350× gap. `[verified: ran it on 2026-08-05]`
+For interactive querying, default to the ODBC path against a serverless SQL warehouse. Cold start to a warm serverless SQL warehouse is **0.70 s**, against **418-438 s** for an all-purpose cluster going TERMINATED to RUNNING: a gap of roughly 600×. `[verified: ran it on 2026-08-22]`
 
 Both paths end in the same `dbplyr` idiom, so query logic is portable between them: start on the warehouse, and only move to a cluster connection when you need something a warehouse cannot do (a live cluster context, a Spark DataFrame, distributed R). This is a recorded measurement of one setup on one day, not a benchmark against which to judge every environment.
 

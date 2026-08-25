@@ -68,6 +68,14 @@ The freeze hash is a plain md5 of the `.qmd`, so any edit invalidates it, prose 
 
 Corollary worth knowing before reaching for it: `cache: true` does nothing for this. Under `freeze: true` a prose edit re-executes nothing locally either, so there is no loop for a chunk cache to speed up.
 
+### Never terminate a cluster
+
+**Start clusters when the work needs them; never stop them.** Stopping is the user's call alone, and no agent should call `db_cluster_terminate()` or `db_sql_warehouse_stop()` here, including after finishing a task and including on a cluster it started itself.
+
+The reason is that VM provisioning is the gating cost and nothing on this side reduces it. A cold start is roughly seven minutes, measured at 438 s single-node and 418 s multi-node with the init script already attached. Tidying up after a task therefore does not save a wait, it schedules one for whoever works next. Both clusters auto-terminate at 90 minutes, so an idle one stops by itself without help.
+
+Note that the init script is a cost *added* to that start, not a way to shorten it: it runs on every node during boot. Getting binaries rather than source keeps it near a minute instead of about fifteen, which is worth doing and still leaves the seven minutes untouched.
+
 ### Setup
 
 `.Renviron` is gitignored and required. Copy `.Renviron.example`, fill in your own values, restart R. Without it `DATABRICKS_PATH` is unset and anything touching Databricks fails at `dbConnect()`.
