@@ -141,8 +141,8 @@ The other tables are small by comparison, and their sizes are worth knowing now 
 # integer64, and map_dbl() would otherwise reinterpret
 # its bits rather than convert them.
 count_rows <- function(table) {
-  glue("SELECT count(*) AS n FROM {tbl_name(table)}") |>
-    dbGetQuery(conn = con) |>
+  tbl(con, I(tbl_name(table))) |>
+    count() |>
     pull(n) |>
     as.numeric()
 }
@@ -167,19 +167,19 @@ The check compares two numbers: the length the server says a value has, and the 
 
 ```{r}
 #| label: truncation-check
-longest_five <- glue("
-  SELECT
-    base64(geom_wkb) AS g,
-    length(base64(geom_wkb)) AS declared
-  FROM {tbl_name('wfd_catchments')}
-  WHERE geom_wkb IS NOT NULL
-  ORDER BY length(geom_wkb) DESC
-  LIMIT 5
-")
+longest_five <- tbl(con, I(tbl_name("wfd_catchments"))) |>
+  filter(!is.na(geom_wkb)) |>
+  # base64() and length() both run on the server, so
+  # `declared` is the length before the trip.
+  transmute(
+    g = base64(geom_wkb),
+    declared = length(base64(geom_wkb))
+  ) |>
+  arrange(desc(declared)) |>
+  head(5)
 
 longest_five |>
-  dbGetQuery(conn = con) |>
-  as_tibble() |>
+  collect() |>
   transmute(
     declared,
     arrived = nchar(g),
@@ -217,17 +217,14 @@ Arriving at full length is necessary but not sufficient. A geometry that parses 
 
 ```{r}
 #| label: area-check
-catchments <- glue("
-  SELECT
-    base64(geom_wkb) AS g,
-    water_body_area_m2 AS declared
-  FROM {tbl_name('wfd_catchments')}
-  WHERE geom_wkb IS NOT NULL
-    AND water_body_area_m2 IS NOT NULL
-  LIMIT 200
-") |>
-  dbGetQuery(conn = con) |>
-  as_tibble()
+catchments <- tbl(con, I(tbl_name("wfd_catchments"))) |>
+  filter(!is.na(geom_wkb), !is.na(water_body_area_m2)) |>
+  transmute(
+    g = base64(geom_wkb),
+    declared = water_body_area_m2
+  ) |>
+  head(200) |>
+  collect()
 
 # Two steps, because geometry is encoded server-side to
 # survive the trip: it arrives as text, and has to be

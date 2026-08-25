@@ -61,19 +61,19 @@ There are two ways around it. Encode server-side to text and decode here, which 
 
 ```{r}
 #| label: fetch-catchments
-catchment_rows <- glue("
-  SELECT
+catchment_rows <- tbl(con, I(tbl_name("wfd_catchments"))) |>
+  filter(!is.na(geom_wkb)) |>
+  transmute(
     water_body_id,
     water_body_name,
     ecological_class,
     overall_water_body_class,
     water_body_area_m2,
-    base64(geom_wkb) AS geom_b64
-  FROM {tbl_name('wfd_catchments')}
-  WHERE geom_wkb IS NOT NULL
-") |>
-  dbGetQuery(conn = con) |>
-  as_tibble()
+    # base64() runs on the server: it is the encoding
+    # that lets the bytes cross ODBC intact.
+    geom_b64 = base64(geom_wkb)
+  ) |>
+  collect()
 
 nrow(catchment_rows)
 ```
@@ -117,14 +117,10 @@ The overflows are longitude and latitude, which is a different CRS again. They h
 
 ```{r}
 #| label: overflows
-overflows <- glue("
-  SELECT overflow_id, company, longitude, latitude
-  FROM {tbl_name('storm_overflows')}
-  WHERE longitude IS NOT NULL
-    AND latitude IS NOT NULL
-") |>
-  dbGetQuery(conn = con) |>
-  as_tibble() |>
+overflows <- tbl(con, I(tbl_name("storm_overflows"))) |>
+  filter(!is.na(longitude), !is.na(latitude)) |>
+  select(overflow_id, company, longitude, latitude) |>
+  collect() |>
   st_as_sf(
     coords = c("longitude", "latitude"),
     crs = 4326
@@ -138,14 +134,10 @@ The stations are already easting and northing, so they need no transform, only a
 
 ```{r}
 #| label: stations
-stations <- glue("
-  SELECT station_id, station_name, easting, northing
-  FROM {tbl_name('hydrology_stations')}
-  WHERE easting IS NOT NULL
-    AND northing IS NOT NULL
-") |>
-  dbGetQuery(conn = con) |>
-  as_tibble() |>
+stations <- tbl(con, I(tbl_name("hydrology_stations"))) |>
+  filter(!is.na(easting), !is.na(northing)) |>
+  select(station_id, station_name, easting, northing) |>
+  collect() |>
   st_as_sf(
     coords = c("easting", "northing"),
     crs = 27700
@@ -226,26 +218,24 @@ r_side <- overflow_catchment |>
   filter(!is.na(water_body_id)) |>
   count(water_body_id, name = "n_r")
 
-server_side <- glue("
-  SELECT
-    c.water_body_id,
-    count(*) AS n_sql
-  FROM {tbl_name('storm_overflows')} o
-  JOIN {tbl_name('wfd_catchments')} c
-    ON st_contains(
-         -- st_setsrid is not optional: WKB carries no
-         -- SRID, so st_geomfromwkb returns 0 and the
-         -- server refuses to compare it against 27700.
-         st_setsrid(st_geomfromwkb(c.geom_wkb), 27700),
-         st_transform(
-           st_point(o.longitude, o.latitude, 4326),
-           27700
-         )
-       )
-  GROUP BY c.water_body_id
-") |>
-  dbGetQuery(conn = con) |>
-  as_tibble()
+# These st_ calls run on the server, not in sf: above
+# collect(), dbplyr sends the name through as text.
+catchment_geom <- tbl(con, I(tbl_name("wfd_catchments"))) |>
+  # st_setsrid is not optional: WKB carries no SRID, so
+  # st_geomfromwkb returns 0 and the server refuses to
+  # compare it against 27700.
+  mutate(g = st_setsrid(st_geomfromwkb(geom_wkb), 27700L))
+
+overflow_point <- tbl(con, I(tbl_name("storm_overflows"))) |>
+  mutate(p = st_transform(st_point(longitude, latitude, 4326L), 27700L))
+
+# A spatial predicate cannot be a join_by() condition, so
+# pair the tables and filter. The planner makes it a join.
+server_side <- catchment_geom |>
+  cross_join(overflow_point) |>
+  filter(st_contains(g, p)) |>
+  count(water_body_id, name = "n_server") |>
+  collect()
 
 comparison <- full_join(
   r_side,
@@ -256,10 +246,10 @@ comparison <- full_join(
 comparison |>
   summarise(
     catchments = n(),
-    agree = sum(n_r == n_sql, na.rm = TRUE),
-    differ = sum(n_r != n_sql, na.rm = TRUE),
+    agree = sum(n_r == n_server, na.rm = TRUE),
+    differ = sum(n_r != n_server, na.rm = TRUE),
     total_r = sum(n_r, na.rm = TRUE),
-    total_sql = sum(n_sql, na.rm = TRUE)
+    total_server = sum(n_server, na.rm = TRUE)
   )
 ```
 

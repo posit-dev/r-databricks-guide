@@ -134,8 +134,8 @@ load_table <- function(df, table, con, comment = NULL) {
     )
   }
 
-  n <- glue("SELECT count(*) AS n FROM {fq}") |>
-    dbGetQuery(conn = con) |>
+  n <- tbl(con, I(fq)) |>
+    count() |>
     pull(n) |>
     as.numeric()
 
@@ -503,17 +503,14 @@ glue("SHOW TABLES IN `{catalog}`.`{schema}`") |>
   dbGetQuery(conn = con) |>
   as_tibble()
 
-probe <- glue("
-  SELECT
-    base64(geom_wkb) AS g,
-    water_body_area_m2 AS declared
-  FROM `{catalog}`.`{schema}`.wfd_catchments
-  WHERE geom_wkb IS NOT NULL
-    AND water_body_area_m2 IS NOT NULL
-  LIMIT 200
-") |>
-  dbGetQuery(conn = con) |>
-  as_tibble()
+probe <- tbl(con, I(glue("{catalog}.{schema}.wfd_catchments"))) |>
+  filter(!is.na(geom_wkb), !is.na(water_body_area_m2)) |>
+  transmute(
+    g = base64(geom_wkb),
+    declared = water_body_area_m2
+  ) |>
+  head(200) |>
+  collect()
 
 geom <- probe$g |>
   map(jsonlite::base64_dec) |>
