@@ -132,7 +132,7 @@ The geography type is the other route, and it is not a drop-in. `st_distance()` 
 
 Mixing two coordinate systems is the good case by comparison: that fails loudly, as [the section above](#set-the-crs-yourself) shows. This one does not fail at all.
 
-Three smaller mismatches will catch you when porting an `sf` expression, and all three are shape rather than value. `sf::st_contains()` hands back a sparse index list; the server returns one boolean per row. `sf::st_distance()` gives you a matrix; the server gives one scalar per row. And `sf::st_buffer()` takes `nQuadSegs`, `endCapStyle` and the rest, where the server's takes two arguments and rejects a third. Buffers also differ slightly in value, because the two round a circle with a different default number of segments, which is approximation rather than disagreement.
+Three smaller mismatches will catch you when porting an `sf` expression, and all three are shape rather than value: `st_contains()`, `st_distance()` and `st_buffer()` each hand back something different from their `sf` namesake. [Which spatial functions you have](../ref/spatial-functions.qmd#where-the-semantics-differ-from-sf) tabulates what each returns on either side.
 
 ## Transforming once, server-side, instead of per iteration
 

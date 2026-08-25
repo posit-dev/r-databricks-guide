@@ -62,9 +62,13 @@ The divergence that costs real money is planar against geodesic measurement, and
 
 What belongs here is the set of mismatches you meet while porting an expression, all of them shape rather than value:
 
-- `sf::st_contains()` returns a sparse index list; the server returns one boolean per row.
-- `sf::st_distance()` returns a matrix; the server returns one scalar per row.
-- `sf::st_buffer()` takes `nQuadSegs` and its companions; the server's takes two arguments and rejects a third. Buffer values also differ slightly, because the two approximate a circle with a different default segment count. That is an approximation difference rather than a disagreement, so do not go hunting for a bug.
+| Function | `sf` gives you | The server gives you |
+|---|---|---|
+| `st_contains()` | A sparse index list | One boolean per row |
+| `st_distance()` | A matrix | One scalar per row |
+| `st_buffer()` | `nQuadSegs`, `endCapStyle` and companions | Two arguments, and it rejects a third |
+
+Buffer values also differ slightly, because the two approximate a circle with a different default segment count. That is an approximation difference rather than a disagreement, so do not go hunting for a bug.
 
 Where the semantics were checked, they agreed: boundary containment, self-containment, empty geometry, and the validity of a self-intersecting polygon all match `sf`. Worth saying, because it makes the divergences above readable as specific cases rather than as a general warning about trusting the server.
 

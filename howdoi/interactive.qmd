@@ -81,9 +81,16 @@ Different machine, and a different R version from the 4.5.2 in the local session
 
 ## Which side of the boundary each line of your script is on
 
-A line runs in your session unless something in it forces the crossing, and the things that force it are few enough to hold in your head. `collect()` brings results back. `spark_apply()` sends a function out. A `dbplyr` verb on a table reference builds up a query that has not run yet.
+A line runs in your session unless something in it forces the crossing, and the things that force it are few enough to hold in your head.
 
-Everything else is local. Assigning a variable, writing a function, loading a package, reading a file from your project: all yours, none of it visible to the cluster.
+| Construct | Runs where | What it does |
+|---|---|---|
+| `spark_apply()` | Crosses out | Sends a function to the cluster |
+| A `dbplyr` verb on a table reference | Neither, yet | Builds up a query that has not run |
+| `collect()` | Crosses back | Brings results into your session |
+| Everything else | Your session | Assigning a variable, writing a function, loading a package, reading a project file |
+
+None of that last row is visible to the cluster.
 
 That last point catches people out, because it is invisible until it bites. A variable defined in your session is not in scope inside a `spark_apply()` worker, because the function is serialised and sent without the environment around it. The failure looks like the worker function is broken rather than like a missing variable.
 
@@ -91,9 +98,16 @@ This is the same boundary that [work with a table that will not fit in your sess
 
 ## Session lifetime, reconnecting, and what you lose when the connection drops
 
-Your local objects survive anything that happens to the connection. They are in your R session, and a dropped connection does not touch them.
+Your local objects survive anything that happens to the connection. Anything holding a handle to remote state does not.
 
-Anything holding a handle to remote state does not survive. A `tbl()` reference, a Spark DataFrame, a temporary view: all of them point at something on the other side, and when the connection goes, the thing they point at goes too. The confusing part is the timing. Nothing announces the drop. The object still exists in your session and still prints as though it were fine, and the error arrives at the next use, which may be many lines later and looks like a problem with that line.
+| What you are holding | Survives a dropped connection? |
+|---|---|
+| A local R object | Yes. It is in your session, and the connection never touched it |
+| A `tbl()` table reference | No. It points at something on the other side |
+| A Spark DataFrame | No |
+| A temporary view | No |
+
+The confusing part is the timing. Nothing announces the drop. The object still exists in your session and still prints as though it were fine, and the error arrives at the next use, which may be many lines later and looks like a problem with that line.
 
 Reconnecting gives you a working connection, not your previous state. `spark_connect()` again returns a usable `sc`, and every reference built on the old one stays dead. Rebuild them from the table names, which is straightforward if your script assigns references near where it uses them and awkward if a reference was built once at the top and used far below.
 

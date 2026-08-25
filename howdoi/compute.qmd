@@ -45,10 +45,10 @@ That single fact decides whether anything on [run a Monte Carlo simulation](mont
 
 One catch worth knowing before you trust the number. On a cluster configured to autoscale, `num_workers` is not `0`, it is absent entirely, because the count is a range rather than a value:
 
-```
-default    num_workers=0      autoscale=no   tag=SingleNode
-multinode  num_workers=NULL   autoscale=yes  tag=-
-```
+| Cluster | `num_workers` | `autoscale` | `ResourceClass` tag |
+|---|---|---|---|
+| Single-node | `0` | no | `SingleNode` |
+| Autoscaling | `NULL` | yes | none |
 
 So a test written as `num_workers == 0` returns `logical(0)` on an autoscaling cluster rather than `FALSE`, and an `if` on that errors. Check whether `autoscale` is present before reading `num_workers`, or read the `ResourceClass` tag, which says `SingleNode` on a genuinely single-machine cluster.
 
@@ -66,13 +66,16 @@ What is genuinely open: whether `spark_apply()` works under Standard access mode
 
 ## What costs time
 
-Starting a stopped personal cluster takes minutes. On the cluster used throughout this guide, terminated to running took between seven and eleven minutes across several starts. That is long enough to matter to how you plan an afternoon, and long enough that you should start it before you need it rather than when you need it.
+| Situation | What it costs you |
+|---|---|
+| Starting a stopped personal cluster | Minutes. On the cluster used throughout this guide, terminated to running took between seven and eleven minutes across several starts |
+| Connecting to an already-running cluster | Seconds. It is warm |
+| Leaving a cluster running | It bills until it stops, and yours likely stops itself after the idle period in `autotermination_minutes` |
+| Waking a SQL warehouse | Far less than an all-purpose cluster |
 
-An already-running cluster is warm and connects in seconds.
+The first row is long enough to matter to how you plan an afternoon, and long enough that you should start the cluster before you need it rather than when you need it. The third tells you how long a coffee break can be before your next query pays that cost again, and it is on the object you already read above.
 
-A running cluster bills until it stops. Yours is likely configured to terminate itself after a period of inactivity, and that setting is on the object you already read, as `autotermination_minutes`. Knowing it tells you how long a coffee break can be before your next query pays the cold-start cost again.
-
-A SQL warehouse is a different proposition, and worth preferring for exploratory querying: it wakes far faster than an all-purpose cluster. Move to the cluster when you need something a warehouse cannot do, such as distributed R or a live Spark session.
+The last row is why a SQL warehouse is worth preferring for exploratory querying. Move to the cluster when you need something a warehouse cannot do, such as distributed R or a live Spark session.
 
 ## Which cluster answered
 

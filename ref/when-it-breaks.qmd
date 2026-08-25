@@ -3,111 +3,53 @@ title: "When it breaks"
 subtitle: "Organised by what you saw, not by what is wrong"
 ---
 
-Find the thing you saw. Each entry says why it happens, what to do, and whether it is yours to fix or your administrator's.
+Find the thing you saw in the left column. Most fixes are yours to apply; where one is your administrator's, the entry says so. Four entries carry more reasoning than a table cell holds and are written out below it.
 
 Before anything else: if several things broke at once, or something that worked yesterday now fails at the connection, your token has probably expired. That surfaces as an opaque ODBC driver error rather than anything resembling an authentication message, so it gets debugged as a warehouse, driver or network fault. Sign in again first.
 
-## Polygons come back truncated or unreadable
-
-**Why.** Geometry is stored as `BINARY`, and the `odbc` path silently returns only part of a `BINARY` value. You get a fraction of the bytes with no warning, and `sf` cannot parse it.
-
-**Fix, and it is yours.** Read geometry over the `brickster` path instead, which is what [Connect your R session to the data](../howdoi/connect.qmd) sets up. This is not a preference between two working options: the `odbc` path cannot carry geometry. Upstream issue `r-dbi/odbc#1024`.
-
-## A `BINARY` value arrives far longer than it should be
-
-**Why.** The opposite symptom, same family. A text representation of a geometry is being clipped at the default string column length, or a value the server generated is arriving in a form you did not expect.
-
-**Fix, and it is yours.** Set `DefaultStringColumnLength = 65535` on the connection. Left at its default, an encoded geometry is silently clipped at 1,023 characters. The truncation also bites a value that a server-side spatial function produced, not only a column read from a table, which is easy to miss if you assume the problem lives in the stored data.
-
-## `unknown type 0`
-
-**Why.** You serialised an R object into a `spark_apply()` function body and something about the encoding is wrong. Two causes produce this identical message: the object was serialised with the default version rather than `version = 2`, or the base64 has line breaks in it.
-
-**Fix, and it is yours.** `serialize(version = 2)`, then strip the line breaks from the base64. The message names neither cause, so check both. Better, if you have a volume: write the object to it and skip the whole mechanism. See [Sending things to where your code runs](sending-things.qmd).
-
-## A package upgrade appears not to have taken
-
-**Why.** It did take. Every R context gets its own library, and that library went away. The version you are now reading is the image's.
-
-**Fix, and it is yours in the short term.** Do everything that depends on an install inside one context, in one session, without a break. For a durable fix you need a prebuilt library tree on a volume, and that is your administrator's. See [Packages](packages.qmd).
-
-## `install.packages("sf")` fails at configure
-
-**Why.** GDAL, GEOS and PROJ are absent from the runtime image. These are system libraries, not R packages.
-
-**Fix, and it is your administrator's.** You cannot install system libraries from an R session, and no `install.packages()` argument changes that. The error appears in R, which is why this gets misread as an R problem. Forward [Setting up a cluster for geospatial R](../admin/geospatial-setup.qmd).
-
-## `terra` fails to load
-
-**Why.** Usually the same missing system libraries as the entry above. On older runtimes there was a second cause: `terra` needed pinning against the image's GDAL version, and `Rcpp` needed upgrading before `units` would install.
-
-**Fix, and it is your administrator's.** On DBR 18 neither pin is needed, so a setup script still carrying them is a script to revise rather than a constraint to respect. That distinction is in [Setting up a cluster for geospatial R](../admin/geospatial-setup.qmd).
+| What you saw | Why, and what to do |
+|---|---|
+| Polygons come back truncated or unreadable | Geometry is stored as `BINARY`, and the `odbc` path silently returns only part of a `BINARY` value. Read geometry over the `brickster` path instead, which [Connect your R session to the data](../howdoi/connect.qmd) sets up. This is not a preference between two working options: the `odbc` path cannot carry geometry (`r-dbi/odbc#1024`). |
+| A `BINARY` value arrives far longer than it should be | A text representation of a geometry is being clipped at the default string column length. Set `DefaultStringColumnLength = 65535`; left at its default an encoded geometry is silently clipped at 1,023 characters. This bites a value a server-side spatial function produced, not only a column read from a table. |
+| `unknown type 0` | An R object serialised into a `spark_apply()` body was encoded wrongly: either not `version = 2`, or the base64 has line breaks in it. Use `serialize(version = 2)`, then strip the line breaks. The message names neither cause, so check both. Better, if you have a volume: write the object to it and skip the whole mechanism ([Sending things to where your code runs](sending-things.qmd)). |
+| A package upgrade appears not to have taken | It did take. Every R context gets its own library, and that library went away, so the version you are reading is the image's. Do everything that depends on an install inside one context, in one session, without a break. A durable fix needs a prebuilt library tree on a volume, and that is **your administrator's** ([Packages](packages.qmd)). |
+| `install.packages("sf")` fails at configure | GDAL, GEOS and PROJ are absent from the runtime image. These are system libraries, not R packages, so no `install.packages()` argument changes it and you cannot do it from an R session. **Your administrator's:** forward [Setting up a cluster for geospatial R](../admin/geospatial-setup.qmd). |
+| `terra` fails to load | Usually the same missing system libraries as above. On older runtimes there was a second cause: a `terra` pin against the image's GDAL, and an `Rcpp` upgrade before `units` would install. On DBR 18 neither pin is needed, so a script still carrying them is one to revise rather than a constraint to respect. **Your administrator's** ([Setting up a cluster for geospatial R](../admin/geospatial-setup.qmd)). |
+| A spatial function is not recognised | Either the function does not exist on the compute you are connected to, or you have misspelled it. [See below](#a-spatial-function-is-not-recognised). |
+| A distance, length or area is wildly wrong | Server-side measurement is planar, while `sf` on unprojected coordinates is geodesic. [See below](#a-distance-length-or-area-is-wildly-wrong). |
+| `columns = list(...)` rejected | The documented list form of `spark_apply(columns =)` does not work here (`sparklyr/sparklyr#3529`). Use a Spark DDL string, `columns = "name type, name type"`, or omit the argument and let the types be inferred. Omitting works everywhere, which is the safest choice. |
+| A `spark_apply()` column is missing, and the function looks fine | The right form of `columns =` depends on where you are running: a Spark type string from a client connection, a plain character vector on the cluster's own R session. Neither is rejected by the other path, and the error never mentions `columns`. Omit the argument, or match it to the context. This is why code moved between a notebook and a client session breaks ([Sending things to where your code runs](sending-things.qmd)). |
+| `context =` rejected | `spark_apply(context =)` does not work on the `databricks_connect` backend, which is the backend a client connection uses. Use a volume to get the object across. The sparklyr documentation describing `context =` is not wrong, it just does not describe this backend. |
+| Hashes differ between your session and a worker | The worker is probably on a different R patch release, and serialisation details differ between versions. Your object is fine. Compare content rather than hashes: row counts, a summary, `all.equal()` on the reconstructed object. |
+| An R notebook refuses to attach to a cluster | Access mode: a Standard access mode cluster refuses R notebooks. [See below](#an-r-notebook-refuses-to-attach-to-a-cluster). |
+| A `spark_apply()` job is slower than the serial version | Almost certainly nothing is wrong. Distributing costs serialisation, and if there is no second machine to distribute to, you pay the cost and get nothing back. [See below](#a-spark_apply-job-is-slower-than-the-serial-version). |
+| `spark_apply(group_by = ...)` warns, then fails | The grouped path does not run on a current runtime, failing on `rpy2` 3.6.x with a warning from `pandas2ri.activate()` on the way. Use the partition-based form instead, without `group_by`. Do the grouping inside your function, or arrange the partitioning to match the groups you want. |
+| An `sf` object written to a table comes back as text | `dbWriteTable()` on an `sf` object writes the geometry as a string column, silently, through the `brickster` backend. No error, and the table looks fine until you read it back. A table round trip is not lossless for spatial data: write geometry as well-known binary or text deliberately and convert on the way back, or keep the spatial object as a file on a volume ([Get results out, and get the same answer next year](../howdoi/results.qmd)). |
+| A number that should be an integer is 0, or absurdly small | A Spark `BIGINT` arrives as `integer64`, and without `bit64` attached it converts to nonsense: 0, or something like `1e-320`. No warning. Use `library(bit64)`, or cast to a double in the query before collecting. |
 
 ## A spatial function is not recognised
 
-**Why.** Either the function does not exist on the compute you are connected to, or you have misspelled it. The error is byte-identical in both cases, differing only in the name it quotes.
+The error is byte-identical whether the function is absent from your compute or you misspelled it, differing only in the name it quotes.
 
-**Fix, and it is yours.** Check both, in that order, because the assumption most people make is backwards: an all-purpose cluster has *fewer* spatial functions than a warehouse, not more. Four are missing from the cluster, and `st_makepoint()` is the one you are most likely to hit. Use `st_point()` instead. [Which spatial functions you have](spatial-functions.qmd) has the list and the query that answers it for your own compute.
+Check both, in that order, because the assumption most people make is backwards: an all-purpose cluster has *fewer* spatial functions than a warehouse, not more. Four are missing from the cluster, and `st_makepoint()` is the one you are most likely to hit. Use `st_point()` instead. [Which spatial functions you have](spatial-functions.qmd) has the list and the query that answers it for your own compute.
 
 ## A distance, length or area is wildly wrong
 
-**Why.** Server-side distance, length and area are planar, while `sf` on unprojected coordinates is geodesic. Nobody has made a mistake and nothing errors. The discrepancy can run to five orders of magnitude.
+Server-side distance, length and area are planar, while `sf` on unprojected coordinates is geodesic. Nobody has made a mistake and nothing errors. The discrepancy can run to five orders of magnitude.
 
-**Fix, and it is yours.** Project your coordinates before measuring, or do the measurement in R, and be deliberate about which. This is the expensive one on this page because it is silent: you get a number, and it is wrong. See [Join and transform polygons](../howdoi/polygons.qmd).
-
-## `columns = list(...)` rejected
-
-**Why.** The documented list form of `spark_apply(columns =)` does not work here. Upstream issue `sparklyr/sparklyr#3529`.
-
-**Fix, and it is yours.** Use a Spark DDL string, `columns = "name type, name type"`, or omit the argument and let the types be inferred. Omitting works everywhere, which is the safest choice.
-
-## A `spark_apply()` column is missing, and the function looks fine
-
-**Why.** The right form of `columns =` depends on where you are running. A Spark type string is correct from a client connection; a plain character vector is correct on the cluster's own R session. Neither is rejected by the other path, and the error never mentions `columns`.
-
-**Fix, and it is yours.** This is why code moved between a notebook and a client session breaks. Omit the argument, or match it to the context. See [Sending things to where your code runs](sending-things.qmd).
-
-## `context =` rejected
-
-**Why.** `spark_apply(context =)` does not work on the `databricks_connect` backend, which is the backend a client connection uses.
-
-**Fix, and it is yours.** Use a volume to get the object across. The sparklyr documentation describing `context =` is not wrong, it just does not describe this backend.
-
-## Hashes differ between your session and a worker
-
-**Why.** The worker is probably on a different R patch release, and serialisation details differ between versions. Your object is fine.
-
-**Fix, and it is yours.** Compare content rather than hashes: row counts, a summary, `all.equal()` on the reconstructed object.
+Project your coordinates before measuring, or do the measurement in R, and be deliberate about which. This is the expensive one on this page because it is silent: you get a number, and it is wrong. See [Join and transform polygons](../howdoi/polygons.qmd).
 
 ## An R notebook refuses to attach to a cluster
 
-**Why.** Access mode. A Standard access mode cluster refuses R notebooks.
+A client connection from your own R session to that same cluster works, which is what this guide assumes throughout, so you may not need the notebook at all.
 
-**Fix, and it is yours, with a caveat.** A client connection from your own R session to that same cluster works, which is what this guide assumes throughout, so you may not need the notebook at all. If you specifically need notebook R, that is a cluster configuration change and belongs to your administrator.
+If you specifically need notebook R, that is a cluster configuration change and belongs to your administrator.
 
 ## A `spark_apply()` job is slower than the serial version
 
-**Why.** Almost certainly nothing is wrong. Distributing costs serialisation, and if there is no second machine to distribute to, you pay the cost and get nothing back. On a single-node cluster `spark_apply()` was measured at roughly twice the time of forked parallel workers.
+On a single-node cluster `spark_apply()` was measured at roughly twice the time of forked parallel workers.
 
-**Fix, and it is yours.** Check how many machines you have with [Work out what the cluster you have can do](../howdoi/compute.qmd). If `num_workers` is `0`, use the cores on the one machine you have rather than distributing. [Run a Monte Carlo simulation](../howdoi/monte-carlo.qmd) covers the choice.
-
-## `spark_apply(group_by = ...)` raises a deprecation warning, then fails
-
-**Why.** The grouped path does not run on a current runtime, failing on `rpy2` 3.6.x with a warning from `pandas2ri.activate()` on the way.
-
-**Fix, and it is yours.** Use the partition-based form instead, without `group_by`. Do the grouping inside your function, or arrange the partitioning to match the groups you want.
-
-## An `sf` object written to a table comes back as text
-
-**Why.** `dbWriteTable()` on an `sf` object writes the geometry as a string column, silently, through the `brickster` backend. No error, and the table looks fine until you read it back.
-
-**Fix, and it is yours.** A table round trip is not lossless for spatial data. Write geometry as well-known binary or text deliberately and convert on the way back, or keep the spatial object as a file on a volume. See [Get results out, and get the same answer next year](../howdoi/results.qmd).
-
-## A number that should be an integer is 0, or absurdly small
-
-**Why.** A Spark `BIGINT` arrives as `integer64`, and without `bit64` attached it converts to nonsense: 0, or something like `1e-320`. No warning.
-
-**Fix, and it is yours.** `library(bit64)`, or cast to a double in the query before collecting.
+Check how many machines you have with [Work out what the cluster you have can do](../howdoi/compute.qmd). If `num_workers` is `0`, use the cores on the one machine you have rather than distributing. [Run a Monte Carlo simulation](../howdoi/monte-carlo.qmd) covers the choice.
 
 ## Next
 
