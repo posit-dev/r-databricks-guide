@@ -1,0 +1,82 @@
+---
+title: "Related work"
+subtitle: "The three other places this is written about, what each is good for, and where each will mislead you"
+---
+
+Three documentation sites cover parts of this ground, all of them competent and current, and none of them written for your situation. This page says which one to reach for, and which pages on each will fail if you follow them correctly.
+
+That last part is the reason to look here first. A search for "sparklyr distributed R" lands you in a section whose every example connects to a Spark running on the author's own laptop, and nothing on the page tells you so.
+
+## Which one to reach for
+
+| You want | Go to | Because |
+|----|----|----|
+| The connection call for your environment | [Posit's Databricks pages](https://docs.posit.co/data-sources/user/databricks/index.html) | The only one written for a Workbench session with credentials already in it |
+| What a `brickster` function does | [brickster's articles](https://databrickslabs.github.io/brickster/) | The reference is accurate and current, and it is the package's own documentation |
+| `dplyr` verbs against a Spark table | [sparklyr's guides](https://spark.posit.co/guides/) | Verb translation behaves the same whether Spark is local or remote |
+| Distributed R, and what survives the connection | [sparklyr's Databricks Connect page](https://spark.posit.co/deployment/databricks-connect.html) | The one page on that site that knows you are on Databricks |
+| Why your result is a different shape, or your query failed | this site | See [When it breaks](when-it-breaks.qmd), which is organised by what you saw |
+
+## Posit's data sources documentation
+
+[`docs.posit.co/data-sources/user/databricks/`](https://docs.posit.co/data-sources/user/databricks/index.html) answers one question completely: which authentication method to use, and what the connection call looks like. It is current, it uses the base pipe and `Sys.getenv()`, and nothing on it needs a warning for being stale.
+
+The page to read is [Workbench managed credentials](https://docs.posit.co/data-sources/user/databricks/dbx-workbench-managedcred.html). It is the only page on any of these three sites addressed to someone sitting where you are sitting, with credentials arriving on sign-in rather than typed in. It gives both connection calls, and it tells you where to find the HTTP path in the Databricks interface, which is a piece of interface archaeology worth having done for you.
+
+Two things to know. Most of the site is about publishing to Posit Connect, which is a transition you are probably not making, so the tables about deployment are not yours. And it recommends `odbc` for SQL warehouses without qualification and does not mention `brickster` at all. That recommendation is right for the reader it has in mind and wrong as soon as geometry is involved, for the reason set out in [Connect your R session to the data](../howdoi/connect.qmd): `odbc` silently returns part of a `BINARY` value. Nothing on that site discusses data types, so this is a gap rather than a disagreement.
+
+For your administrator, [Databricks configuration for Workbench and Connect](https://docs.posit.co/data-sources/admin/databricks.html) is forwardable and answers "what do I need to ask for" precisely: the ODBC path needs a driver installed and a DSN configured, the `sparklyr` path needs nothing set up at the system level.
+
+## brickster
+
+[`databrickslabs.github.io/brickster`](https://databrickslabs.github.io/brickster/) documents the package's API surface well. [Connect to a Databricks Workspace](https://databrickslabs.github.io/brickster/articles/setup-auth.html) is worth reading once, and states that the package picks up Workbench credentials on its own. [Working with Unity Catalog Volumes](https://databrickslabs.github.io/brickster/articles/working-with-volumes.html) is the reference behind [Sending things to where your code runs](sending-things.qmd).
+
+What it does not cover is data types, anywhere, in either direction. That absence is why several pages here exist: that `BINARY` arrives intact over this path, and that writing an `sf` object puts your geometry in a string column, are both findings this site had to establish for itself.
+
+Two more gaps worth knowing before you follow a page. The [cluster management](https://databrickslabs.github.io/brickster/articles/cluster-management.html) article is written throughout for someone who can create clusters, so most of it is not available to you; reading the one you have is [Work out what the cluster you have can do](../howdoi/compute.qmd) instead. And the [DBI backend](https://databrickslabs.github.io/brickster/articles/sql-backend.html) works against a SQL warehouse only, while `db_repl()` needs an all-purpose cluster and accepts R only on a single-user one.
+
+## sparklyr
+
+[`spark.posit.co`](https://spark.posit.co/) is the largest of the three and the one most likely to mislead you, for a structural reason worth understanding before you use it.
+
+**None of the seventeen pages under `guides/` mentions Databricks or Spark Connect.** Every example connects to a local Spark, or to YARN, or to a standalone cluster. Everything specific to your platform sits on a single page outside that section, [Databricks Connect](https://spark.posit.co/deployment/databricks-connect.html), and the guides do not link to it. So the search result you land on is usually written for compute you do not have, and does not say so.
+
+Read the Databricks Connect page first. It tells you what survives the connection and what does not, including that most `sdf_*` functions are unavailable, and that on serverless compute `spark_apply()` does not work at all because there is no R there.
+
+Safe to follow:
+
+- [Manipulating data with `dplyr`](https://spark.posit.co/guides/dplyr.html), whose body is fine even though its opening connection is not yours.
+- [Tune `tidymodels` remotely in Spark Connect](https://spark.posit.co/guides/tune_tidymodels_spark.html), the only guide written for the connection you are on. Note its requirement, stated once: every worker needs R and your modelling packages present, which is [a request to whoever administers your workspace](../admin/index.qmd) rather than something you can arrange.
+
+Will break you if you follow it correctly:
+
+- [Understanding Spark caching](https://spark.posit.co/guides/caching.html) teaches `memory = TRUE` and `compute()`, neither of which works on serverless compute.
+- [Using Spark with AWS S3 buckets](https://spark.posit.co/guides/aws-s3.html) adds a Hadoop jar to the classpath, which a client cannot do to a managed cluster. Storage here is reached through Unity Catalog instead.
+- [Configuring Spark connections](https://spark.posit.co/guides/connections.html) is about setting executor memory and cores, which is not yours to set, and points at a Spark interface on your own machine that is not where yours is.
+- [Sparkling Water (H2O)](https://spark.posit.co/guides/h2o.html) pins versions for Spark 1.6 and 2.x and depends on a package no longer on CRAN. There is no deprecation notice on it.
+
+One thing to carry across from the machine learning pages: `tidymodels` support there is a translation layer over Spark's own MLlib rather than `tidymodels` running on Spark, and it has no `recipes` integration at all. `tune_grid_spark()` above is the different mechanism that runs your actual R code.
+
+## Where all three stop
+
+None of them can tell you why something broke. sparklyr's troubleshooting page names no symptom and no cause; brickster's authentication article does not cover diagnosing a bad credential; and the only page called "Troubleshoot" on Posit's site is about ODBC driver installation, so an expired token, which surfaces as an opaque driver error, sends you to inspect a driver configuration that is fine.
+
+That is what [When it breaks](when-it-breaks.qmd) is for, and it is organised by what you saw rather than by what caused it.
+
+None of them covers geospatial work either. sparklyr has no spatial guide, the community extensions that once filled the gap predate the platform's own spatial functions, and brickster's documentation has no spatial case in either direction. [Join and transform polygons](../howdoi/polygons.qmd) and [Which spatial functions you have](spatial-functions.qmd) have no upstream counterpart to defer to.
+
+## Are these packages safe to depend on?
+
+A fair question to ask about `brickster` in particular, since Databricks Labs means Databricks does not offer commercial support for it.
+
+Both packages are on CRAN, both are current, and `brickster`'s most recent release is more recent than `sparklyr`'s. It is written by Databricks employees, the copyright is Databricks', and it clears CRAN's checks on every release like anything else you install. What it does not come with is a support contract, and neither does `sparklyr`, `odbc`, or `sf`. What both do have is a public issue tracker and maintainers who fix things.
+
+Worth noting which way the risk actually points here. The open bugs this guide routes you around, `r-dbi/odbc#1024` and `sparklyr/sparklyr#3529`, are both in the Posit-maintained packages, not in `brickster`.
+
+## Next
+
+If you arrived from a search result and are not sure the page you found applies to you, the structural answer is above. If something has already gone wrong, [When it breaks](when-it-breaks.qmd) is organised by symptom.
+
+---
+
+This page rests on: none of the seventeen `spark.posit.co/guides/` pages mentions Databricks or Spark Connect, and `deployment/databricks-connect.html` is not linked from them; sparklyr's caching guide teaches `memory = TRUE` and `compute()`, which upstream states do not work on serverless; the S3 guide's mechanism requires adding a Hadoop jar to a managed cluster's classpath; `rsparkling` is off CRAN; the sparklyr `tidymodels` integration is a translation layer over MLlib with no `recipes` support, while `tune_grid_spark()` runs R on the executors and requires R and modelling packages on every node; brickster's documentation states no data type behaviour in either direction, its DBI backend is warehouse-only, `db_repl()` is cluster-only and R only on single-user clusters, and its cluster-management article assumes create rights; Posit's Databricks pages recommend `odbc` without qualification and do not mention brickster; none of the three sites documents the symptom of an expired credential, and Posit's only troubleshooting page covers ODBC driver installation; brickster 0.2.14 and sparklyr 1.9.5 are both current CRAN releases, published 2026-07-24 and 2026-06-20.
