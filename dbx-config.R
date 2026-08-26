@@ -30,11 +30,11 @@
 
 `%||%` <- function(x, y) if (is.null(x) || !nzchar(x)) y else x
 
-# Resolved from the project root, not the working directory. Quarto renders a
-# page with the cwd set to that page's own directory, so a bare "config.yml"
-# is invisible to anything under example/ or howdoi/. The symptom is not a
-# missing-file error but an empty cluster id, which surfaces much later as
-# "Cluster id cannot be empty" from the Databricks SDK.
+# Resolved from the project root rather than relying on the working directory.
+# A bare "config.yml" does in fact work during a render, because _quarto.yml
+# sets execute-dir: project. This does not depend on that setting, so the file
+# is also found when a script or an interactive session runs from a subdirectory.
+# Belt and braces, not a bug fix: nothing here was broken by the bare path.
 DBX_CONFIG_FILE <- if (requireNamespace("here", quietly = TRUE)) {
   here::here("config.yml")
 } else {

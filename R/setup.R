@@ -14,8 +14,9 @@
 # The compute targets. Sourced rather than assumed: wq_connect_odbc() below
 # calls dbx_http_path(), and a page that sources only this file would otherwise
 # fail with "object not found" at connection time rather than here.
-# here::here() because Quarto renders a page with the cwd set to that page's
-# own directory, so a bare path is invisible to anything under example/.
+# here::here() rather than a bare path, which also works during a render
+# because _quarto.yml sets execute-dir: project. This holds without it, for a
+# script or an interactive session started from a subdirectory.
 if (!exists("dbx_http_path")) {
   source(if (requireNamespace("here", quietly = TRUE)) {
     here::here("dbx-config.R")
