@@ -22,6 +22,20 @@ set -uo pipefail
 
 cd "$(dirname "$0")/.."
 
+# assets/redact.lua reads identifiers from the *process* environment. This
+# project keeps them in .Renviron, which only R reads, so they must be exported
+# here or the filter silently redacts nothing. It warns in that case; exporting
+# means it never has to.
+export_identifiers() {
+  local v
+  for v in DATABRICKS_CATALOG DATABRICKS_HOST; do
+    if [ -z "${!v:-}" ]; then
+      export "$v"="$(Rscript -e "cat(Sys.getenv('$v'))" 2>/dev/null | grep -v '^WARNING')"
+    fi
+  done
+}
+export_identifiers
+
 dry_run=0
 [ "${1:-}" = "--dry-run" ] && dry_run=1
 

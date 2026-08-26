@@ -132,6 +132,13 @@ website:
 execute:
   freeze: true
 
+# Redact workspace identifiers from every page. This is a second layer, not
+# the only one: it runs at pandoc time, after the freeze cache is written, so
+# it protects _site/ but not the tracked _freeze/. Masking a value before it
+# is stored is what the knitr hooks in R/setup.R do. See assets/redact.lua.
+filters:
+  - assets/redact.lua
+
 format:
   html:
     # Both modes must be declared: shipping only the light stylesheet leaves
