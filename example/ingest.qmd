@@ -5,6 +5,16 @@ execute:
   eval: false
 ---
 
+```{r}
+#| label: facts
+#| include: false
+#| eval: true
+# This page sets eval: false for the whole document, because its chunks are
+# shown rather than run. The inline fact below still has to resolve, so this
+# chunk opts back in. It reads a local file and opens no connection.
+source(here::here("R/facts.R"))
+```
+
 ::: {.callout-important appearance="simple"}
 
 **You almost certainly do not need this page.** The rest of this site assumes your data is already in Databricks, because that is the situation it was written for. This page exists only so the worked example can be reproduced from scratch, and it writes to a catalog rather than reading from one.
@@ -29,7 +39,6 @@ The route that scales goes through a file. Write Parquet locally, upload it to a
 # No printed output may carry the catalog this page runs against. Every query
 # below uses the real one; only what is shown is masked. See R/setup.R.
 source(here::here("R/setup.R"))
-source(here::here("R/facts.R"))
 wq_mask_output()
 ```
 
