@@ -102,8 +102,8 @@ if (length(orphans)) {
 
 drift <- character(0)
 for (key in names(facts)) {
-  declared <- facts[[key]]$used_by %||% character(0)
-  actual <- quoted_by[[key]] %||% character(0)
+  declared <- wq_or_else(facts[[key]]$used_by, character(0))
+  actual <- wq_or_else(quoted_by[[key]], character(0))
 
   missing <- setdiff(actual, declared)
   for (page in missing) {
@@ -115,7 +115,7 @@ for (key in names(facts)) {
 # migration a used_by list is a plan rather than a claim, so an unquoted page
 # on an entirely unquoted key is not drift.
 for (key in names(quoted_by)) {
-  declared <- facts[[key]]$used_by %||% character(0)
+  declared <- wq_or_else(facts[[key]]$used_by, character(0))
   actual <- quoted_by[[key]]
   for (page in setdiff(declared, actual)) {
     drift <- c(drift, glue("{key}: used_by lists {page}, which does not quote it"))
@@ -145,7 +145,7 @@ for (key in names(quoted_by)) {
   )
   spellings <- spellings[!is.na(spellings) & nzchar(spellings)]
 
-  for (page in union(quoted_by[[key]], entry$used_by %||% character(0))) {
+  for (page in union(quoted_by[[key]], wq_or_else(entry$used_by, character(0)))) {
     if (!file.exists(page)) next
     lines <- readLines(page, warn = FALSE)
     # Strip the inline calls themselves before looking for literals.
@@ -175,7 +175,7 @@ if (length(literal)) {
 # sentences and decide whether they still hold, and nothing else would say so.
 approx <- character(0)
 for (key in names(facts)) {
-  for (spelling in facts[[key]]$approx %||% character(0)) {
+  for (spelling in wq_or_else(facts[[key]]$approx, character(0))) {
     for (page in qmd) {
       lines <- readLines(page, warn = FALSE)
       for (i in grep(spelling, lines, fixed = TRUE)) {

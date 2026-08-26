@@ -23,7 +23,7 @@ wq_facts <- function(path = NULL) {
   if (!is.null(.wq_facts) && default) {
     return(.wq_facts)
   }
-  path <- path %||% wq_facts_path()
+  path <- wq_or_else(path, wq_facts_path())
   if (!file.exists(path)) {
     cli::cli_abort(c(
       "No fact table at {.path {path}}.",
@@ -45,7 +45,13 @@ wq_facts_path <- function() {
   }
 }
 
-`%||%` <- function(x, y) if (is.null(x)) y else x
+# Deliberately NOT defining `%||%` here. dbx-config.R defines its own with
+# different semantics, treating "" as absent as well as NULL, and sourcing this
+# file after that one would silently replace it. That breaks
+# dbx_cluster_id("multinode"), which then returns "" and surfaces much later as
+# "Cluster id cannot be empty" from the Databricks SDK. A local helper cannot
+# clobber anything.
+wq_or_else <- function(x, y) if (is.null(x)) y else x
 
 #' A measured number, formatted for the sentence it sits in.
 #'
@@ -123,5 +129,5 @@ wq_fact_pages <- function(key) {
   if (!key %in% names(facts)) {
     cli::cli_abort("No fact named {.val {key}} in the fact table.")
   }
-  facts[[key]]$used_by %||% character(0)
+  wq_or_else(facts[[key]]$used_by, character(0))
 }
