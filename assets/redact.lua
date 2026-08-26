@@ -83,7 +83,7 @@ function CodeBlock(el)
   if new then el.text = new; return el end
 end
 
--- Inline code in prose, e.g. `uk_water_quality.water.readings`.
+-- Inline code in prose, e.g. a fully qualified table name.
 function Code(el)
   local new = redact(el.text)
   if new then el.text = new; return el end
