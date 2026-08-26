@@ -21,9 +21,10 @@ So the design question changes. Not "how do I move less data" but "how do I get 
 
 Forking to run the repeats in parallel does not raise peak memory. It lowers it.
 
-```{r}
-#| label: setup
-#| message: false
+
+::: {.cell}
+
+```{.r .cell-code}
 library(purrr)
 library(tibble)
 library(dplyr)
@@ -38,9 +39,13 @@ sim_one <- function(i) {
   tibble(rep = i, boot_se = sd(b))
 }
 ```
+:::
 
-```{r}
-#| label: memory
+
+
+::: {.cell}
+
+```{.r .cell-code}
 peak_mb <- function(expr) {
   invisible(gc(reset = TRUE))
   force(expr)
@@ -57,6 +62,21 @@ tibble(
 )
 ```
 
+::: {.cell-output .cell-output-stdout}
+
+```
+# A tibble: 2 × 2
+  run               peak_mb
+  <chr>               <dbl>
+1 serial              110. 
+2 forked, 4 workers    51.6
+```
+
+
+:::
+:::
+
+
 Each worker holds only its own slice and returns a small summary, so the parent never has every intermediate in memory at once. This is the opposite of the big-table case, where pulling more rows into the session is exactly what hurts, and it is worth knowing because it removes a worry that would otherwise stop you parallelising.
 
 ## The shape
@@ -71,8 +91,10 @@ Recognising the shape matters more than matching your problem to an example. You
 
 Start here and keep it. The serial version is the one you can debug, and it is what every faster version has to agree with.
 
-```{r}
-#| label: serial
+
+::: {.cell}
+
+```{.r .cell-code}
 sim_one <- function(i) {
   set.seed(i)
   x <- rlnorm(200000, meanlog = 0, sdlog = 1)
@@ -87,15 +109,27 @@ serial <- system.time(
 round(serial, 1)
 ```
 
+::: {.cell-output .cell-output-stdout}
+
+```
+[1] 15.7
+```
+
+
+:::
+:::
+
+
 Single run in a Workbench session, not a benchmark. These numbers are measured when the page is built, on whatever that machine happened to be, so they will move between builds. They are here to make the comparison below meaningful, not to characterise your machine: what matters is the ratio, and that it is well short of fourfold on four workers.
 
 ## Running them across the cores you have, with `furrr::future_map()`
 
 One line changes:
 
-```{r}
-#| label: parallel
-#| message: false
+
+::: {.cell}
+
+```{.r .cell-code}
 library(future)
 library(furrr)
 
@@ -105,12 +139,38 @@ parallel <- system.time(
   results <- future_map(1:24, sim_one, .options = furrr_options(seed = TRUE)) |>
     list_rbind()
 )[["elapsed"]]
+```
 
+::: {.cell-output .cell-output-stderr}
+
+```
+Warning in serializedSize(x): 'package:dplyr' may not be available when loading
+```
+
+
+:::
+
+```{.r .cell-code}
 tibble(
   run = c("serial purrr::map", "furrr, 4 forked workers"),
   seconds = round(c(serial, parallel), 1)
 )
 ```
+
+::: {.cell-output .cell-output-stdout}
+
+```
+# A tibble: 2 × 2
+  run                     seconds
+  <chr>                     <dbl>
+1 serial purrr::map          15.7
+2 furrr, 4 forked workers     6.5
+```
+
+
+:::
+:::
+
 
 That is the whole argument for trying your own cores first. `map()` becomes `future_map()`, you add a plan, and nothing else about the code moves. Given how little it costs to try, try it before you consider anything involving the cluster.
 
@@ -191,3 +251,4 @@ Leaving the argument out works on both paths, which is what an example should do
 ---
 
 This page rests on: a 32.5 million row table shrinks server-side to a small result before the expensive work starts; forked parallel workers reduced peak R memory rather than increasing it; `spark_apply()` was slower than forked workers on a single node; `spark_apply()` has been observed distributing tasks across two worker machines, neither of them the driver; `spark_apply(group_by =)` fails on `rpy2` 3.6.x, and where it ran was slower than the default partitioning; `spark_apply(columns =)` takes a Spark type string from a client connection and a character vector on the cluster's own R session, and the wrong form fails without naming the argument.
+
