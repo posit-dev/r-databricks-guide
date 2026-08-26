@@ -499,9 +499,7 @@ Two checks, and the second is the one that matters. Row counts confirm the load;
 
 ```{r}
 #| label: verify
-glue("SHOW TABLES IN `{catalog}`.`{schema}`") |>
-  dbGetQuery(conn = con) |>
-  as_tibble()
+dbListTables(con, catalog_name = catalog, schema_name = schema)
 
 probe <- tbl(con, I(glue("{catalog}.{schema}.wfd_catchments"))) |>
   filter(!is.na(geom_wkb), !is.na(water_body_area_m2)) |>

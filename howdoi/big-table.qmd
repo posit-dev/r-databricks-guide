@@ -46,14 +46,23 @@ con <- dbConnect(
   DefaultStringColumnLength = 65535
 )
 
-tbl_name <- function(table) {
-  glue("{catalog}.{schema}.{table}")
-}
-
-readings <- tbl(con, I(tbl_name("hydrology_readings")))
+# in_catalog() builds the three-part name and quotes each part, so a
+# name needing escaping still works. It is dbplyr's own idiom for this
+# and beats pasting the parts together with glue().
+readings <- tbl(con, in_catalog(catalog, schema, "hydrology_readings"))
 ```
 
-`readings` is a query, not a table. It prints like a tibble, which is the point and also the trap: printing it runs a `LIMIT` on the server and shows you a handful of rows, and it never tells you how many there are.
+`readings` is a query, not a table. `glimpse()` is the quickest way to see its shape, and it needs no `collect()`: the columns and their types come back from the server, and a few values with them.
+
+```{r}
+#| label: glimpse
+readings |>
+  glimpse()
+```
+
+Read `Rows: ??` as the honest answer rather than a gap. `dbplyr` does not know how many rows there are, because counting them is a query it has not been asked to run. Everything else on that listing is metadata, which is why it costs nothing.
+
+Printing the object has the same shape of trap, and is worth seeing once:
 
 ```{r}
 #| label: preview
@@ -109,7 +118,7 @@ The analysis wants per-station flow variability. Choosing the right measures nar
 
 ```{r}
 #| label: measures
-measures <- tbl(con, I(tbl_name("hydrology_measures")))
+measures <- tbl(con, in_catalog(catalog, schema, "hydrology_measures"))
 
 flow_measures <- measures |>
   filter(
@@ -232,7 +241,7 @@ Once the data is in your session, there is nothing special about it. `per_statio
 
 ```{r}
 #| label: stations
-stations <- tbl(con, I(tbl_name("hydrology_stations")))
+stations <- tbl(con, in_catalog(catalog, schema, "hydrology_stations"))
 
 station_area <- stations |>
   select(station_id, catchment_area_km2) |>
@@ -258,7 +267,7 @@ Spark SQL has no ordinal-regression or cumulative-link primitive. If your respon
 #| label: polr
 library(MASS)
 
-catchments <- tbl(con, I(tbl_name("wfd_catchments")))
+catchments <- tbl(con, in_catalog(catalog, schema, "wfd_catchments"))
 
 eco <- catchments |>
   filter(!is.na(ecological_class), ecological_class != "Not assessed") |>

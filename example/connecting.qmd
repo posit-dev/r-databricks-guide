@@ -14,6 +14,24 @@ execute:
 Two connections, not one, and the reason is a bug rather than a preference. This page opens both, finds the tables, and runs the one check that has to happen before anything else: that geometry survives the trip into your session.
 
 ```{r}
+#| label: mask
+#| include: false
+# This site is published, so no printed output may carry the catalog this
+# example runs against. Every query below uses the real one; only what is
+# shown is masked. assets/redact.lua does the same at pandoc time, but that
+# runs after the freeze cache is written and _freeze/ is tracked, so the
+# masking has to happen here too.
+source(here::here("R/setup.R"))
+local({
+  mask_hook <- function(x, options) paste0("```\n", wq_mask_all(x), "```\n")
+  knitr::knit_hooks$set(
+    output = mask_hook, error = mask_hook,
+    warning = mask_hook, message = mask_hook
+  )
+})
+```
+
+```{r}
 #| label: setup
 #| message: false
 library(DBI)
@@ -32,18 +50,6 @@ Where the tables live comes from the environment rather than from anything typed
 #| label: location
 catalog <- Sys.getenv("DATABRICKS_CATALOG")
 schema  <- Sys.getenv("DATABRICKS_SCHEMA")
-```
-
-```{r}
-#| label: mask
-#| include: false
-# This site is published, so a rendered page must not
-# carry the catalog this example runs against. Queries
-# below all use the real `catalog`; shown() is applied
-# only to text on its way to being printed.
-shown <- function(x) {
-  gsub(catalog, "your_catalog", x, fixed = TRUE)
-}
 ```
 
 ## Opening the connection
@@ -81,23 +87,23 @@ Names in Unity Catalog have three parts: catalog, schema, table. The three-part 
 
 Rather than jumping to a table name you already know, the honest starting condition is not knowing where anything lives. Browsing costs nothing: these calls ask for metadata and move no data at all.
 
+Name the catalog and schema every time. `dbListTables(con)` without them is not an error and does not warn: it lists whatever the connection happens to default to, which on a shared warehouse is somebody else's schema. A list of unfamiliar table names is easy to read as "my grant has not come through yet" when it means "you are looking in the wrong place".
+
 ```{r}
 #| label: browse
-glue("SHOW TABLES IN `{catalog}`.`{schema}`") |>
-  dbGetQuery(conn = con) |>
-  as_tibble()
+dbListTables(con, catalog_name = catalog, schema_name = schema)
 ```
 
 A three-part name is what every query below needs, so it is worth building once rather than pasting together each time.
 
 ```{r}
 #| label: naming
-tbl_name <- function(table) {
-  glue("{catalog}.{schema}.{table}")
-}
+# in_catalog() is dbplyr's own way to build the three-part
+# name. It quotes each part separately, so a catalog or
+# table whose name needs escaping still works.
+readings_name <- in_catalog(catalog, schema, "hydrology_readings")
 
-tbl_name("hydrology_readings") |>
-  shown()
+readings_name
 ```
 
 ## What the tables look like
@@ -106,17 +112,15 @@ Here is the first place this stops resembling a laptop workflow. `tbl()` gives y
 
 ```{r}
 #| label: lazy-table
-# I() keeps dbplyr from quoting the dots in a
-# three-part name.
-readings <- tbl(
-  con,
-  I(tbl_name("hydrology_readings"))
-)
+readings <- tbl(con, readings_name)
 
-readings
+readings |>
+  glimpse()
 ```
 
-That printed a preview, and the data is still on Databricks. The object is a query, not a table: it describes what to fetch rather than holding anything.
+That listed the columns and their types, and the data is still on Databricks. `glimpse()` needs no `collect()`, because a column listing is metadata. The object is a query, not a table: it describes what to fetch rather than holding anything.
+
+`Rows: ??` is the honest answer rather than a gap. `dbplyr` has not counted them, because counting is a query nobody asked for.
 
 Counting proves the point, because the count runs on the server and only the answer comes back.
 
@@ -141,7 +145,7 @@ The other tables are small by comparison, and their sizes are worth knowing now 
 # integer64, and map_dbl() would otherwise reinterpret
 # its bits rather than convert them.
 count_rows <- function(table) {
-  tbl(con, I(tbl_name(table))) |>
+  tbl(con, in_catalog(catalog, schema, table)) |>
     count() |>
     pull(n) |>
     as.numeric()
@@ -167,7 +171,7 @@ The check compares two numbers: the length the server says a value has, and the 
 
 ```{r}
 #| label: truncation-check
-longest_five <- tbl(con, I(tbl_name("wfd_catchments"))) |>
+longest_five <- tbl(con, in_catalog(catalog, schema, "wfd_catchments")) |>
   filter(!is.na(geom_wkb)) |>
   # base64() and length() both run on the server, so
   # `declared` is the length before the trip.
@@ -217,7 +221,7 @@ Arriving at full length is necessary but not sufficient. A geometry that parses 
 
 ```{r}
 #| label: area-check
-catchments <- tbl(con, I(tbl_name("wfd_catchments"))) |>
+catchments <- tbl(con, in_catalog(catalog, schema, "wfd_catchments")) |>
   filter(!is.na(geom_wkb), !is.na(water_body_area_m2)) |>
   transmute(
     g = base64(geom_wkb),
