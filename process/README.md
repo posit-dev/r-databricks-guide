@@ -10,9 +10,13 @@ So the test for anything added: could a stranger read it without learning who th
 
 **These files are tracked and therefore published**, and are subject to `scripts/check-public.sh` like anything else. They are not part of the site: `_quarto.yml` has an explicit render list and `process/` is not on it. Do not add it, and do not link to these files from a page.
 
-| File | What it covers |
-|----|----|
-| [`drafting-pages.md`](drafting-pages.md) | Drafting several pages at once: sequencing, batching by compute, briefing subagents, verification |
+| File | What it covers | Read it when |
+|----|----|----|
+| [`drafting-pages.md`](drafting-pages.md) | Sequencing, batching by compute, briefing subagents, verification | Writing or revising more than one page |
+| [`presentation-layer.md`](presentation-layer.md) | Theme files, the type scale, the width arithmetic for code blocks | Touching `assets/*.scss`, the `format:` block, or a home-page code line |
+| [`upstream-changelog.md`](upstream-changelog.md) | How findings arrive, the consumed-through marker, what each entry changed | Acting on a changelog entry, or widening a `rests on:` line |
+| [`PROBLEM-freeze-cache-staleness.md`](PROBLEM-freeze-cache-staleness.md) | An open bug: the freeze check can pass while the cache is stale | Working on `scripts/check-freeze.sh`, or if a page publishes output you did not expect |
+| [`DESIGN-fact-table.md`](DESIGN-fact-table.md) | A proposal, not built: measured numbers in a data file rather than typed into prose | Deciding what to do about a number that keeps going stale |
 
 ## The short version
 

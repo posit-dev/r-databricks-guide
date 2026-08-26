@@ -1,0 +1,52 @@
+# Where the findings come from, and what has been taken
+
+*Split out of `CLAUDE.md` to keep that file navigable. Read this when acting on an upstream changelog entry, or when adding a claim to a page's `rests on:` line.*
+
+The research that established what this guide says lives in a separate, private repository. It reaches this one two ways, and they carry different things. **Facts arrive as a downstream changelog**, prose to be read and acted on, never files to be copied. **Code arrives in `skills/`**, as runnable examples upstream has executed, written into the shared copy directly. Nothing else crosses: the site's own pages are written here.
+
+So a finding that changes what the guide says comes through the changelog even when the script demonstrating it lands in `skills/`. If a skill gains an example whose claim is not in the changelog, that is a gap upstream needs to close, not a fact to promote onto a page.
+
+**A changelog entry may be backed by a longer briefing, and the briefing is worth reading before acting on the entry.** Upstream keeps these in a `downstream/` directory beside the changelog, one file per piece of work too large for an entry: the design, the data, the measurements, the code that ran, and what is still open. An entry is a notification; the briefing is the evidence. They are written to be read without opening the rest of that repository, and they deliberately carry no opinion about how the guide should present anything, which is this repo's call.
+
+Read the briefing when an entry's numbers are going onto a page, because the entry compresses and the compression loses things that change what to write. The 2026-08-24 spatial entry is the worked case: its briefing showed that the geography type **rejects** a geometry-typed distance call, so advice to "reach for geography" that the entry's wording supported would have sent the reader into an error. It also named twenty-two absent functions the entry did not mention, one of which (`st_makevalid`) is a routine `sf` step with no server-side equivalent.
+
+Each page here should carry a short note naming the claims it rests on, phrased as claims rather than file references, so a changelog entry can be matched to the pages it affects without either repo knowing the other's internals.
+
+### What has been taken from the changelog
+
+Entries are dated and newest-first upstream, so a date and a heading is enough to say where the guide has read up to. The marker below is the only state this side keeps about the other repo, and it deliberately records no path, no commit and no file name.
+
+**Consumed through: 2026-08-24, "There are 97 built-in spatial functions, and four of them are missing on cluster compute".**
+
+To bring the guide up to date, read the entries above that marker, match each `Bears on:` line against the `rests on:` lines here, change what needs changing, then move the marker. Matching is a judgement, not a string comparison: an entry can leave a claim standing but incomplete, which reads as agreement until you look at what it adds. Move the marker only for entries you have actually acted on or actively declined, and note a declined one in the commit message, or the next reader will re-litigate it.
+
+The 2026-08-23 batch was read on 2026-08-24 while drafting the nine `howdoi/` pages, and this is where it landed:
+
+- **Spatial functions depend on the warehouse type.** The "23 of 23 probed `ST_` functions" figure was measured on a Pro warehouse running serverless and is not general: the functions are documented as unavailable on the older Classic type. *Superseded by the 2026-08-24 entry below, which replaced the ratio with a count of 97 and narrowed the advice about reading an unknown-function error.*
+- **Server-side spatial aggregation is narrower than the documentation implies.** Grouping by an ordinary key while aggregating geometry works; only grouping by a raw geometry column fails, for want of an ordering. `polygons.qmd` recommends the working pattern and does not repeat the broader-sounding warning.
+- **`dbWriteTable()` on an `sf` object silently writes geometry as a string column** through the brickster backend. `howdoi/results.qmd` says so, and says a table round trip is therefore not lossless for spatial data.
+- **`future` and `furrr` are absent from the runtime while base `parallel` is present.** This is the environmental fact `CODE-STYLE.md` rests on, and `howdoi/monte-carlo.qmd` keeps the framing environmental rather than presenting `parallel` as the better tool.
+- **Partition count is the dial controlling how much of a machine a job uses**, and the worker sees the whole machine rather than its slice. Recorded here but not put on a page: it overlaps `example/parallel.qmd`, which is finished and already covers the ground.
+- **Native geometry arrives as prefixed text** (`SRID=4326;POINT(1 2)`), a different path from the `BINARY`/WKB route. Not on a page: no page's `rests on:` line carries it, and conflating it with the truncation story on `connect.qmd` would be worse than omitting it.
+- **A cluster id and a warehouse id want opposite storage rules**, and neither is a credential. `howdoi/connect.qmd` already says to keep identifiers in a configuration file and validate the profile name; the split precedence and the not-a-credential point are consistent refinements that have not been added.
+
+Declined for now, and why: the last two in that list, native geometry as prefixed text and the identifier storage rules, bear on no page's factual budget as written. Acting on either would mean widening a `rests on:` line, which is a scaffolding decision rather than a drafting one.
+
+The 2026-08-24 spatial-functions entry was read on 2026-08-25, and it supersedes part of the batch above:
+
+- **The count is 97, not a coverage ratio, and it replaces "23 of 23".** That figure measured a hand-picked probe list rather than the platform, so `howdoi/polygons.qmd` now states the count and its `rests on:` line no longer claims a ratio. The vendor's "80+" and "90+" are stale marketing figures and are not worth citing.
+- **The all-purpose cluster has fewer spatial functions than the warehouse, not more**, missing four. `polygons.qmd` names them and points at `st_point()` as the substitute for `st_makepoint()`, because the direction of that gap is the opposite of what a reader would assume.
+- **An unknown-function error cannot distinguish wrong compute from a typo**, being byte-identical either way. This narrows what the previous batch put on that page, which told her the compute was the likely cause: `polygons.qmd` now says to check both.
+- **Server-side distance, length and area are planar while `sf` is geodesic on unprojected coordinates.** This is the entry's most expensive fact, silent and worth five orders of magnitude, so it earned a new section on `polygons.qmd` and a fourth cause on `howdoi/check-the-answer.qmd`, whose ranking of discrepancies by size previously had no bucket for a large difference that is nobody's mistake.
+- **The text truncation also bites a value a server-side function produced**, not only a column read from a table. `howdoi/connect.qmd` says so, since a reader building a spatial result in a query would otherwise not expect it.
+- Geometry support being generally available rather than Public Preview, and the per-function documentation of the Classic exclusion, are recorded here and changed no page: the guide never claimed preview status, and `polygons.qmd` already told her to ask whoever provisioned the compute.
+
+Reading that entry's briefing then added four things the entry alone did not support, and corrected one error the entry alone had introduced:
+
+- **`ref/spatial-functions.qmd` is new**, scaffolded rather than written, because "does this function exist on my compute" is a lookup and not a task. It is framed around `SHOW FUNCTIONS LIKE 'st_*'` rather than around the counts, since the counts are the most perishable thing in the briefing and the query outlives them.
+- **The geography type is not a fix for a planar answer.** `st_distance` rejects a geography argument outright, so `polygons.qmd` now names `st_distancesphere()` and `st_distancespheroid()` as the geodesic route and says geography is a different path rather than a cast. An earlier draft here told her to reach for geography, which would have failed.
+- **About twenty `sf` staples are absent from both kinds of compute**, `st_makevalid()` most consequentially, because repairing an invalid geometry is routine in `sf` and the server will diagnose but not repair. On `polygons.qmd` and on the new ref page.
+- **`sf` and the server differ in return shape**, not only in value: sparse index list against boolean, matrix against scalar, and `st_buffer()` arity. That is porting friction rather than a trap, so it sits on the ref page with a short mention on `polygons.qmd`.
+- **`UNRESOLVED_ROUTINE` has three causes, not one.** `howdoi/big-table.qmd` taught it as the signature of a `dbplyr` translation gap; it is raised identically for an absent function and for a misspelling. Corrected there. `example/reducing.qmd` carries the same framing in a narrower context where it is defensible, and is frozen, so it is **left alone deliberately**: fixing it costs a credentialed re-render for a sentence that is true of the case it describes.
+
+Earlier entries not spent: the river network reading as basins, and the silent `config` profile fallback, neither of which bears on a page yet. The DBR 18 entry **is** now spent: `admin/geospatial-setup.qmd` states that the guide addresses DBR 18.1 and names the rolling-alias hazard.

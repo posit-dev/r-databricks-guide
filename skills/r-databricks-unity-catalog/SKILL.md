@@ -1,6 +1,6 @@
 ---
 name: r-databricks-unity-catalog
-description: Finding and querying Unity Catalog data from R. Covers browsing catalogs, schemas and tables with brickster, querying with dbplyr, deciding where the collect() line goes, and using dplyr::sql() for expressions dbplyr cannot translate or tbl(con, sql()) to start from a whole hand-written query. Load when locating a table or writing a query; load r-databricks-connections first to choose a connection path.
+description: Finding and querying Unity Catalog data from R. Covers browsing catalogs, schemas and tables with brickster, writing dbplyr pipelines rather than SQL strings (including why spatial ST_ functions and the odbc BINARY bug are not reasons to drop to SQL), in_catalog() for three-part names, glimpse() without collect(), deciding where the collect() line goes, and using dplyr::sql() for expressions dbplyr cannot translate or tbl(con, sql()) to start from a whole hand-written query. Load when locating a table or writing a query; load r-databricks-connections first to choose a connection path.
 ---
 
 # Finding and querying Unity Catalog data from R
@@ -13,6 +13,35 @@ These are two different operations, with two different costs. Browsing asks Unit
 
 Querying is different: it is `dbplyr` over a DBI connection, and it moves data. Find the table first with the browsing calls, confirm it is the one you want, then query it. See `r-databricks-brickster` for the full `db_uc_*` family and its argument list.
 
+## Write `dplyr`, not SQL strings
+
+**Default to a `dbplyr` pipeline. Reach for `dbGetQuery()` only when nothing else reaches the thing you need.** The exceptions are narrow and worth naming, because two plausible-sounding ones are wrong:
+
+- **Spatial `ST_` functions do not need SQL.** `dbplyr` sends a function name it does not recognise to the server verbatim, so `st_area()`, `st_setsrid()`, `st_union_agg()` and the rest push down from an ordinary pipeline with no `sql()` wrapper. `[verified: ran it on 2026-08-25]`
+- **The `odbc` `BINARY` bug does not need SQL either.** It constrains which *connection* you open, not which idiom you write: `brickster` ships a full `dbplyr` backend, so `tbl(acon, ...) |> collect()` carries `BINARY` intact. `[verified: ran it on 2026-08-25]`
+
+What genuinely needs a SQL string is short: `SHOW FUNCTIONS`, `DESCRIBE` and friends; DDL (`CREATE`, `DROP`, `COMMENT ON`); and a scalar expression with no `FROM` clause, which has no table to hang a `tbl()` on. `[verified: ran it on 2026-08-25]`
+
+Two more replacements worth knowing, both of which remove a hand-built string:
+
+| Instead of | Use | Why |
+|----|----|----|
+| `dbGetQuery(con, "SHOW TABLES IN ...")` | `dbListTables(con, catalog_name =, schema_name =)` | Same result, named arguments |
+| `tbl(con, I(glue("{cat}.{sch}.{tbl}")))` | `tbl(con, in_catalog(cat, sch, tbl))` | Quotes each part, so a name needing escaping still works |
+
+**Always name the catalog and schema in `dbListTables()`.** Omitting them is not an error and does not warn: it lists whatever the connection defaults to, which on a shared warehouse is somebody else's schema. A list of unfamiliar tables then reads as a missing grant when it means you are looking in the wrong place. `[verified: ran it on 2026-08-25]`
+
+## `glimpse()` works without `collect()`
+
+To see a table's shape, `glimpse()` beats printing it or taking a `head()`. It returns the columns, their types and a few values, and it needs no `collect()` because a column listing is metadata.
+
+```r
+tbl(con, in_catalog(catalog, schema, "measurements")) |>
+  glimpse()
+```
+
+It prints `Rows: ??`, which is the honest answer rather than a gap: `dbplyr` has not counted the rows, because counting is a query nobody asked for. `[verified: ran it on 2026-08-25]`
+
 ## The `collect()` line, as the governing idea
 
 Every `dbplyr` pipeline has one line that decides where the work happens: above it, the work runs on Databricks; below it, the work runs in R. The only real question for any pipeline is how big the data is when it crosses that line.
@@ -20,7 +49,7 @@ Every `dbplyr` pipeline has one line that decides where the work happens: above 
 ```r
 library(dplyr)
 
-result <- tbl(con, I("catalog.schema.measurements")) |>
+result <- tbl(con, in_catalog("catalog", "schema", "measurements")) |>
   filter(sample_year >= 2020) |>
   group_by(site_id) |>
   summarise(n = n(), mean_value = mean(value, na.rm = TRUE)) |>
@@ -34,7 +63,7 @@ Vendor documentation calls this "pushdown" (the term you will see if you go look
 Two habits catch a pipeline that would otherwise land an unexpectedly large result in R's memory. Use `dplyr::show_query()` to see what SQL is actually being sent, and check a row count before collecting rather than finding out after:
 
 ```r
-pipeline <- tbl(con, I("catalog.schema.measurements")) |> filter(sample_year >= 2020)
+pipeline <- tbl(con, in_catalog("catalog", "schema", "measurements")) |> filter(sample_year >= 2020)
 pipeline |> show_query()
 pipeline |> summarise(n = n()) |> collect()   # how big is it before you pull it
 ```
@@ -46,7 +75,7 @@ If the count is small, `collect()` the real pipeline with confidence. If it is n
 `dbplyr` cannot translate every expression to Spark SQL, and its coverage is not the real ceiling. `dplyr::sql()` embeds arbitrary Spark SQL inside an otherwise ordinary `dbplyr` pipeline, including functions `dbplyr` has no translation for and Databricks' native spatial functions. So the actual ceiling is "what Spark SQL can express", a vastly larger set than "what `dbplyr` happens to translate". `[verified: ran it on 2026-08-04]`
 
 ```r
-tbl(con, I("catalog.schema.sites")) |>
+tbl(con, in_catalog("catalog", "schema", "sites")) |>
   mutate(code = sql("regexp_extract(site_name, '([A-Z]{2}[0-9]+)', 1)")) |>
   collect()
 ```

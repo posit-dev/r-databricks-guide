@@ -16,6 +16,7 @@ Start with `r-databricks-connections`. It routes to the rest.
 ## Conventions
 
 - **Base pipe `|>` only.** sparklyr's documentation uses the magrittr pipe throughout; translate it.
+- **`dbplyr` pipelines, not SQL strings.** Default to `tbl()` and verbs. Neither spatial `ST_` functions nor the `odbc` `BINARY` bug is a reason to drop to `dbGetQuery()`: unknown function names pass through to the server verbatim, and the `BINARY` bug constrains the connection rather than the idiom. `r-databricks-unity-catalog` has the detail and the short list of things that genuinely need SQL.
 - **Evidence tags.** `[verified: ran it on DATE]` means someone ran it. `[documented: read it on DATE]` means someone read the vendor documentation. `[unresolved]` means nobody knows. A documented claim is never presented as a measured one.
 - **Timings are not benchmarks.** Warehouse submit latency varies by up to 6.5× and results cache. Figures carry a date and a tag.
 - **No customer or project detail.** These skills are portable by construction. Anything naming a specific catalog, warehouse, cluster or dataset belongs in a project-local skill.

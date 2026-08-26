@@ -102,11 +102,32 @@ The `i` and `x` bullets are worth the extra line: the first line says what is wr
 | `aggregate()` | `group_by()` then `summarise()` |
 | `merge()` | `left_join()`, `inner_join()` |
 
-Table references use `tbl(con, I(...))`. The `I()` is required: it marks the name as already-qualified so `dbplyr` does not re-quote it.
+### Querying Databricks
+
+**Write a `dbplyr` pipeline, not a SQL string.** `dbGetQuery()` is for the few things nothing else reaches, and two plausible reasons for reaching for it are wrong:
+
+- Spatial `ST_` functions **do not** need SQL. `dbplyr` sends an unrecognised function name to the server verbatim, so `st_area()` and its siblings push down from an ordinary pipeline with no `sql()` wrapper.
+- The `odbc` `BINARY` bug **does not** need SQL. It decides which connection you open, not which idiom you write: `brickster` ships a full `dbplyr` backend.
+
+What genuinely needs a SQL string: `SHOW FUNCTIONS` and `DESCRIBE`; DDL (`CREATE`, `DROP`, `COMMENT ON`); and a scalar expression with no `FROM` clause, which has no table to hang a `tbl()` on.
+
+| Instead of | Use |
+|----|----|
+| `dbGetQuery(con, "SELECT ...")` | `tbl()` and `dplyr` verbs |
+| `dbGetQuery(con, "SHOW TABLES IN ...")` | `dbListTables(con, catalog_name =, schema_name =)` |
+| `tbl(con, I(glue("{catalog}.{schema}.{t}")))` | `tbl(con, in_catalog(catalog, schema, t))` |
+| `head(5)` to see a table's shape | `glimpse()`, which needs no `collect()` |
 
 ```r
-readings <- tbl(con, I(tbl_name("hydrology_readings")))
+readings <- tbl(con, in_catalog(catalog, schema, "hydrology_readings"))
+
+readings |>
+  glimpse()
 ```
+
+`in_catalog()` quotes each part of the name separately, so a catalog or table whose name needs escaping still works. It replaces the older `tbl(con, I(...))` habit, where the `I()` existed only to stop `dbplyr` re-quoting a name that already had dots in it.
+
+Name the catalog and schema in `dbListTables()` every time. Omitting them is not an error and does not warn: it lists whatever the connection defaults to, which on a shared warehouse is someone else's schema.
 
 ## Pipes
 
