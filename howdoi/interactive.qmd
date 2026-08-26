@@ -29,7 +29,7 @@ wq_mask_output()
 #| label: connect
 library(sparklyr)
 library(dplyr)
-library(glue)
+library(dbplyr)
 
 catalog <- Sys.getenv("DATABRICKS_CATALOG")
 schema <- Sys.getenv("DATABRICKS_SCHEMA")
@@ -48,7 +48,7 @@ A table reference then behaves the way you expect:
 
 ```{r}
 #| label: count
-stations <- tbl(sc, I(glue("{catalog}.{schema}.hydrology_stations")))
+stations <- tbl(sc, in_catalog(catalog, schema, "hydrology_stations"))
 
 stations |>
   count() |>

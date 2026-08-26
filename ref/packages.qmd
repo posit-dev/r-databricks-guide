@@ -28,17 +28,12 @@ Run it in the context you are asking about. That is the whole discipline of this
 #| label: worker-check
 library(sparklyr)
 library(dplyr)
-library(glue)
+library(dbplyr)
 
 sc <- spark_connect(
   method = "databricks_connect",
   cluster_id = Sys.getenv("DATABRICKS_CLUSTER_ID")
 )
-
-tbl_name <- function(table) {
-  glue("{Sys.getenv('DATABRICKS_CATALOG')}.\
-        {Sys.getenv('DATABRICKS_SCHEMA')}.{table}")
-}
 
 check <- function(df) {
   pkgs <- c("sf", "terra", "dplyr")
@@ -48,7 +43,11 @@ check <- function(df) {
   )
 }
 
-tbl(sc, I(tbl_name("hydrology_stations"))) |>
+tbl(sc, in_catalog(
+  Sys.getenv("DATABRICKS_CATALOG"),
+  Sys.getenv("DATABRICKS_SCHEMA"),
+  "hydrology_stations"
+)) |>
   head(4) |>
   select(id = station_id) |>
   spark_apply(check, columns = "pkg string, ok boolean") |>
