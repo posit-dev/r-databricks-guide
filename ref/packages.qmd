@@ -81,7 +81,8 @@ That last sentence is the one worth keeping. An install that works when someone 
 
 This is the good case, and it is worth being able to recognise it. Someone has already paid the build cost once, and left the result on a Unity Catalog volume:
 
-```r
+```{r}
+#| eval: false
 .libPaths(c("/Volumes/your_catalog/your_schema/r_library", .libPaths()))
 ```
 

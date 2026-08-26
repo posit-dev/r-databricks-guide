@@ -7,7 +7,8 @@ subtitle: "Getting an object or a file to the machine that will use it"
 
 Write the thing to a Unity Catalog volume with `brickster::db_volume_write()`, and read it in the worker as an ordinary local file from `/Volumes/...`. That is the answer up to 5 GiB, and it is the answer for anything file-shaped.
 
-```r
+```{r}
+#| eval: false
 library(brickster)
 
 db_volume_write(
@@ -18,7 +19,8 @@ db_volume_write(
 
 Inside the worker it is just a file, and `readRDS()` reads it:
 
-```r
+```{r}
+#| eval: false
 f <- function(df) {
   model <- readRDS("/Volumes/your_catalog/your_schema/scratch/model.rds")
   # ... use it
@@ -49,7 +51,8 @@ This is the third place `BINARY` behaves unlike bytes, and if you have met eithe
 
 Use a Spark DDL string instead:
 
-```r
+```{r}
+#| eval: false
 spark_apply(src, f, columns = "pkg string, ok boolean")
 ```
 

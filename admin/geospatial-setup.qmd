@@ -35,7 +35,8 @@ The second is that the repository decides whether to serve binaries by reading t
 
 Set the user agent explicitly to fix it:
 
-```r
+```{r}
+#| eval: false
 options(HTTPUserAgent = sprintf(
   "R/%s R (%s)",
   getRversion(),

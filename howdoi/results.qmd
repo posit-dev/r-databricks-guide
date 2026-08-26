@@ -9,7 +9,8 @@ A volume takes anything file-shaped; a table is for what will be queried again. 
 
 A volume behaves like a directory. Write to it from your session, read it back, and the object arrives as it left:
 
-```r
+```{r}
+#| eval: false
 library(brickster)
 library(tibble)
 library(glue)
@@ -30,7 +31,8 @@ db_volume_write(
 
 Reading it back needs a local destination, and there is no `overwrite` argument on that side:
 
-```r
+```{r}
+#| eval: false
 back <- tempfile(fileext = ".rds")
 db_volume_read(glue("{vol}/flow_variability/results.rds"), back)
 readRDS(back)
@@ -44,7 +46,8 @@ its column types and its attributes exactly.
 
 The table route has a trap worth knowing before you meet it. `dbWriteTable()` hard errors above roughly 50,000 rows without a staging volume, and it errors rather than slowing down, so a script that worked on a pilot subset fails outright on the full run. Under that size it is unremarkable:
 
-```r
+```{r}
+#| eval: false
 dbWriteTable(
   con,
   DBI::Id(
@@ -81,7 +84,8 @@ The scheduled run is the one most likely to drift, because nobody is watching it
 
 If your workspace has a prebuilt library tree on a volume, that is the good case, and it is worth recognising because someone has already paid the build cost. Prepend it and the packages are there:
 
-```r
+```{r}
+#| eval: false
 .libPaths(c(
   glue("/Volumes/{catalog}/{schema}/code/rlib-4.3"),
   .libPaths()

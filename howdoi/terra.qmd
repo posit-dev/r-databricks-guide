@@ -21,7 +21,8 @@ Sending R to the data means running your `terra` code inside a worker on the clu
 
 Two lines, run in the context you are asking about:
 
-```r
+```{r}
+#| eval: false
 library(terra)
 terra::gdal()
 ```
@@ -40,7 +41,8 @@ A disk-backed raster serialises its file path, not its pixels. So when you close
 
 This is the fact that decides whether the option works at all, and it is unintuitive, because in your session the object looks entirely self-contained. It prints its extent, its resolution, its CRS and its layer names, and it will hand you values on request. The pixels are not in it. Compare what the object serialises to against the file it came from:
 
-```r
+```{r}
+#| eval: false
 library(terra)
 
 f <- system.file("ex/elev.tif", package = "terra")
@@ -63,7 +65,8 @@ Eight and a half thousand cells, and the whole serialised object is 857 bytes. I
 
 What the object holds instead is the source, and `terra` will tell you so:
 
-```r
+```{r}
+#| eval: false
 basename(sources(r))
 ```
 
@@ -73,7 +76,8 @@ basename(sources(r))
 
 The consequence is that the failure arrives in the worker as a missing file, which reads like a permissions problem rather than a serialisation one. You can see the shape of it locally, without a cluster, by writing a raster out, serialising it, then taking the file away before you unserialise. That is exactly what a worker experiences:
 
-```r
+```{r}
+#| eval: false
 copy <- file.path(tempdir(), "elev-copy.tif")
 writeRaster(r, copy, overwrite = TRUE)
 

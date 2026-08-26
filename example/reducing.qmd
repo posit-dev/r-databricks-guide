@@ -91,7 +91,8 @@ measures |>
 
 The analysis wants daily mean flow per station. The obvious way to write that is to filter the readings first and join afterwards, which is the wrong order:
 
-```r
+```{r}
+#| eval: false
 readings |>
   filter(quality == "Good") |>
   inner_join(measures, by = join_by(measure == notation)) |>
@@ -106,7 +107,8 @@ The rule generalises: **filter the small side before the join, not the large sid
 
 Picking daily mean flow needs a match on the end of `value_statistic`, and the natural R way to write that does not survive the trip:
 
-```r
+```{r}
+#| eval: false
 filter(measures, grepl("mean", value_statistic))
 ```
 

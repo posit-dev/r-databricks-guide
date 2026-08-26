@@ -228,7 +228,8 @@ Worth its own section, because it cost an afternoon and because nothing about it
 
 The natural way to jitter points is to add a matrix of offsets to the geometry:
 
-```r
+```{r}
+#| eval: false
 # Do not do this.
 shifted <- st_geometry(points) + cbind(dx, dy)
 ```

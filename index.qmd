@@ -27,7 +27,8 @@ Most of what you will do falls into one of these. They are not a taxonomy to lea
 
 When the table is large, one line decides everything.
 
-```r
+```{r}
+#| eval: false
 readings |>                  # a large table
   inner_join(gauges) |>      #   on Databricks
   filter(!is.na(value)) |>   #   on Databricks
@@ -77,7 +78,8 @@ digraph collect_boundary {
 
 When the repeats are the expensive part, almost nothing crosses.
 
-```r
+```{r}
+#| eval: false
 sites <- readings |>         # the same table
   group_by(site_id) |>       #   on Databricks
   summarise(fit_params()) |> #   on Databricks
