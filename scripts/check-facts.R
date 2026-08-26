@@ -200,8 +200,14 @@ if (length(approx)) {
 # working while DATABRICKS_CLUSTER_ID is set, and only the "multinode" profile
 # breaks, surfacing far away as "Cluster id cannot be empty" from the SDK.
 #
-# This repo hit exactly that when R/facts.R was added. One definition is the
-# invariant; anything else is the bug.
+# This repo hit exactly that when R/facts.R was added, and the guard is here
+# rather than in a comment because of how narrow the reachable failure is.
+# "multinode" has one call site, example/bootstrap.qmd, inside a section gated
+# on WQ_RUN_CLUSTER, on a page that is freeze: true and so does not re-execute
+# on an ordinary render. The only way to reach it is a credentialed cluster
+# re-render, which needs a roughly seven-minute cold start. Nothing cheaper
+# fails, so a comment would be read only after paying that cost twice.
+# One definition is the invariant; anything else is the bug.
 r_files <- c(
   list.files(".", pattern = "[.](R|qmd)$", recursive = TRUE)
 )
