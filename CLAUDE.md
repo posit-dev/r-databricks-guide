@@ -76,6 +76,7 @@ These are not stylistic. Getting one wrong makes the guide untrustworthy to this
 Rscript check-databricks-access.R    # smoke test: run this FIRST, and before blaming a document
 scripts/check-public.sh              # publication safety. Run before any push, and after adding any file
 scripts/check-freeze.sh              # freeze cache matches source. Run after editing anything in example/
+scripts/check-facts.R                # fact table: staleness, orphans, used_by drift, literals left in prose
 scripts/install-hooks.sh             # once per clone: pre-push runs both checks
 quarto render                        # whole site -> _site/
 quarto preview                       # live preview
@@ -239,6 +240,7 @@ The site currently violates this: 54 code blocks across `concepts/`, `howdoi/`, 
 - **Base pipe `|>` only, never `%>%`.** Most Spark-related R documentation uses `%>%`, so translate anything borrowed.
 - **Method is in `process/`, and drafting more than one page starts there.** `process/drafting-pages.md` records the order that works: read the changelog batch before writing rather than during, reuse `R/setup.R` rather than rebuilding its helpers, batch the work by which compute it needs, and verify by reading rendered output rather than trusting exit 0. It exists because each of those was learned by paying for the alternative.
 - **Code style is in `CODE-STYLE.md`, and it is not advisory.** The tidyverse is the default idiom because the reader is fluent in it: `glue()` rather than `paste()` or `sprintf()`, `cli` rather than `message()` or `stop()`, `dplyr` and `purrr` rather than `[` and `lapply()`. `example/reducing.qmd` carries the reference preamble. Read that file before writing R for this repo.
+- **A measured number quoted on more than one page belongs in `facts/measurements.yml`.** Eleven do. Quote one with `` `r wq_fact("key")` `` rather than typing it, so re-measuring updates every page at once; `"words"`, `"round"` and `"value"` cover the other registers. Definitional numbers (EPSG codes, `65535`) stay in the prose, and a number a page can compute next to the code that produced it is better still. `scripts/check-facts.R` reports what has drifted. See `process/DESIGN-fact-table.md`.
 - **Prefer saying where the code runs** to saying "pushdown". At most once per page, as a parenthetical gloss, so the term still connects to vendor documentation.
 
 ## Where the findings come from

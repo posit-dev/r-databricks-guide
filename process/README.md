@@ -16,7 +16,7 @@ So the test for anything added: could a stranger read it without learning who th
 | [`presentation-layer.md`](presentation-layer.md) | Theme files, the type scale, the width arithmetic for code blocks | Touching `assets/*.scss`, the `format:` block, or a home-page code line |
 | [`upstream-changelog.md`](upstream-changelog.md) | How findings arrive, the consumed-through marker, what each entry changed | Acting on a changelog entry, or widening a `rests on:` line |
 | [`PROBLEM-freeze-cache-staleness.md`](PROBLEM-freeze-cache-staleness.md) | A fixed bug, kept for its reasoning: the freeze check could pass while the cache was stale | Working on `scripts/check-freeze.sh` or `check-freeze-code.py`, or if a page publishes output you did not expect |
-| [`DESIGN-fact-table.md`](DESIGN-fact-table.md) | A proposal, not built: measured numbers in a data file rather than typed into prose | Deciding what to do about a number that keeps going stale |
+| [`DESIGN-fact-table.md`](DESIGN-fact-table.md) | Built: measured numbers in `facts/measurements.yml`, quoted with `wq_fact()` rather than typed | Adding or re-measuring a number that appears on more than one page |
 | [`in-catalog-conversion.md`](in-catalog-conversion.md) | Done: why three-part names use `in_catalog()`, and why a half-finished render must be reverted rather than committed | Writing a new `tbl()` call, or about to start a change that will invalidate several freeze caches |
 
 ## The short version
