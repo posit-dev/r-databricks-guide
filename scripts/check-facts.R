@@ -191,6 +191,39 @@ if (length(approx)) {
   cli_ul(approx)
 }
 
+# --- nobody else may define %||% -------------------------------------------
+
+# dbx-config.R owns `%||%` and gives it non-standard semantics: "" counts as
+# absent, and dbx_cluster_id() relies on that to fall through to config.yml.
+# A second definition anywhere silently replaces it, wherever it is sourced
+# later. The damage is asymmetric and therefore easy to miss: `default` keeps
+# working while DATABRICKS_CLUSTER_ID is set, and only the "multinode" profile
+# breaks, surfacing far away as "Cluster id cannot be empty" from the SDK.
+#
+# This repo hit exactly that when R/facts.R was added. One definition is the
+# invariant; anything else is the bug.
+r_files <- c(
+  list.files(".", pattern = "[.](R|qmd)$", recursive = TRUE)
+)
+r_files <- r_files[!grepl("^(_freeze|_site|renv)/", r_files)]
+
+definers <- character(0)
+for (f in r_files) {
+  lines <- readLines(f, warn = FALSE)
+  hits <- grep("^\\s*`%\\|\\|%`\\s*<-", lines)
+  for (i in hits) definers <- c(definers, glue("{f}:{i}"))
+}
+
+if (length(definers) > 1) {
+  cli_text()
+  cli_alert_danger("More than one file defines {.code `%||%`}:")
+  cli_ul(definers)
+  cli_alert_info("dbx-config.R must be the only one; see the note in R/facts.R.")
+  fail <- TRUE
+} else {
+  cli_alert_success("Only {.file dbx-config.R} defines {.code `%||%`}.")
+}
+
 # --- summary ---------------------------------------------------------------
 
 cli_text()
@@ -199,7 +232,8 @@ cli_alert_info(
 )
 
 if (fail) {
-  cli_alert_danger("Fix the above, or update facts/measurements.yml to match.")
+  cli_alert_danger("Fix the above. Where a fact has genuinely changed, update
+                    facts/measurements.yml and re-render its used_by pages.")
   quit(status = 1)
 }
 quit(status = 0)

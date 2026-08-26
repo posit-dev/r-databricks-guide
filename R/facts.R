@@ -47,10 +47,18 @@ wq_facts_path <- function() {
 
 # Deliberately NOT defining `%||%` here. dbx-config.R defines its own with
 # different semantics, treating "" as absent as well as NULL, and sourcing this
-# file after that one would silently replace it. That breaks
-# dbx_cluster_id("multinode"), which then returns "" and surfaces much later as
-# "Cluster id cannot be empty" from the Databricks SDK. A local helper cannot
-# clobber anything.
+# file after that one would silently replace it. A local helper cannot clobber
+# anything, so this is a named function instead.
+#
+# What the ordinary NULL-only version breaks is worth stating, because it is
+# not symmetric. dbx_cluster_id() *sets* from_env <- "" for a non-default
+# profile as the explicit signal to fall through to config.yml. Under the
+# NULL-only operator that signal is consumed as the answer, so the config.yml
+# lookup never runs and "multinode" can never resolve at all. `default` keeps
+# working as long as DATABRICKS_CLUSTER_ID is set, which .Renviron does here,
+# so the common path hides the bug entirely and only the profile that exists
+# to prevent silent-wrong-compute is broken. It surfaces far away, as
+# "Cluster id cannot be empty" from the Databricks SDK.
 wq_or_else <- function(x, y) if (is.null(x)) y else x
 
 #' A measured number, formatted for the sentence it sits in.
