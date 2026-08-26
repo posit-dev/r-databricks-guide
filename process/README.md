@@ -17,6 +17,7 @@ So the test for anything added: could a stranger read it without learning who th
 | [`upstream-changelog.md`](upstream-changelog.md) | How findings arrive, the consumed-through marker, what each entry changed | Acting on a changelog entry, or widening a `rests on:` line |
 | [`PROBLEM-freeze-cache-staleness.md`](PROBLEM-freeze-cache-staleness.md) | An open bug: the freeze check can pass while the cache is stale | Working on `scripts/check-freeze.sh`, or if a page publishes output you did not expect |
 | [`DESIGN-fact-table.md`](DESIGN-fact-table.md) | A proposal, not built: measured numbers in a data file rather than typed into prose | Deciding what to do about a number that keeps going stale |
+| [`TODO-in-catalog.md`](TODO-in-catalog.md) | Unfinished: 15 `tbl(con, I(...))` still to become `in_catalog()` | You have live credentials and want a small, well-specified job |
 
 ## The short version
 
