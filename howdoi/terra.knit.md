@@ -21,24 +21,28 @@ Sending R to the data means running your `terra` code inside a worker on the clu
 
 Two lines, run in the context you are asking about:
 
-```{r}
-#| label: mask
-#| include: false
-source(here::here("R/setup.R"))
-local({
-  mask_hook <- function(x, options) paste0("```\n", wq_mask_all(x), "```\n")
-  knitr::knit_hooks$set(
-    output = mask_hook, error = mask_hook,
-    warning = mask_hook, message = mask_hook
-  )
-})
+
+
+
+::: {.cell}
+
+```{.r .cell-code}
+library(terra)
 ```
 
-```{r}
-#| label: gdal
-library(terra)
+```
+terra 1.9.46
+```
+
+```{.r .cell-code}
 terra::gdal()
 ```
+
+```
+[1] "3.4.1"
+```
+:::
+
 
 A GDAL version number means the system libraries are there and `terra` found them, and you can stop here. Most readers can. If either line fails, see [Packages](../ref/packages.qmd), and expect the cause to be a missing system library rather than a missing R package: `terra` needs GDAL, GEOS and PROJ underneath it, and those are not something you can add from your own session.
 
@@ -50,8 +54,10 @@ A disk-backed raster serialises its file path, not its pixels. So when you close
 
 This is the fact that decides whether the option works at all, and it is unintuitive, because in your session the object looks entirely self-contained. It prints its extent, its resolution, its CRS and its layer names, and it will hand you values on request. The pixels are not in it. Compare what the object serialises to against the file it came from:
 
-```{r}
-#| label: serialised
+
+::: {.cell}
+
+```{.r .cell-code}
 library(terra)
 
 f <- system.file("ex/elev.tif", package = "terra")
@@ -65,28 +71,57 @@ c(
 )
 ```
 
-Eight and a half thousand cells, and the whole serialised object is `r length(serialize(r, NULL))` bytes. It is smaller than the file it describes, and there is no arrangement of `r format(ncell(r), big.mark = ",")` values that fits in it. `in_memory` is 0, which is the same fact said directly.
+```
+      file_bytes serialised_bytes            cells        in_memory 
+            7994              802             8550                0 
+```
+:::
+
+
+Eight and a half thousand cells, and the whole serialised object is 802 bytes. It is smaller than the file it describes, and there is no arrangement of 8,550 values that fits in it. `in_memory` is 0, which is the same fact said directly.
 
 What the object holds instead is the source, and `terra` will tell you so:
 
-```{r}
-#| label: sources
+
+::: {.cell}
+
+```{.r .cell-code}
 basename(sources(r))
 ```
 
+```
+[1] "elev.tif"
+```
+:::
+
+
 The consequence is that the failure arrives in the worker as a missing file, which reads like a permissions problem rather than a serialisation one. You can see the shape of it locally, without a cluster, by writing a raster out, serialising it, then taking the file away before you unserialise. That is exactly what a worker experiences:
 
-```{r}
-#| label: missing-file
-#| error: true
+
+::: {.cell}
+
+```{.r .cell-code}
 copy <- file.path(tempdir(), "elev-copy.tif")
 writeRaster(r, copy, overwrite = TRUE)
 
 b <- serialize(rast(copy), NULL)
 file.remove(copy)
+```
 
+```
+[1] TRUE
+```
+
+```{.r .cell-code}
 values(unserialize(b))[1:3]
 ```
+
+```
+Error in `h()`:
+! error in evaluating the argument 'x' in selecting a method for function 'values': [rast] file does not exist: /tmp/RtmpxGZ6nE/elev-copy.tif
+```
+:::
+
 
 That is the message a worker gives you, and it is worth reading closely. It names a path, and the path is one from the machine that built the object rather than the machine that failed to open it. Nothing in it mentions serialisation, so the natural reading is that the worker cannot see a file it should be able to see, which sends you to look at permissions and mounts. The object never carried the pixels in the first place.
 
@@ -119,3 +154,4 @@ And the honest case: if the raster fits on your laptop and nobody is telling you
 ---
 
 This page rests on: the native `ST_` functions are vector functions with no raster equivalent, so gridded work has no server-side path; a disk-backed raster object serialises its file path rather than its pixels.
+
