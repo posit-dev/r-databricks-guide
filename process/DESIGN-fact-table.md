@@ -125,6 +125,8 @@ The `format` argument is what handles the registers. `"digits"` gives `97` (comm
 
 Deliberate vagueness stays as literal prose: `about twenty` is not a fact lookup, and pretending otherwise would encode a false precision the guide has chosen not to claim.
 
+An entry may still record those spellings in an `approx:` list, which `scripts/check-facts.R` reports without failing on. Five exist on the site, including "Thirty-two million rows go in and about a thousand come back" and "Four thousand catchment polygons". They are sentences about scale rather than citations, so the mechanism must not rewrite them; but re-measuring a value means someone has to read them and decide whether they still hold, and listing them is the only thing that would say so.
+
 `wq_fact()` must **fail loudly on an unknown key**, with `cli_abort()`, naming the near matches. A silent `NA` in published prose is precisely the failure this design exists to prevent, and a typo in a key is the likeliest way to introduce one.
 
 ## The catch, and how it is resolved
@@ -165,6 +167,8 @@ The report is the important half, and it should answer three questions:
 - **Stale**: `volatile: true` entries whose `measured` date is older than a threshold, say 90 days.
 - **Orphaned**: keys no page references, which are usually a fact that was removed from prose without being removed here.
 - **Undeclared**: a page listed in `used_by` that no longer calls `wq_fact()` for that key, which is the same drift in the other direction.
+- **Literal**: a migrated number still typed into prose. This is the one that earns its keep day to day, and it justified itself on the first run by finding a `4,080` on `howdoi/polygons.qmd` that a manual sweep had missed.
+- **Approximate**: the `approx:` spellings above, reported and never failed.
 
 `--measure` should print a diff and change nothing on its own. Updating a value is a deliberate act, because it means re-dating the entry and re-rendering every page in `used_by`, and that is a decision with a cost attached rather than a formality.
 
