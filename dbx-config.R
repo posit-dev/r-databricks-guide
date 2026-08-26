@@ -30,7 +30,16 @@
 
 `%||%` <- function(x, y) if (is.null(x) || !nzchar(x)) y else x
 
-DBX_CONFIG_FILE <- "config.yml"
+# Resolved from the project root, not the working directory. Quarto renders a
+# page with the cwd set to that page's own directory, so a bare "config.yml"
+# is invisible to anything under example/ or howdoi/. The symptom is not a
+# missing-file error but an empty cluster id, which surfaces much later as
+# "Cluster id cannot be empty" from the Databricks SDK.
+DBX_CONFIG_FILE <- if (requireNamespace("here", quietly = TRUE)) {
+  here::here("config.yml")
+} else {
+  "config.yml"
+}
 
 # config::get() has three sharp edges this wraps:
 #   - a missing file is an *error*, not a NULL, so file.exists() has to gate it;
