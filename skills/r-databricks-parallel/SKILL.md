@@ -13,7 +13,7 @@ Simulation is usually embarrassingly parallel: independent draws, independent re
 
 | Method | Where it runs | Fits when |
 |----|----|----|
-| `future` / `furrr` | Workbench VM, many cores | The default to try first. Simplest thing that works; no cluster, no serialisation surprises |
+| `future` / `furrr` | your own machine, many cores | The default to try first. Simplest thing that works; no cluster, no serialisation surprises |
 | `mirai` / `parallel` | one machine | The baseline to beat. Lowest ceremony |
 | `future` on the cluster driver via `brickster` | one cluster node, many cores | A bigger machine is enough, and you want no Spark UDF machinery |
 | Databricks Jobs, parameterised fan-out | many nodes, no Spark UDF | Embarrassingly-parallel simulation, especially long runs that should survive a session ending |

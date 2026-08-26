@@ -29,6 +29,10 @@ Two more replacements worth knowing, both of which remove a hand-built string:
 | `dbGetQuery(con, "SHOW TABLES IN ...")` | `dbListTables(con, catalog_name =, schema_name =)` | Same result, named arguments |
 | `tbl(con, I(glue("{cat}.{sch}.{tbl}")))` | `tbl(con, in_catalog(cat, sch, tbl))` | Quotes each part, so a name needing escaping still works |
 
+**`in_catalog()` needs `dbplyr` attached**, and this is easy to miss: a page can use `tbl()` and a chain of `dplyr` verbs without ever calling `library(dbplyr)`, because `dplyr` dispatches to the backend on its own. `in_catalog()` is not re-exported, so it is the call that fails. `[verified: ran it on 2026-08-26]` Either attach `dbplyr` or qualify it as `dbplyr::in_catalog()`.
+
+It works on all three connection paths: `odbc`, `brickster::DatabricksSQL()`, and a `sparklyr::spark_connect()` handle. The sparklyr case is the one worth stating, because a Spark connection is not a DBI connection and the two are not otherwise interchangeable. `[verified: ran it on 2026-08-26]`
+
 **Always name the catalog and schema in `dbListTables()`.** Omitting them is not an error and does not warn: it lists whatever the connection defaults to, which on a shared warehouse is somebody else's schema. A list of unfamiliar tables then reads as a missing grant when it means you are looking in the wrong place. `[verified: ran it on 2026-08-25]`
 
 ## The spatial pass-through is a trap as well as a convenience

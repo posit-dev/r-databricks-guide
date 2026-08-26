@@ -61,9 +61,11 @@ bytes returned = n mod 1024        (with 0 -> 1024)
 
 The `STRING` half is fixable from R today: pass `DefaultStringColumnLength = 65535` to `dbConnect()`. The `BINARY` half is **not configurable** by any setting tried (`DefaultBinaryColumnLength` at 2000, 8000, 65535 and `"100000"` all return the identical wrong lengths). `brickster::DatabricksSQL()` is the only path that returns bytes exactly, because it decodes Arrow rather than the Thrift/ODBC wire format. If a table has a `BINARY` column and you need those bytes intact, use brickster DBI, not ODBC, full stop.
 
-Full run, including the scope limits: `upstream/odbc-binary-corruption/reprex.txt`.
+The upstream issue is `r-dbi/odbc#1024`, which is where to check whether this has since been fixed.
 
 ## The ambient-credential model
+
+*This section describes Posit Workbench, where much of this pack was established. If you are not on Workbench, the fallbacks at the end of it are your route, and the expired-token signature below is worth reading either way: it is a property of the driver, not of the host.*
 
 On Posit Workbench, credentials are ambient: `DATABRICKS_HOST`, `DATABRICKS_CONFIG_FILE` and `DATABRICKS_CONFIG_PROFILE` are injected into the session at sign-in. If they are unset, the session is simply not signed in, there is nothing else to configure.
 
