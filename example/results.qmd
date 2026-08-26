@@ -19,7 +19,6 @@ By this stage nothing is special. The data is in the session, Databricks is no l
 library(dplyr)
 library(tibble)
 library(purrr)
-library(glue)
 library(cli)
 library(ggplot2)
 library(tidyr)

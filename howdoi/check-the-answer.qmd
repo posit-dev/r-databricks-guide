@@ -49,8 +49,8 @@ wq_mask_output()
 #| label: setup
 library(DBI)
 library(dplyr)
+library(dbplyr)
 library(tibble)
-library(glue)
 library(cli)
 library(sf)
 
@@ -62,11 +62,7 @@ acon <- dbConnect(
   warehouse_id = basename(Sys.getenv("DATABRICKS_PATH"))
 )
 
-tbl_name <- function(table) {
-  glue("{catalog}.{schema}.{table}")
-}
-
-both <- tbl(acon, I(tbl_name("wfd_catchments"))) |>
+both <- tbl(acon, in_catalog(catalog, schema, "wfd_catchments")) |>
   filter(!is.na(geom_wkb)) |>
   transmute(
     water_body_id,

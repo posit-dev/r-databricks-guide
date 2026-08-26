@@ -101,11 +101,7 @@ Compare the length the server reports against the length that arrives. This catc
 
 ```{r}
 #| label: octet
-tbl_name <- function(table) {
-  glue("{catalog}.{schema}.{table}")
-}
-
-tbl(acon, I(tbl_name("wfd_catchments"))) |>
+tbl(acon, in_catalog(catalog, schema, "wfd_catchments")) |>
   filter(!is.na(geom_wkb)) |>
   transmute(water_body_id, declared = octet_length(geom_wkb)) |>
   head(3) |>
@@ -116,7 +112,7 @@ Then validate the decoded geometry against something recorded independently, rat
 
 ```{r}
 #| label: areacheck
-catchments <- tbl(acon, I(tbl_name("wfd_catchments"))) |>
+catchments <- tbl(acon, in_catalog(catalog, schema, "wfd_catchments")) |>
   select(water_body_id, water_body_area_m2, geom_wkb) |>
   head(5) |>
   collect() |>

@@ -27,9 +27,9 @@ wq_mask_output()
 #| message: false
 library(DBI)
 library(dplyr)
+library(dbplyr)
 library(tibble)
 library(purrr)
-library(glue)
 library(cli)
 library(sf)
 library(ggplot2)
@@ -42,10 +42,6 @@ con <- dbConnect(
   httpPath = Sys.getenv("DATABRICKS_PATH"),
   DefaultStringColumnLength = 65535
 )
-
-tbl_name <- function(table) {
-  glue("{catalog}.{schema}.{table}")
-}
 
 per_station <- readRDS("per_station.rds")
 ```
@@ -70,7 +66,7 @@ There are two ways around it. Encode server-side to text and decode here, which 
 
 ```{r}
 #| label: fetch-catchments
-catchment_rows <- tbl(con, I(tbl_name("wfd_catchments"))) |>
+catchment_rows <- tbl(con, in_catalog(catalog, schema, "wfd_catchments")) |>
   filter(!is.na(geom_wkb)) |>
   transmute(
     water_body_id,
@@ -126,7 +122,7 @@ The overflows are longitude and latitude, which is a different CRS again. They h
 
 ```{r}
 #| label: overflows
-overflows <- tbl(con, I(tbl_name("storm_overflows"))) |>
+overflows <- tbl(con, in_catalog(catalog, schema, "storm_overflows")) |>
   filter(!is.na(longitude), !is.na(latitude)) |>
   select(overflow_id, company, longitude, latitude) |>
   collect() |>
@@ -143,7 +139,7 @@ The stations are already easting and northing, so they need no transform, only a
 
 ```{r}
 #| label: stations
-stations <- tbl(con, I(tbl_name("hydrology_stations"))) |>
+stations <- tbl(con, in_catalog(catalog, schema, "hydrology_stations")) |>
   filter(!is.na(easting), !is.na(northing)) |>
   select(station_id, station_name, easting, northing) |>
   collect() |>
@@ -229,13 +225,13 @@ r_side <- overflow_catchment |>
 
 # These st_ calls run on the server, not in sf: above
 # collect(), dbplyr sends the name through as text.
-catchment_geom <- tbl(con, I(tbl_name("wfd_catchments"))) |>
+catchment_geom <- tbl(con, in_catalog(catalog, schema, "wfd_catchments")) |>
   # st_setsrid is not optional: WKB carries no SRID, so
   # st_geomfromwkb returns 0 and the server refuses to
   # compare it against 27700.
   mutate(g = st_setsrid(st_geomfromwkb(geom_wkb), 27700L))
 
-overflow_point <- tbl(con, I(tbl_name("storm_overflows"))) |>
+overflow_point <- tbl(con, in_catalog(catalog, schema, "storm_overflows")) |>
   mutate(p = st_transform(st_point(longitude, latitude, 4326L), 27700L))
 
 # A spatial predicate cannot be a join_by() condition, so

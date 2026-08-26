@@ -29,7 +29,6 @@ library(DBI)
 library(dplyr)
 library(dbplyr)
 library(tibble)
-library(glue)
 library(cli)
 library(sf)
 library(ggplot2)
@@ -43,12 +42,8 @@ con <- dbConnect(
   DefaultStringColumnLength = 65535
 )
 
-tbl_name <- function(table) {
-  glue("{catalog}.{schema}.{table}")
-}
-
 wq_tbl <- function(table) {
-  tbl(con, I(tbl_name(table)))
+  tbl(con, in_catalog(catalog, schema, table))
 }
 ```
 

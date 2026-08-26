@@ -40,7 +40,6 @@ library(DBI)
 library(dplyr)
 library(dbplyr)
 library(tibble)
-library(glue)
 library(cli)
 library(sf)
 
@@ -58,11 +57,7 @@ acon <- dbConnect(
   warehouse_id = basename(Sys.getenv("DATABRICKS_PATH"))
 )
 
-tbl_name <- function(table) {
-  glue("{catalog}.{schema}.{table}")
-}
-
-catchments <- tbl(con, I(tbl_name("wfd_catchments")))
+catchments <- tbl(con, in_catalog(catalog, schema, "wfd_catchments"))
 
 catchments |>
   filter(!is.na(geom_wkb)) |>
@@ -102,7 +97,7 @@ Skip it and the two sides fail differently, which is the part worth knowing befo
 
 ```{r}
 #| label: nocrs
-rows <- tbl(acon, I(tbl_name("wfd_catchments"))) |>
+rows <- tbl(acon, in_catalog(catalog, schema, "wfd_catchments")) |>
   filter(!is.na(geom_wkb)) |>
   select(geom_wkb) |>
   head(3) |>
@@ -152,7 +147,7 @@ Three smaller mismatches will catch you when porting an `sf` expression, and all
 
 ```{r}
 #| label: transform
-tbl(con, I(tbl_name("storm_overflows"))) |>
+tbl(con, in_catalog(catalog, schema, "storm_overflows")) |>
   filter(!is.na(longitude)) |>
   mutate(p = st_transform(st_point(longitude, latitude, 4326L), 27700L)) |>
   transmute(
@@ -207,7 +202,7 @@ The connection caveat decides how. Geometry cannot travel over the ODBC path, be
 
 ```{r}
 #| label: collect-sf
-catchment_sf <- tbl(acon, I(tbl_name("wfd_catchments"))) |>
+catchment_sf <- tbl(acon, in_catalog(catalog, schema, "wfd_catchments")) |>
   filter(!is.na(geom_wkb)) |>
   select(water_body_id, ecological_class, water_body_area_m2, geom_wkb) |>
   collect() |>
@@ -234,7 +229,7 @@ One wrinkle: `join_by()` accepts only equality and a few range helpers, so a spa
 
 ```{r}
 #| label: join
-overflows <- tbl(con, I(tbl_name("storm_overflows"))) |>
+overflows <- tbl(con, in_catalog(catalog, schema, "storm_overflows")) |>
   mutate(p = st_transform(st_point(longitude, latitude, 4326L), 27700L))
 
 catchments |>

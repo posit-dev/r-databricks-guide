@@ -26,7 +26,6 @@ library(DBI)
 library(dplyr)
 library(dbplyr)
 library(tibble)
-library(glue)
 library(cli)
 
 catalog <- Sys.getenv("DATABRICKS_CATALOG")
