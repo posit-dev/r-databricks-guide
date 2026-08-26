@@ -105,6 +105,8 @@ The site publishes from a committed `_freeze/` cache, and every executable page 
 
 The freeze hash is a plain md5 of the `.qmd`, so any edit invalidates it, prose included. After changing anything under `example/`, re-render that page with credentials and commit `_freeze/` with the edit. `scripts/check-freeze.sh` catches it either way, in the pre-push hook and again in CI, but the fix always requires a credentialed local render because CI has no R.
 
+The hash is necessary and not sufficient, because a project-level `quarto render` refreshes it without re-executing: new source, new hash, old output. `check-freeze.sh` therefore also runs `scripts/check-freeze-code.py`, which compares the code echoed into the cached output against the code in the source. That is why re-rendering goes through `scripts/rerender.sh`, which drops the cache first. See `process/PROBLEM-freeze-cache-staleness.md`.
+
 Corollary worth knowing before reaching for it: `cache: true` does nothing for this. Under `freeze: true` a prose edit re-executes nothing locally either, so there is no loop for a chunk cache to speed up.
 
 ### Never terminate a cluster

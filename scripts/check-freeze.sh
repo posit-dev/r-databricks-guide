@@ -54,8 +54,25 @@ while IFS= read -r qmd; do
 done < <(find . -name '*.qmd' -not -path './_freeze/*' -not -path './_site/*' \
            | sed 's|^\./||' | sort)
 
+# The hash above answers "which source did Quarto last process", not "did the
+# stored output come from executing it". A project-level render refreshes the
+# hash without re-executing, which leaves new source against old output and
+# passes every test so far. check-freeze-code.py reads the code echoed into the
+# cached markdown and catches that; the two are complementary, so run it here
+# rather than wiring it separately into the hook, CI and the render scripts.
 if [ "$fail" -eq 0 ]; then
   printf 'ok:   %d frozen pages match their source\n' "$checked"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 "$(dirname "$0")/check-freeze-code.py" || fail=1
+  else
+    printf 'FAIL: python3 not found, so the cached code could not be checked\n'
+    printf '      against its source. Install python3; this check must not be\n'
+    printf '      skipped silently, because the staleness it catches is silent.\n'
+    fail=1
+  fi
+fi
+
+if [ "$fail" -eq 0 ]; then
   printf '\nFreeze cache is current.\n'
 else
   printf '\nRe-render the affected pages locally, with credentials, and commit\n'
