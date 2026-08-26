@@ -7,15 +7,18 @@
 # re-dating the entry and re-rendering every page in its used_by list, and that
 # is a decision with a cost attached rather than a formality.
 #
-# Three questions, from process/DESIGN-fact-table.md:
+# What it reports, from process/DESIGN-fact-table.md:
 #
 #   stale       volatile entries older than the threshold
 #   orphaned    keys no page quotes
 #   undeclared  a page quoting a key that its used_by does not list, or a
 #               used_by naming a page that no longer quotes it
+#   literal     a migrated number still typed into prose somewhere
+#   approx      deliberately vague spellings, reported and never failed
 #
-# The last is the one that keeps used_by trustworthy, and it is checked in both
-# directions rather than believed.
+# "undeclared" is what keeps used_by trustworthy, and it is checked in both
+# directions rather than believed. "literal" is the one that earns its keep
+# day to day: it found a 4,080 a manual sweep had missed.
 
 suppressPackageStartupMessages({
   library(cli)
@@ -163,6 +166,29 @@ if (length(literal)) {
   fail <- TRUE
 } else if (length(quoted_by)) {
   cli_alert_success("No migrated fact is still typed literally.")
+}
+
+# --- approximations, reported rather than enforced -------------------------
+
+# A deliberately vague spelling stays literal prose, so this is not a failure.
+# It is reported because re-measuring a value means someone has to read these
+# sentences and decide whether they still hold, and nothing else would say so.
+approx <- character(0)
+for (key in names(facts)) {
+  for (spelling in facts[[key]]$approx %||% character(0)) {
+    for (page in qmd) {
+      lines <- readLines(page, warn = FALSE)
+      for (i in grep(spelling, lines, fixed = TRUE)) {
+        approx <- c(approx, glue("{page}:{i} says {spelling} for {key}"))
+      }
+    }
+  }
+}
+
+if (length(approx)) {
+  cli_text()
+  cli_alert_info("Deliberate approximations, which stay prose and need a human eye if re-measured:")
+  cli_ul(approx)
 }
 
 # --- summary ---------------------------------------------------------------

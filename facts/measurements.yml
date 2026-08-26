@@ -21,6 +21,11 @@
 #   method    how, where that is not obvious
 #   volatile  true if it can change under us without anyone touching the site
 #   round     the rounded spelling, where the prose deliberately uses one
+#   approx    prose spellings that deliberately approximate this fact. They stay
+#             literal, because "Thirty-two million rows go in and about a
+#             thousand come back" is a sentence about scale, not a citation, and
+#             wq_fact() would encode a precision it does not claim. Listed so
+#             that re-measuring shows what else a reader might notice.
 #   note      anything a reader of the entry needs in order to trust it
 #   used_by   every page quoting it, which is what makes a change tractable
 
@@ -62,6 +67,9 @@ readings_rows:
   compute: Pro warehouse, serverless
   volatile: false
   round: 32.5 million
+  approx:
+    - "Thirty-two million"
+    - "Thirty-two and a half million"
   note: >
     The table too large to pull into a session, and the one the big-table page
     is written around.
@@ -114,6 +122,8 @@ catchments_rows:
   measured: 2026-08-24
   compute: Pro warehouse, serverless
   volatile: false
+  approx:
+    - "Four thousand"
   note: >
     Water Framework Directive catchment polygons, with geometry stored as
     BINARY, which is why anything spatial takes the brickster path.
