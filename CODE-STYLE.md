@@ -106,7 +106,7 @@ The `i` and `x` bullets are worth the extra line: the first line says what is wr
 
 **Write a `dbplyr` pipeline, not a SQL string.** `dbGetQuery()` is for the few things nothing else reaches, and two plausible reasons for reaching for it are wrong:
 
-- Spatial `ST_` functions **do not** need SQL. `dbplyr` sends an unrecognised function name to the server verbatim, so `st_area()` and its siblings push down from an ordinary pipeline with no `sql()` wrapper.
+- Spatial `ST_` functions **do not** need SQL. `dbplyr` sends an unrecognised function name to the server verbatim, so `st_area()` and its siblings push down from an ordinary pipeline with no `sql()` wrapper. **Read the warning below before using this**, because the same convenience is also the sharpest trap on the platform.
 - The `odbc` `BINARY` bug **does not** need SQL. It decides which connection you open, not which idiom you write: `brickster` ships a full `dbplyr` backend.
 
 What genuinely needs a SQL string: `SHOW FUNCTIONS` and `DESCRIBE`; DDL (`CREATE`, `DROP`, `COMMENT ON`); and a scalar expression with no `FROM` clause, which has no table to hang a `tbl()` on.
@@ -128,6 +128,20 @@ readings |>
 `in_catalog()` quotes each part of the name separately, so a catalog or table whose name needs escaping still works. It replaces the older `tbl(con, I(...))` habit, where the `I()` existed only to stop `dbplyr` re-quoting a name that already had dots in it.
 
 Name the catalog and schema in `dbListTables()` every time. Omitting them is not an error and does not warn: it lists whatever the connection defaults to, which on a shared warehouse is someone else's schema.
+
+### `st_area()` above `collect()` is not `sf::st_area()`
+
+The pass-through that makes spatial work convenient is also the one place a pipeline can run cleanly and answer wrongly.
+
+Inside a `dplyr` verb on a remote table, nothing in R evaluates `st_area(g)`. `dbplyr` captures the name and sends it as text, and the server resolves it. Attaching `sf` changes nothing; detaching it changes nothing. **The same expression is the server's function above `collect()` and `sf`'s below it.**
+
+A name the server does not have fails loudly with `UNRESOLVED_ROUTINE`, whether it is a typo or a real `sf` function with no server equivalent. That is the safe case. The dangerous case is a name that exists on both sides and means something different:
+
+- **Different value.** Server-side `st_distance()`, `st_length()` and `st_area()` are planar; `sf` on unprojected coordinates is geodesic. On two WGS84 points the server returned `5` and `sf` returned 555,813 metres. Both correct, five orders of magnitude apart, no warning.
+- **Different shape.** `st_contains()` returns one boolean per row server-side against a sparse index list in `sf`; `st_distance()` a scalar per row against a matrix; `st_buffer()` takes two arguments and rejects `sf`'s `nQuadSegs`.
+- **Absent entirely.** `st_makevalid()` and about twenty other `sf` staples have no server-side equivalent. The server will tell you a polygon is invalid and will not repair it.
+
+So write the geometry decode and the CRS assertion in the same `mutate()`, keep `st_setsrid()` around every `st_geomfromwkb()`, and use `show_query()` when you are unsure which side you are on: anything it shows you is the server's. `howdoi/polygons.qmd` and `ref/spatial-functions.qmd` carry the detail.
 
 ## Pipes
 

@@ -1,6 +1,6 @@
 ---
 name: r-databricks-unity-catalog
-description: Finding and querying Unity Catalog data from R. Covers browsing catalogs, schemas and tables with brickster, writing dbplyr pipelines rather than SQL strings (including why spatial ST_ functions and the odbc BINARY bug are not reasons to drop to SQL), in_catalog() for three-part names, glimpse() without collect(), deciding where the collect() line goes, and using dplyr::sql() for expressions dbplyr cannot translate or tbl(con, sql()) to start from a whole hand-written query. Load when locating a table or writing a query; load r-databricks-connections first to choose a connection path.
+description: Finding and querying Unity Catalog data from R. Covers browsing catalogs, schemas and tables with brickster, writing dbplyr pipelines rather than SQL strings (including why spatial ST_ functions and the odbc BINARY bug are not reasons to drop to SQL, and why an st_ call above collect() is the server's function and not sf's, which is planar where sf is geodesic), in_catalog() for three-part names, glimpse() without collect(), deciding where the collect() line goes, and using dplyr::sql() for expressions dbplyr cannot translate or tbl(con, sql()) to start from a whole hand-written query. Load when locating a table or writing a query; load r-databricks-connections first to choose a connection path.
 ---
 
 # Finding and querying Unity Catalog data from R
@@ -17,7 +17,7 @@ Querying is different: it is `dbplyr` over a DBI connection, and it moves data. 
 
 **Default to a `dbplyr` pipeline. Reach for `dbGetQuery()` only when nothing else reaches the thing you need.** The exceptions are narrow and worth naming, because two plausible-sounding ones are wrong:
 
-- **Spatial `ST_` functions do not need SQL.** `dbplyr` sends a function name it does not recognise to the server verbatim, so `st_area()`, `st_setsrid()`, `st_union_agg()` and the rest push down from an ordinary pipeline with no `sql()` wrapper. `[verified: ran it on 2026-08-25]`
+- **Spatial `ST_` functions do not need SQL.** `dbplyr` sends a function name it does not recognise to the server verbatim, so `st_area()`, `st_setsrid()`, `st_union_agg()` and the rest push down from an ordinary pipeline with no `sql()` wrapper. `[verified: ran it on 2026-08-25]` **This is also a trap: see the next section before using it.**
 - **The `odbc` `BINARY` bug does not need SQL either.** It constrains which *connection* you open, not which idiom you write: `brickster` ships a full `dbplyr` backend, so `tbl(acon, ...) |> collect()` carries `BINARY` intact. `[verified: ran it on 2026-08-25]`
 
 What genuinely needs a SQL string is short: `SHOW FUNCTIONS`, `DESCRIBE` and friends; DDL (`CREATE`, `DROP`, `COMMENT ON`); and a scalar expression with no `FROM` clause, which has no table to hang a `tbl()` on. `[verified: ran it on 2026-08-25]`
@@ -30,6 +30,26 @@ Two more replacements worth knowing, both of which remove a hand-built string:
 | `tbl(con, I(glue("{cat}.{sch}.{tbl}")))` | `tbl(con, in_catalog(cat, sch, tbl))` | Quotes each part, so a name needing escaping still works |
 
 **Always name the catalog and schema in `dbListTables()`.** Omitting them is not an error and does not warn: it lists whatever the connection defaults to, which on a shared warehouse is somebody else's schema. A list of unfamiliar tables then reads as a missing grant when it means you are looking in the wrong place. `[verified: ran it on 2026-08-25]`
+
+## The spatial pass-through is a trap as well as a convenience
+
+The mechanism that makes spatial work push down is the same one that lets a pipeline run cleanly and answer wrongly.
+
+Inside a `dplyr` verb on a remote table, `st_area(g)` is **not** a call to `sf::st_area()`. Nothing in R evaluates it: `dbplyr` captures the name and sends it as text. Attaching `sf` changes nothing, and detaching it changes nothing. The same expression is the server's function above `collect()` and `sf`'s below it. `[verified: ran it on 2026-08-25]`
+
+A name the server does not have fails loudly with `UNRESOLVED_ROUTINE`, whether it is a typo or a real `sf` function with no equivalent. That is the safe case. The dangerous case is a name present on both sides meaning something different:
+
+| Divergence | What happens |
+|----|----|
+| **Value** | Server-side `st_distance()`, `st_length()`, `st_area()` are planar; `sf` on unprojected coordinates is geodesic. On two WGS84 points: server `5`, `sf` 555,813 m. Both correct, no warning |
+| **Shape** | `st_contains()` gives one boolean per row against `sf`'s sparse index list; `st_distance()` a scalar against a matrix; `st_buffer()` rejects `nQuadSegs` |
+| **Absence** | `st_makevalid()` and about twenty other `sf` staples have no server-side equivalent; the server diagnoses invalidity and will not repair it |
+
+`[documented: established downstream, 2026-08-24]`
+
+Three habits keep you out of it. Only ask the server for a distance or area from coordinates already projected into a metric CRS. Wrap every `st_geomfromwkb()` in `st_setsrid()`, in the `mutate()` that decodes the bytes, because stored WKB carries no SRID and the server reports 0. And reach for `show_query()` whenever you are unsure which side you are on: whatever it prints is the server's.
+
+For a geodesic answer on unprojected coordinates, name it: `st_distancesphere()` and `st_distancespheroid()`. Casting to the geography type is **not** the fix, because `st_distance()` rejects a geography argument outright.
 
 ## `glimpse()` works without `collect()`
 
