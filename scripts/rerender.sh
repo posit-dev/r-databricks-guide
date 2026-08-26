@@ -54,6 +54,9 @@ stale_pages() {
   done < <(find _freeze -name html.json 2>/dev/null | sort)
 }
 
+# --stale can rebuild many pages, and a page that needs a cluster takes
+# minutes. Say how many are coming so an interrupted run is a decision rather
+# than a surprise.
 if [ "$1" = "--stale" ]; then
   mapfile -t pages < <(stale_pages)
   if [ "${#pages[@]}" -eq 0 ]; then
@@ -99,6 +102,12 @@ for page in "${pages[@]}"; do
   fi
 
   printf '\n== %s ==\n' "$page"
+  # Deleting the cache is what forces re-execution, and it is also what makes
+  # this unsafe to interrupt: kill the script between the delete and the
+  # render and the page is left with no cache at all, which check-freeze.sh
+  # then reports as "has R chunks but no freeze cache". Recover with
+  # `git checkout -- _freeze` and run it again. Do not run it under a timeout
+  # shorter than the render: a cluster-backed page takes minutes.
   rm -rf "_freeze/${page%.qmd}"
   if ! quarto render "$page"; then
     printf 'FAIL: %s did not render\n' "$page"

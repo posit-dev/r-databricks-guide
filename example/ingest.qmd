@@ -24,6 +24,15 @@ The obvious route is to build a data frame in R and write it row by row over DBI
 The route that scales goes through a file. Write Parquet locally, upload it to a Unity Catalog volume, then have Databricks read the volume into a Delta table. The data crosses once, as a compressed file, and the table is created by the server reading its own storage.
 
 ```{r}
+#| label: mask
+#| include: false
+# No printed output may carry the catalog this page runs against. Every query
+# below uses the real one; only what is shown is masked. See R/setup.R.
+source(here::here("R/setup.R"))
+wq_mask_output()
+```
+
+```{r}
 #| label: setup
 #| message: false
 library(DBI)

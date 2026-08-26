@@ -92,6 +92,25 @@ report "no em-dashes in prose" \
 # so nothing above would see it. That is how a real cluster id and the catalog
 # name once reached rendered pages.
 #
+# Every page that queries Databricks must install the output mask, and this
+# checks the guard rather than the leak. The other checks here fire only after
+# something has already escaped into a tracked file; this one fires while the
+# page is still being written.
+#
+# The trigger is a connection, not a chunk. A page that opens `con`, `acon` or
+# a Spark connection will print something that came back from the workspace
+# sooner or later, and the identifiers travel by more routes than any one of
+# them is obvious about: an in_catalog() object stores the catalog, show_query()
+# builds it into SQL, and a server error quotes the fully qualified name.
+missing_mask=""
+while IFS= read -r qmd; do
+  grep -q '^```{r' "$qmd" || continue
+  "$GREP" -qE 'dbConnect|spark_connect' "$qmd" || continue
+  grep -q 'wq_mask_output()' "$qmd" || missing_mask="$missing_mask$qmd: connects to Databricks with no wq_mask_output()"$'\n'
+done < <(git ls-files '*.qmd')
+
+report "every connecting page masks its output" "$missing_mask"
+
 # _site/ is what gets published, so it is scanned when it exists. It is build
 # output, so its absence is not a failure: a clean clone has not rendered yet.
 BUILT=""

@@ -14,6 +14,15 @@ execute:
 Thirty-two million rows go in and about a thousand come back. The whole of this page is about where that reduction happens, because it decides whether the analysis is possible at all.
 
 ```{r}
+#| label: mask
+#| include: false
+# No printed output may carry the catalog this page runs against. Every query
+# below uses the real one; only what is shown is masked. See R/setup.R.
+source(here::here("R/setup.R"))
+wq_mask_output()
+```
+
+```{r}
 #| label: setup
 #| message: false
 library(DBI)

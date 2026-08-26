@@ -98,6 +98,44 @@ wq_mask_all <- function(x) {
   x
 }
 
+#' Mask every identifier out of a page's printed output.
+#'
+#' Call once, in a hidden chunk, near the top of any page whose chunks print
+#' anything that came back from Databricks:
+#'
+#'     wq_mask_output()
+#'
+#' Why a hook on output rather than a safer version of some function. The
+#' catalog escapes by more than one route, and they have nothing in common
+#' except that they all end up as printed text:
+#'
+#'   - printing a `dbplyr::in_catalog()` object, which stores the catalog
+#'   - `show_query()`, which builds it into the SQL
+#'   - any server error that names the table it could not find
+#'
+#' Wrapping a function catches the first and misses the other two, while
+#' looking like it handled the category. Masking the output catches all three,
+#' because that is where they converge.
+#'
+#' All four streams are hooked, not just stdout: an ODBC error quotes the fully
+#' qualified name, so an unmasked error block leaks exactly what the page was
+#' careful not to print.
+#'
+#' assets/redact.lua does the same job at pandoc time. It is a second layer
+#' rather than a replacement, because it runs after the freeze cache is
+#' written and `_freeze/` is tracked and published. This hook is what keeps
+#' the committed cache clean.
+wq_mask_output <- function() {
+  mask_hook <- function(x, options) paste0("```\n", wq_mask_all(x), "```\n")
+  knitr::knit_hooks$set(
+    output = mask_hook,
+    error = mask_hook,
+    warning = mask_hook,
+    message = mask_hook
+  )
+  invisible(TRUE)
+}
+
 # --- the two connections ---------------------------------------------------
 
 # Why there are two, and when each is required, is the subject of

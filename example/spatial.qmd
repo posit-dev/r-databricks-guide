@@ -14,6 +14,15 @@ execute:
 The station statistics from the last page have no geography on them. This page gives them one, by putting each station and each storm overflow inside a catchment, and it is the first point where the two connection paths stop being interchangeable.
 
 ```{r}
+#| label: mask
+#| include: false
+# No printed output may carry the catalog this page runs against. Every query
+# below uses the real one; only what is shown is masked. See R/setup.R.
+source(here::here("R/setup.R"))
+wq_mask_output()
+```
+
+```{r}
 #| label: setup
 #| message: false
 library(DBI)

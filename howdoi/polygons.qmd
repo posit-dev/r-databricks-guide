@@ -31,13 +31,7 @@ So the position of `collect()` is not a stylistic detail in a spatial pipeline: 
 # happens to run against. Only what is *shown* is masked; every query below
 # runs against the real tables. See R/setup.R.
 source(here::here("R/setup.R"))
-local({
-  mask_hook <- function(x, options) paste0("```\n", wq_mask_all(x), "```\n")
-  knitr::knit_hooks$set(
-    output = mask_hook, error = mask_hook,
-    warning = mask_hook, message = mask_hook
-  )
-})
+wq_mask_output()
 ```
 
 ```{r}

@@ -16,15 +16,7 @@ That single sentence is the whole page. Everything else is a consequence of it.
 # happens to run against. Only what is *shown* is masked; every query below
 # runs against the real tables. See R/setup.R.
 source(here::here("R/setup.R"))
-# Every stream, not just stdout: an ODBC error quotes the fully qualified
-# table name, so an unmasked error block would leak the catalog too.
-local({
-  mask_hook <- function(x, options) paste0("```\n", wq_mask_all(x), "```\n")
-  knitr::knit_hooks$set(
-    output = mask_hook, error = mask_hook,
-    warning = mask_hook, message = mask_hook
-  )
-})
+wq_mask_output()
 ```
 
 ```{r}

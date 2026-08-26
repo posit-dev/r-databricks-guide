@@ -59,6 +59,12 @@ The site publishes from the committed cache, and CI has no R, so whatever is in 
 - `example/bootstrap.qmd` only produces its cluster output under `WQ_RUN_CLUSTER=true`. A fix that encourages blanket re-rendering will silently strip that page's output.
 - Do not weaken the existing hash comparison; it correctly catches the common case of an edited source with an untouched cache.
 
+## A second, simpler hazard in the same area
+
+`scripts/rerender.sh` deletes a page's freeze directory to force re-execution, then renders. Interrupt it between those two steps and the page is left with **no cache at all**, which `check-freeze.sh` correctly reports as "has R chunks but no freeze cache".
+
+This is not the staleness bug and needs no fix beyond knowing about it: recover with `git checkout -- _freeze` and run it again. It is recorded here because both were hit in the same session and they look alike from the outside, and because the recovery differs. Note that `--stale` can queue many pages, and a cluster-backed page takes minutes, so do not run it under a short timeout.
+
 ## Related, but out of scope
 
 The first render after deleting a `_freeze` directory can print `Error in readLines(con, warn = FALSE) : cannot open the connection` while still executing every chunk and producing correct output and HTML. It does not recur on a second render and does not appear in a full project render, which exits 0. Root cause not established; noted here only so it is not mistaken for a symptom of the staleness bug.

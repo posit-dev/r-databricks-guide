@@ -14,6 +14,15 @@ execute:
 The second simulation, and the one where the previous page's answer stops working. The difference is one property, and everything else follows from it.
 
 ```{r}
+#| label: mask
+#| include: false
+# No printed output may carry the catalog this page runs against. Every query
+# below uses the real one; only what is shown is masked. See R/setup.R.
+source(here::here("R/setup.R"))
+wq_mask_output()
+```
+
+```{r}
 #| label: setup
 #| message: false
 library(dplyr)
