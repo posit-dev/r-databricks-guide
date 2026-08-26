@@ -19,6 +19,7 @@ The second simulation, and the one where the previous page's answer stops workin
 # No printed output may carry the catalog this page runs against. Every query
 # below uses the real one; only what is shown is masked. See R/setup.R.
 source(here::here("R/setup.R"))
+source(here::here("R/facts.R"))
 wq_mask_output()
 ```
 
@@ -245,7 +246,7 @@ shifted <- st_geometry(points) + cbind(dx, dy)
 
 That runs, returns the right class, and gives *almost* the right answer. What it does not do is what you expect: adding a two-column matrix to an `sfc` does not shift point `i` by row `i`. The arithmetic is defined per geometry, so the matrix is recycled against each point in turn, and the intermediate that builds is enormous.
 
-Measured on this data, 14,190 points and 810 polygons, one resample:
+Measured on this data, `r wq_fact("storm_overflows_rows")` points and 810 polygons, one resample:
 
 | | `sfc` plus matrix | shifting the coordinates |
 |---|---|---|

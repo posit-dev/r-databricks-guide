@@ -13,7 +13,7 @@ Skip to [Getting connected and finding the tables](connecting.qmd) unless you sp
 
 :::
 
-Everything on this page is shown but not run. It downloads roughly 32.5 million rows over 25 to 40 minutes, stages about 6 GB of transient files, and needs write access to a catalog. Running it as part of a render would be wrong, so the chunks here are set not to execute.
+Everything on this page is shown but not run. It downloads roughly `r wq_fact("readings_rows", "round")` rows over 25 to 40 minutes, stages about 6 GB of transient files, and needs write access to a catalog. Running it as part of a render would be wrong, so the chunks here are set not to execute.
 
 You need `CREATE TABLE` and `CREATE VOLUME` on a schema you own. If you do not have that, this page is not available to you, and nothing else on the site requires it.
 
@@ -29,6 +29,7 @@ The route that scales goes through a file. Write Parquet locally, upload it to a
 # No printed output may carry the catalog this page runs against. Every query
 # below uses the real one; only what is shown is masked. See R/setup.R.
 source(here::here("R/setup.R"))
+source(here::here("R/facts.R"))
 wq_mask_output()
 ```
 
@@ -161,7 +162,7 @@ load_table <- function(df, table, con, comment = NULL) {
 
 The hydrology API caps a single response at two million rows, so ten years of daily readings has to be paged. Six-month windows come to roughly 1.5 million rows each, comfortably under the cap.
 
-Each window is streamed straight to Parquet rather than accumulated in memory, which is what keeps peak R memory small while handling 32.5 million rows.
+Each window is streamed straight to Parquet rather than accumulated in memory, which is what keeps peak R memory small while handling `r wq_fact("readings_rows", "round")` rows.
 
 ```{r}
 #| label: download-readings
@@ -321,7 +322,7 @@ load_table(
 
 The catchments arrive as a GeoPackage and have to become a column in a table. Geometry goes in as WKB in a `BINARY` column rather than as text.
 
-That choice is worth a sentence because it has consequences later. Encoding 4,080 multipolygons takes a fraction of a second as WKB against roughly two minutes as WKT, and the result is smaller. The cost is that reading it back needs a connection that carries `BINARY` intact, which is the subject of the next page.
+That choice is worth a sentence because it has consequences later. Encoding `r wq_fact("catchments_rows")` multipolygons takes a fraction of a second as WKB against roughly two minutes as WKT, and the result is smaller. The cost is that reading it back needs a connection that carries `BINARY` intact, which is the subject of the next page.
 
 ```{r}
 #| label: catchments

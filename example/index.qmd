@@ -3,6 +3,14 @@ title: "The question, and the data"
 subtitle: "One analysis, carried from an empty session to a figure"
 ---
 
+```{r}
+#| label: facts
+#| include: false
+# The row counts below are quoted from facts/measurements.yml rather than
+# typed. Reads a local file and opens no connection.
+source(here::here("R/facts.R"))
+```
+
 The rest of this site answers one question at a time. This section does the opposite: a single analysis, start to finish, with nothing skipped and nothing idealised. If you want to see how the pieces fit rather than what each one does, read this.
 
 ## Why a worked example, when the task pages exist
@@ -23,10 +31,10 @@ The analysis is a vehicle. It uses public UK water data because that data is ope
 
 Nine tables, of which this example uses five. The two that shape the work:
 
-- `hydrology_readings`, at 32.5 million rows, is the one that will not fit in your session. Stage two is about reducing it where it lives.
-- `wfd_catchments`, 4,080 catchment polygons with geometry stored as `BINARY`, is the one that forces the connection question. Geometry cannot travel over the ODBC path.
+- `hydrology_readings`, at `r wq_fact("readings_rows", "round")` rows, is the one that will not fit in your session. Stage two is about reducing it where it lives.
+- `wfd_catchments`, `r wq_fact("catchments_rows")` catchment polygons with geometry stored as `BINARY`, is the one that forces the connection question. Geometry cannot travel over the ODBC path.
 
-Alongside those, `hydrology_stations` (9,536 monitoring stations), `hydrology_measures` (32,443 series definitions) and `storm_overflows` (14,190 outfall points). Full contents and row counts are in [The data and its licences](../ref/data.qmd).
+Alongside those, `hydrology_stations` (`r wq_fact("stations_rows")` monitoring stations), `hydrology_measures` (`r wq_fact("measures_rows")` series definitions) and `storm_overflows` (`r wq_fact("storm_overflows_rows")` outfall points). Full contents and row counts are in [The data and its licences](../ref/data.qmd).
 
 That is roughly the shape worth comparing against your own: one table too large to move, one spatial table, and some small ones to join. If yours looks like that, the example transfers.
 

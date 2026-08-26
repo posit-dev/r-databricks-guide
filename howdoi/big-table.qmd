@@ -16,6 +16,7 @@ That single sentence is the whole page. Everything else is a consequence of it.
 # happens to run against. Only what is *shown* is masked; every query below
 # runs against the real tables. See R/setup.R.
 source(here::here("R/setup.R"))
+source(here::here("R/facts.R"))
 wq_mask_output()
 ```
 
@@ -91,9 +92,9 @@ The filter, the grouping and both aggregates are all in the SQL, so all of them 
 
 ## What "too big" means here
 
-The readings table is 32,540,721 rows, and collecting the whole thing would put a couple of gigabytes in your R session. On the 32 GB session this guide was written against, that fits. So this table is not, strictly, too big.
+The readings table is `r wq_fact("readings_rows")` rows, and collecting the whole thing would put a couple of gigabytes in your R session. On the 32 GB session this guide was written against, that fits. So this table is not, strictly, too big.
 
-It is used here anyway, because the technique is visible on it and because the next table will not fit. The reduction below takes 32.5 million rows down to about a thousand, and that ratio does not change when the input is a hundred times larger. Learn the shape on something you could have collected, and it keeps working on something you could not.
+It is used here anyway, because the technique is visible on it and because the next table will not fit. The reduction below takes `r wq_fact("readings_rows", "round")` rows down to about a thousand, and that ratio does not change when the input is a hundred times larger. Learn the shape on something you could have collected, and it keeps working on something you could not.
 
 Worth saying plainly: if your data does fit in your laptop's memory and nobody is dictating where it lives, working locally is faster to set up and better for your science. This page is for when it does not, or when someone else decided.
 
@@ -246,7 +247,7 @@ fit <- lm(log(mean_flow) ~ log(catchment_area_km2), data = model_data)
 summary(fit)
 ```
 
-That is the shrink-first case finishing. The second `collect()` brings back 9,536 rows of station metadata, the join happens in R because both sides are now small, and `lm()` never knew Databricks was involved.
+That is the shrink-first case finishing. The second `collect()` brings back `r wq_fact("stations_rows")` rows of station metadata, the join happens in R because both sides are now small, and `lm()` never knew Databricks was involved.
 
 ## Where this stops
 
@@ -286,4 +287,4 @@ If the repeats are the expensive part, see [Run a Monte Carlo simulation](monte-
 
 ---
 
-This page rests on: a 32.5 million row table reduces by three orders of magnitude before crossing into R; `dplyr::sql()` reaches Spark SQL functions `dbplyr` cannot translate; `UNRESOLVED_ROUTINE` is raised identically for an untranslated function, a function absent from the connected compute, and a misspelling; Spark SQL has no ordinal-regression primitive.
+This page rests on: a `r wq_fact("readings_rows", "round")` row table reduces by three orders of magnitude before crossing into R; `dplyr::sql()` reaches Spark SQL functions `dbplyr` cannot translate; `UNRESOLVED_ROUTINE` is raised identically for an untranslated function, a function absent from the connected compute, and a misspelling; Spark SQL has no ordinal-regression primitive.

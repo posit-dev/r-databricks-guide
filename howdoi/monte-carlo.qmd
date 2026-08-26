@@ -22,6 +22,14 @@ So the design question changes. Not "how do I move less data" but "how do I get 
 Forking to run the repeats in parallel does not raise peak memory. It lowers it.
 
 ```{r}
+#| label: facts
+#| include: false
+# One number in the closing summary is quoted from facts/measurements.yml
+# rather than typed. Reads a local file and opens no connection.
+source(here::here("R/facts.R"))
+```
+
+```{r}
 #| label: setup
 #| message: false
 library(purrr)
@@ -190,4 +198,4 @@ Leaving the argument out works on both paths, which is what an example should do
 
 ---
 
-This page rests on: a 32.5 million row table shrinks server-side to a small result before the expensive work starts; forked parallel workers reduced peak R memory rather than increasing it; `spark_apply()` was slower than forked workers on a single node; `spark_apply()` has been observed distributing tasks across two worker machines, neither of them the driver; `spark_apply(group_by =)` fails on `rpy2` 3.6.x, and where it ran was slower than the default partitioning; `spark_apply(columns =)` takes a Spark type string from a client connection and a character vector on the cluster's own R session, and the wrong form fails without naming the argument.
+This page rests on: a `r wq_fact("readings_rows", "round")` row table shrinks server-side to a small result before the expensive work starts; forked parallel workers reduced peak R memory rather than increasing it; `spark_apply()` was slower than forked workers on a single node; `spark_apply()` has been observed distributing tasks across two worker machines, neither of them the driver; `spark_apply(group_by =)` fails on `rpy2` 3.6.x, and where it ran was slower than the default partitioning; `spark_apply(columns =)` takes a Spark type string from a client connection and a character vector on the cluster's own R session, and the wrong form fails without naming the argument.

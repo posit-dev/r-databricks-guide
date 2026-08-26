@@ -16,6 +16,7 @@ That is the whole decision. It is not a preference between two working options: 
 # happens to run against. Only what is *shown* is masked; every query below
 # runs against the real tables. See R/setup.R.
 source(here::here("R/setup.R"))
+source(here::here("R/facts.R"))
 wq_mask_output()
 ```
 
@@ -65,7 +66,7 @@ tibble(asked = c(512, 1024, 1025, 2000, 5000)) |>
   }))
 ```
 
-Under 1,024 bytes everything is fine, which is the trap: a small geometry survives, so a test on simple shapes passes and the real data fails. On the catchment table used throughout this guide, 4,040 of 4,080 catchment polygons exceed 1,024 bytes, and 91.5% of the stored geometry never reaches R.
+Under 1,024 bytes everything is fine, which is the trap: a small geometry survives, so a test on simple shapes passes and the real data fails. On the catchment table used throughout this guide, 4,040 of `r wq_fact("catchments_rows")` catchment polygons exceed 1,024 bytes, and 91.5% of the stored geometry never reaches R.
 
 `brickster::DatabricksSQL()` returns the same column byte-exact. Decode a polygon it fetched and the area agrees with the server's own `ST_Area()` to within a fraction of a square metre on a catchment of 25 million.
 

@@ -19,6 +19,7 @@ Thirty-two million rows go in and about a thousand come back. The whole of this 
 # No printed output may carry the catalog this page runs against. Every query
 # below uses the real one; only what is shown is masked. See R/setup.R.
 source(here::here("R/setup.R"))
+source(here::here("R/facts.R"))
 wq_mask_output()
 ```
 
@@ -253,4 +254,4 @@ dbDisconnect(con)
 
 ---
 
-This page rests on: the readings table holds about 32.5 million rows spanning 2015 to 2024; roughly 80% of readings carry quality `Good`; `grepl()` has no Spark SQL translation and fails server-side with `UNRESOLVED_ROUTINE`, so `dplyr::sql()` is needed to match on `value_statistic`; filtering the measures table before the join rather than the readings table after it is what keeps the join small; the reduction yields about a thousand stations and a few hundred kilobytes.
+This page rests on: the readings table holds about `r wq_fact("readings_rows", "round")` rows spanning 2015 to 2024; roughly 80% of readings carry quality `Good`; `grepl()` has no Spark SQL translation and fails server-side with `UNRESOLVED_ROUTINE`, so `dplyr::sql()` is needed to match on `value_statistic`; filtering the measures table before the join rather than the readings table after it is what keeps the join small; the reduction yields about a thousand stations and a few hundred kilobytes.

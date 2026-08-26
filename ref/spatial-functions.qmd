@@ -3,6 +3,15 @@ title: "Which spatial functions you have"
 subtitle: "What the server can do to geometry, what it cannot, and how to find out for the compute in front of you"
 ---
 
+```{r}
+#| label: facts
+#| include: false
+# The two counts below are quoted from facts/measurements.yml rather than typed,
+# so that re-measuring them updates this page and howdoi/polygons.qmd together.
+# Reads a local file and opens no connection. See process/DESIGN-fact-table.md.
+source(here::here("R/facts.R"))
+```
+
 A lookup page, for the moment a query fails with an unknown-function error and you need to know whether the function is missing or your spelling is. Nothing here is worth reading in advance. If you are trying to decide where spatial work should run, that is [Join and transform polygons](../howdoi/polygons.qmd) instead, and it explains why the answer is usually the server.
 
 ## Ask your own compute, rather than trusting a list
@@ -19,11 +28,11 @@ One practical note. On a cluster, run the statement through Spark rather than wr
 
 ## What was there when this was measured
 
-Ninety-seven distinct functions on a Pro warehouse running serverless, and 93 on an all-purpose cluster, measured on 2026-08-24.
+`r wq_fact("spatial_functions_warehouse", "words")` distinct functions on a Pro warehouse running serverless, and `r wq_fact("spatial_functions_cluster")` on an all-purpose cluster, measured on 2026-08-24.
 
 Both numbers need the compute attached, always, because the gap between them is the point of the page.
 
-The count also needs its definition next to it, or it means nothing: four different figures were in circulation before this was pinned down. Ninety-seven is distinct names, with no aliases inflating it and no separate geography family counted twice, since most functions take either type in one signature. Two of the 97 are aggregates and five are geography constructors. Counting only what you would call a spatial operation gives the same 97.
+The count also needs its definition next to it, or it means nothing: four different figures were in circulation before this was pinned down. `r wq_fact("spatial_functions_warehouse", "words")` is distinct names, with no aliases inflating it and no separate geography family counted twice, since most functions take either type in one signature. Two of the `r wq_fact("spatial_functions_warehouse")` are aggregates and five are geography constructors. Counting only what you would call a spatial operation gives the same `r wq_fact("spatial_functions_warehouse")`.
 
 ## The cluster has fewer, not more
 
@@ -86,4 +95,4 @@ If your query fails for a reason that is not a missing function, [When it breaks
 
 ---
 
-This page rests on: the platform reports 97 distinct built-in `ST_` functions on a Pro warehouse running serverless and 93 on an all-purpose cluster, where `st_makepoint`, `st_makeenvelope`, `st_pointonsurface` and `st_collect` are absent and nothing is present that the warehouse lacks; `st_point` works on both; about twenty `sf` staples including `st_makevalid`, `st_relate` and `st_voronoi` are absent from both; an unknown-function error differs only in the name it quotes whether the function exists elsewhere or never existed, while a wrong argument count is distinguishable; `sf` and the server differ in return shape for `st_contains`, `st_distance` and `st_buffer`; boundary containment, self-containment, empty geometry and self-intersection validity agree with `sf`; the Classic warehouse exclusion is documented per function and not tested here.
+This page rests on: the platform reports `r wq_fact("spatial_functions_warehouse")` distinct built-in `ST_` functions on a Pro warehouse running serverless and `r wq_fact("spatial_functions_cluster")` on an all-purpose cluster, where `st_makepoint`, `st_makeenvelope`, `st_pointonsurface` and `st_collect` are absent and nothing is present that the warehouse lacks; `st_point` works on both; about twenty `sf` staples including `st_makevalid`, `st_relate` and `st_voronoi` are absent from both; an unknown-function error differs only in the name it quotes whether the function exists elsewhere or never existed, while a wrong argument count is distinguishable; `sf` and the server differ in return shape for `st_contains`, `st_distance` and `st_buffer`; boundary containment, self-containment, empty geometry and self-intersection validity agree with `sf`; the Classic warehouse exclusion is documented per function and not tested here.

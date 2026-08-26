@@ -1,0 +1,165 @@
+# Measured facts, quoted by the site's prose rather than typed into it.
+#
+# Every number here was measured against a real system and could change if
+# measured again. Read it with wq_fact() from R/facts.R; see
+# process/DESIGN-fact-table.md for why this file exists.
+#
+# Nothing definitional belongs here. EPSG:27700, the 1024-byte ODBC truncation
+# modulus and DefaultStringColumnLength = 65535 are properties of a standard or
+# an API, not observations, and they stay written into the prose.
+#
+# Prefer an executing chunk to an entry here. Where a page can compute the
+# number next to the code that produced it, the two cannot disagree, and that
+# is strictly better than this file. Entries here are for facts the render
+# must not recompute, because doing so would need compute it cannot assume.
+#
+# Fields:
+#   value     the measurement, as a bare number
+#   unit      what it counts
+#   measured  ISO date the measurement was taken
+#   compute   what it was measured on; a count without this is meaningless
+#   method    how, where that is not obvious
+#   volatile  true if it can change under us without anyone touching the site
+#   round     the rounded spelling, where the prose deliberately uses one
+#   note      anything a reader of the entry needs in order to trust it
+#   used_by   every page quoting it, which is what makes a change tractable
+
+spatial_functions_warehouse:
+  value: 97
+  unit: functions
+  measured: 2026-08-24
+  compute: Pro warehouse, serverless
+  method: SHOW FUNCTIONS LIKE 'st_*', counting distinct names
+  volatile: true
+  note: >
+    Distinct names, with no aliases inflating the count and no separate
+    geography family counted twice. Two are aggregates and five are geography
+    constructors. Counting only what you would call a spatial operation gives
+    the same figure.
+  used_by:
+    - ref/spatial-functions.qmd
+    - howdoi/polygons.qmd
+
+spatial_functions_cluster:
+  value: 93
+  unit: functions
+  measured: 2026-08-24
+  compute: all-purpose cluster, DBR 18.1
+  method: SHOW FUNCTIONS LIKE 'st_*' through Spark, counting distinct names
+  volatile: true
+  note: >
+    Four fewer than the warehouse: st_makepoint, st_makeenvelope,
+    st_pointonsurface and st_collect are absent, and nothing is present that
+    the warehouse lacks.
+  used_by:
+    - ref/spatial-functions.qmd
+    - howdoi/polygons.qmd
+
+readings_rows:
+  value: 32540721
+  unit: rows
+  measured: 2026-08-24
+  compute: Pro warehouse, serverless
+  volatile: false
+  round: 32.5 million
+  note: >
+    The table too large to pull into a session, and the one the big-table page
+    is written around.
+  used_by:
+    - ref/data.qmd
+    - howdoi/big-table.qmd
+    - howdoi/monte-carlo.qmd
+    - example/index.qmd
+    - example/ingest.qmd
+    - example/reducing.qmd
+
+stations_rows:
+  value: 9536
+  unit: rows
+  measured: 2026-08-24
+  compute: Pro warehouse, serverless
+  volatile: false
+  note: Monitoring station locations and metadata.
+  used_by:
+    - ref/data.qmd
+    - howdoi/big-table.qmd
+    - example/index.qmd
+
+measures_rows:
+  value: 32443
+  unit: rows
+  measured: 2026-08-24
+  compute: Pro warehouse, serverless
+  volatile: false
+  note: What each station measures, and at what interval.
+  used_by:
+    - ref/data.qmd
+    - example/index.qmd
+
+storm_overflows_rows:
+  value: 14190
+  unit: rows
+  measured: 2026-08-24
+  compute: Pro warehouse, serverless
+  volatile: false
+  note: Storm overflow outfall locations, as points. CC BY 4.0, not OGL.
+  used_by:
+    - ref/data.qmd
+    - example/index.qmd
+    - example/bootstrap.qmd
+
+catchments_rows:
+  value: 4080
+  unit: rows
+  measured: 2026-08-24
+  compute: Pro warehouse, serverless
+  volatile: false
+  note: >
+    Water Framework Directive catchment polygons, with geometry stored as
+    BINARY, which is why anything spatial takes the brickster path.
+  used_by:
+    - ref/data.qmd
+    - example/index.qmd
+    - example/ingest.qmd
+    - howdoi/connect.qmd
+    - howdoi/polygons.qmd
+
+bathing_sites_rows:
+  value: 489
+  unit: rows
+  measured: 2026-08-24
+  compute: Pro warehouse, serverless
+  volatile: false
+  note: Designated bathing water locations.
+  used_by:
+    - ref/data.qmd
+
+bathing_classifications_rows:
+  value: 15210
+  unit: rows
+  measured: 2026-08-24
+  compute: Pro warehouse, serverless
+  volatile: false
+  note: Annual classifications per bathing water site.
+  used_by:
+    - ref/data.qmd
+
+river_links_rows:
+  value: 193040
+  unit: rows
+  measured: 2026-08-24
+  compute: Pro warehouse, serverless
+  volatile: false
+  note: River network segments. A network, not a set of catchments.
+  used_by:
+    - ref/data.qmd
+
+river_nodes_rows:
+  value: 197734
+  unit: rows
+  measured: 2026-08-24
+  compute: Pro warehouse, serverless
+  volatile: false
+  note: River network junctions.
+  used_by:
+    - ref/data.qmd

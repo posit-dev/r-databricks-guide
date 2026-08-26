@@ -3,6 +3,15 @@ title: "The data and its licences"
 subtitle: "Provenance, contents, and the attribution each licence requires"
 ---
 
+```{r}
+#| label: facts
+#| include: false
+# The row counts in the table below are quoted from facts/measurements.yml
+# rather than typed, so that re-measuring one updates every page that states
+# it. Reads a local file and opens no connection.
+source(here::here("R/facts.R"))
+```
+
 The examples on this site use open UK water data. This page says what each table holds and what each licence requires you to say if you reuse it.
 
 ## What each table contains
@@ -11,15 +20,15 @@ Enough to tell whether an example matches the table in front of you. This is not
 
 | Table | Rows | What it is |
 |----|----|----|
-| `hydrology_stations` | 9,536 | Monitoring station locations and metadata, with eastings and northings, river and catchment names, and catchment area |
-| `hydrology_measures` | 32,443 | What each station measures: flow, level, rainfall, and at what interval |
-| `hydrology_readings` | 32,540,721 | The measurements themselves. This is the table too large to pull into a session, and the one [Work with a table that will not fit in your session](../howdoi/big-table.qmd) is written around |
-| `storm_overflows` | 14,190 | Storm overflow outfall locations, as points |
-| `wfd_catchments` | 4,080 | Water Framework Directive catchment polygons, with geometry stored as `BINARY` |
-| `bathing_water_sites` | 489 | Designated bathing water locations |
-| `bathing_water_classifications` | 15,210 | Annual classifications per site |
-| `river_links` | 193,040 | River network segments |
-| `river_nodes` | 197,734 | River network junctions |
+| `hydrology_stations` | `r wq_fact("stations_rows")` | Monitoring station locations and metadata, with eastings and northings, river and catchment names, and catchment area |
+| `hydrology_measures` | `r wq_fact("measures_rows")` | What each station measures: flow, level, rainfall, and at what interval |
+| `hydrology_readings` | `r wq_fact("readings_rows")` | The measurements themselves. This is the table too large to pull into a session, and the one [Work with a table that will not fit in your session](../howdoi/big-table.qmd) is written around |
+| `storm_overflows` | `r wq_fact("storm_overflows_rows")` | Storm overflow outfall locations, as points |
+| `wfd_catchments` | `r wq_fact("catchments_rows")` | Water Framework Directive catchment polygons, with geometry stored as `BINARY` |
+| `bathing_water_sites` | `r wq_fact("bathing_sites_rows")` | Designated bathing water locations |
+| `bathing_water_classifications` | `r wq_fact("bathing_classifications_rows")` | Annual classifications per site |
+| `river_links` | `r wq_fact("river_links_rows")` | River network segments |
+| `river_nodes` | `r wq_fact("river_nodes_rows")` | River network junctions |
 
 Two notes on shape rather than content. The geometry columns are `BINARY`, which is why [Connect your R session to the data](../howdoi/connect.qmd) insists on the `brickster` path for anything spatial. And `river_links` and `river_nodes` are a network rather than a set of catchments, which is easy to assume they are and they are not.
 

@@ -4,15 +4,31 @@
 
 A number that was measured once and typed into prose has no owner and no expiry. Nothing recomputes it, nothing links it to the measurement that produced it, and nothing knows which pages would be wrong if it changed.
 
-The scale is worth stating before designing anything. `97`, the count of built-in `ST_` functions, appears **four times across two pages**: twice in body prose and twice inside a `rests on:` line. `32.5 million`, the readings row count, appears on **six pages**. Each occurrence is an independent chance to drift, and a fact check that updates one and misses another leaves the site contradicting itself, which is worse than being uniformly stale.
+The scale is worth stating before designing anything, and it is larger than it looks. Counted on 2026-08-26:
 
-Three registers make a plain find-and-replace unsafe:
+| Fact | Occurrences | Pages |
+|----|----|----|
+| `97`, built-in `ST_` functions on a warehouse | 6 | `ref/spatial-functions.qmd`, `howdoi/polygons.qmd` |
+| `93`, the same count on a cluster | 4 | the same two |
+| `32,540,721` / `32.5 million` readings rows | 9 | 6 pages |
+| `4,080` catchment polygons | 5 | 5 pages |
+| `9,536` stations, `14,190` overflows | 3 each | 3 pages each |
+| the other five row counts in `ref/data.qmd` | 1 each | `ref/data.qmd` only |
+
+Each occurrence is an independent chance to drift, and a fact check that updates one and misses another leaves the site contradicting itself, which is worse than being uniformly stale.
+
+Two of those rows deserve attention because they break the obvious plan. The readings count appears in **two spellings**, exact (`32,540,721`) and rounded (`32.5 million`), on pages that sit next to each other, so a mechanism that can only emit one of them cannot replace the prose. And `ref/data.qmd` carries a nine-row table of counts that exists for no other purpose than to state them, which is the single densest concentration of this problem on the site.
+
+Four registers make a plain find-and-replace unsafe, all four taken from prose currently on the site:
 
 - digits: `93 on an all-purpose cluster`
 - words: `Ninety-seven distinct functions`
-- deliberate vagueness: `about twenty other `sf` staples`, `roughly seven minutes`
+- rounded: `32.5 million rows`, where the exact value is `32,540,721`
+- deliberate vagueness: ``about twenty other `sf` staples``, `roughly seven minutes`
 
-The third is not sloppiness to be tidied away. `about twenty` is honest where the exact count is unstable, and the mechanism must preserve the ability to say it.
+The rounded register is the one the first draft of this design missed, and it is not a nicety. `32.5 million` and `32,540,721` are the same fact in two spellings, chosen per sentence: the reference table wants the exact figure and a sentence about what will not fit in memory wants the round one. A mechanism that emits only one of them would force a rewrite of prose that is currently correct, so `round` is a format rather than a separate key.
+
+Deliberate vagueness is not sloppiness to be tidied away either. `about twenty` is honest where the exact count is unstable, and the mechanism must preserve the ability to say it. It stays literal prose and is never a fact lookup.
 
 ## What is in scope
 
@@ -70,9 +86,13 @@ readings_rows:
   measured: 2026-08-24
   compute: Pro warehouse, serverless
   volatile: false         # a static published dataset
+  round: 32.5 million     # the rounded spelling the prose also uses
   used_by:
     - ref/data.qmd
     - howdoi/big-table.qmd
+    - howdoi/monte-carlo.qmd
+    - example/index.qmd
+    - example/ingest.qmd
     - example/reducing.qmd
 ```
 
@@ -84,33 +104,54 @@ Quarto already has inline R. Adding a second templating syntax would mean a seco
 
 ```r
 # R/facts.R
-fact <- function(key, format = c("digits", "words", "value")) { ... }
+wq_fact <- function(key, format = c("digits", "words", "round", "value")) { ... }
 ```
+
+Named `wq_fact()` to match the `wq_*` helpers already in `R/setup.R`, and defined in its own file because it is the one helper a page might want without the connection plumbing.
 
 Usage in prose:
 
 ```markdown
-There were `r fact("spatial_functions_warehouse")` on a Pro warehouse and
-`r fact("spatial_functions_cluster")` on an all-purpose cluster.
+There were `r wq_fact("spatial_functions_warehouse")` on a Pro warehouse and
+`r wq_fact("spatial_functions_cluster")` on an all-purpose cluster.
 
-`r fact("spatial_functions_warehouse", "words")` is a lot, and it is still
+`r wq_fact("spatial_functions_warehouse", "words")` is a lot, and it is still
 not all of `sf`.
 ```
 
-The `format` argument is what handles the three registers. `"digits"` gives `97`, `"words"` gives `Ninety-seven` (capitalised when it opens a sentence), and `"value"` returns the bare number for arithmetic. Deliberate vagueness stays as literal prose: `about twenty` is not a fact lookup, and pretending otherwise would encode a false precision the guide has chosen not to claim.
+The `format` argument is what handles the registers. `"digits"` gives `97` (comma-grouped, so `32,540,721`), `"words"` gives `Ninety-seven` capitalised for the start of a sentence, `"round"` gives the `round:` field verbatim (`32.5 million`), and `"value"` returns the bare number for arithmetic.
 
-`fact()` must **fail loudly on an unknown key**, with `cli_abort()`, naming the near matches. A silent `NA` in published prose is precisely the failure this design exists to prevent, and a typo in a key is the likeliest way to introduce one.
+`"round"` reads from the YAML rather than computing the rounding, because where to round is an editorial choice, not an arithmetic one: `32.5 million` is a judgement about what the sentence needs, and a formatter guessing significant figures would eventually produce something nobody chose. A key with no `round:` field errors when asked for one, rather than silently falling back to digits.
 
-## The catch, and why it is acceptable
+Deliberate vagueness stays as literal prose: `about twenty` is not a fact lookup, and pretending otherwise would encode a false precision the guide has chosen not to claim.
 
-Inline R makes a page executable, so it needs a freeze cache and a credentialed render. On a page that already executes this costs nothing. On a page that does not, it converts a page needing no compute into one needing a render.
+`wq_fact()` must **fail loudly on an unknown key**, with `cli_abort()`, naming the near matches. A silent `NA` in published prose is precisely the failure this design exists to prevent, and a typo in a key is the likeliest way to introduce one.
 
-Two mitigations, and the choice between them is worth making deliberately rather than by default:
+## The catch, and how it is resolved
 
-1. **Accept it** where the page is already executable, which covers most of the affected pages.
-2. **Pre-render to a partial** for pages that must stay compute-free, writing the resolved prose into a `_facts/` include. This adds a build step, and should only be reached for if option 1 proves genuinely blocking.
+Inline R makes a page executable, so it needs a freeze cache. On a page that already executes this costs nothing. On a page that does not, it converts a page needing no render into one needing one.
 
-Note that `fact()` itself reads a local YAML file and touches no network, so a page using it needs R at render time but **not** credentials. That is a meaningfully weaker requirement than the pages that query Databricks, and it means CI still cannot run it (CI has no R) but a contributor without workspace access can.
+The first draft of this design assumed that mattered little, because "most of the affected pages already execute". That is false, and it is false in the worst possible place:
+
+| Page | Executes today? | Facts it carries |
+|----|----|----|
+| `howdoi/polygons.qmd` | yes | `97`, `93`, `4,080` |
+| `howdoi/big-table.qmd` | yes | readings count, `9,536` |
+| `example/ingest.qmd`, `reducing.qmd`, `connecting.qmd` | yes | readings count, `4,080` |
+| `howdoi/monte-carlo.qmd` | yes | readings count |
+| **`ref/spatial-functions.qmd`** | **no** | `97`, `93`, the definition of the count |
+| **`ref/data.qmd`** | **no** | **all nine row counts** |
+| `example/index.qmd` | no | `9,536`, `32,443`, `14,190`, `4,080` |
+
+The three static pages hold the densest and most perishable facts on the site, so the mitigation that was written as a fallback is in fact the main case. Converting them is the point of the exercise rather than an unfortunate side effect.
+
+**The resolution: `wq_fact()` needs R but not credentials.** It reads a local YAML file and touches no network. So making `ref/data.qmd` executable does not make it a page that queries Databricks; it makes it a page that reads a file. That is a much weaker requirement, and it is the reason the cost is acceptable:
+
+- A contributor without workspace access can still render it.
+- The freeze cache it gains is cheap to rebuild and cannot go stale against the workspace, only against the YAML.
+- CI still cannot render it, because CI has no R, which is already true of every other executable page and is what `_freeze/` exists to handle.
+
+The one genuine cost is that three pages gain a freeze cache and therefore join the set that `scripts/check-freeze.sh` governs. Edit one and you must re-render it. That is the same discipline the rest of the site already lives under, and `process/PROBLEM-freeze-cache-staleness.md` covers the trap in it.
 
 ## Fact-checking loop
 
@@ -123,7 +164,7 @@ The report is the important half, and it should answer three questions:
 
 - **Stale**: `volatile: true` entries whose `measured` date is older than a threshold, say 90 days.
 - **Orphaned**: keys no page references, which are usually a fact that was removed from prose without being removed here.
-- **Undeclared**: a page listed in `used_by` that no longer calls `fact()` for that key, which is the same drift in the other direction.
+- **Undeclared**: a page listed in `used_by` that no longer calls `wq_fact()` for that key, which is the same drift in the other direction.
 
 `--measure` should print a diff and change nothing on its own. Updating a value is a deliberate act, because it means re-dating the entry and re-rendering every page in `used_by`, and that is a decision with a cost attached rather than a formality.
 
@@ -131,11 +172,13 @@ The `used_by` list is what makes the loop tractable: change a number, and the li
 
 ## Migration order
 
-Do not convert everything. Start where the pain is measurable:
+Do not convert everything at once, but do convert whole facts rather than whole pages. A fact half-converted is worse than one not converted, because the site then states it two ways with only one of them owned.
 
-1. `spatial_functions_warehouse` and `spatial_functions_cluster`, four occurrences across two pages, both `volatile: true`, and the most perishable facts on the site.
-2. `readings_rows`, six occurrences, stable but the most duplicated.
-3. Stop and review. If the mechanism has not paid for itself on those two, it will not on the tail.
+1. **The spatial function counts**, `97` and `93`, ten occurrences across two pages. The most perishable facts on the site, both `volatile: true`, and the vendor has already moved the published figure once. This step converts `ref/spatial-functions.qmd` from static to executing, which is the design's hardest case, so doing it first is deliberate: if the cost is unacceptable it is better to learn that here than after three more pages.
+2. **The nine row counts in `ref/data.qmd`**, plus their duplicates elsewhere. Nineteen occurrences in total and the densest concentration on the site. Lower risk than step 1 because the values are stable, and the biggest single reduction in duplication.
+3. **Stop and review.** If the mechanism has not paid for itself across those two, it will not on the tail.
+
+The readings count spans both steps, appearing in `ref/data.qmd` and on five other pages, so it is converted with step 2 rather than split.
 
 ## What this does not fix
 
