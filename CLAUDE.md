@@ -85,18 +85,21 @@ quarto preview                       # live preview
 R -e 'renv::restore()'               # restore the package environment
 ```
 
-Three scripts do the repeated work, so the sequences below are not retyped:
+These do the repeated work, so the sequences below are not retyped:
 
 ```bash
 scripts/start-cluster.R              # idempotent start; --status reports and starts nothing
 scripts/rerender.sh <page.qmd>       # refresh one frozen page; --stale does every stale one
 scripts/rebuild-site.sh              # drop every cache and rebuild from source; --dry-run first
 scripts/page-md.sh <page.qmd>        # print a page's executed output; --list shows what is cached
+scripts/stage-sample-files.R         # restage the files howdoi/volume-files.qmd reads; --status checks
 ```
 
 **Read the markdown for content, the HTML only for rendering.** `page-md.sh` prints what a page actually produced, from the freeze cache: numbers, output, a leaked string. Reaching for `_site/*.html` to check a number means grepping past the whole template for something that was sitting in plain text all along. Keep the HTML for things pandoc decides, such as whether a cross-reference resolved or a callout rendered.
 
 `rerender.sh` is the one to reach for after editing anything under `example/`: `quarto render <page>` alone will **not** refresh a frozen page, because freeze means never re-execute, so the cache has to be dropped first and that is what the script does. `rebuild-site.sh` is the whole-site version, for testing that the site still builds from nothing.
+
+One page has a data dependency outside the repository. `howdoi/volume-files.qmd` executes against a CSV and a four-part shapefile under `raw/sample/` in the volume, because it demonstrates reading files out of one and pasted output is forbidden. If those files go, the page cannot re-render. `scripts/stage-sample-files.R` rebuilds them from `hydrology_stations`, is idempotent, and never creates a volume, since `CREATE VOLUME` is the one thing many teams do not have.
 
 `rerender.sh` deletes a page's cache before rebuilding it, which is what forces re-execution and also what makes it unsafe to interrupt: killed in between, a page is left with no cache at all. Recover with `git checkout -- _freeze`. Do not run it under a timeout shorter than the render, because a cluster-backed page takes minutes.
 
