@@ -1,6 +1,6 @@
 ---
 name: r-databricks-connections
-description: Choosing and troubleshooting a connection from R to Databricks. Load this first for any R-to-Databricks work. Covers the five connection paths (odbc, brickster DBI, sparklyr, brickster REST, db_context), the ambient-credential model on Posit Workbench, and diagnosing an expired token that surfaces as an opaque ODBC driver error.
+description: Choosing and troubleshooting a connection from R to Databricks. Load this first for any R-to-Databricks work. Covers the five connection paths (odbc, brickster DBI, sparklyr, brickster REST, db_context), the ambient-credential model on Posit Workbench, and diagnosing an auth failure that surfaces as an opaque ODBC driver error.
 ---
 
 # R-to-Databricks connections
@@ -73,9 +73,9 @@ Workbench renews the underlying token itself, on its own schedule. Nothing in R 
 
 Fallbacks, for sessions without ambient credentials, are `DATABRICKS_TOKEN` or the `DATABRICKS_CLIENT_ID` / `DATABRICKS_CLIENT_SECRET` pair.
 
-## The expired-token signature
+## The auth-failure signature
 
-An expired token does not surface as anything auth-shaped. It surfaces as this, verbatim:
+An auth failure does not surface as anything auth-shaped. It surfaces as this, verbatim:
 
 ```
 ODBC failed with error 00000 from [RStudio][ThriftExtension].
@@ -83,9 +83,31 @@ ODBC failed with error 00000 from [RStudio][ThriftExtension].
 Unauthorized/Forbidden error response returned, but no token expired message received.
 ```
 
-**Do not debug that as a warehouse, driver, or network fault.** Confirm it independently with a REST call to `/api/2.0/preview/scim/v2/Me`: an expired token returns `HTTP 401 "Token is expired"`, unambiguously. `[verified: ran it on 2026-08-18]`
+**Do not debug that as a warehouse, driver, or network fault.** It is an auth failure wearing a transport error's clothes.
 
-The fix is to wait for the platform to re-mint the credential, or to sign in again. Watch the config file's mtime to see the renewal actually happen; there is no other signal.
+**Confirm it by retrying the connection itself**, not by calling the REST API:
+
+```r
+con <- DBI::dbConnect(odbc::databricks(), httpPath = http_path)
+DBI::dbGetQuery(con, "SELECT current_user() AS u")
+```
+
+If that returns your username, the credential is fine and the problem is elsewhere. This is the only check that tests the path you actually care about.
+
+**A REST 401 does not prove the token is expired.** An earlier version of this section said to confirm with `/api/2.0/preview/scim/v2/Me` and expect `HTTP 401 "Token is expired"`. That test gives false positives and the guidance was **corrected on 2026-08-27**. Measured against an Azure Databricks workspace with OAuth (Entra ID) ambient credentials: every REST endpoint tried, `scim/v2/Me`, `clusters/list`, `sql/warehouses` and `unity-catalog/catalogs`, returned `HTTP 401` while `dbConnect()` authenticated successfully on the same credential seconds later. The token was a valid JWT with an hour left before `exp`. `[verified: ran it on 2026-08-27]`
+
+Two reasons the REST check misleads:
+
+- **The token may not carry REST authorisation at all.** A Workbench-injected OAuth JWT is audience-scoped, and the SQL/ODBC path and the REST API do not necessarily accept the same credential. A 401 can mean "not entitled to this API", not "expired".
+- **The message text is not stable.** The documented `"Token is expired"` is one possibility. The observed message on a *valid* token was `"Credential was not sent or was of an unsupported type for this API"`, so matching on either string decides nothing.
+
+If you do call REST, decode the JWT rather than trusting the status code. `exp` in the payload answers the expiry question directly:
+
+```bash
+python3 -c "import base64,json,sys; p=sys.argv[1].split('.')[1]; p+='='*(-len(p)%4); print(json.loads(base64.urlsafe_b64decode(p))['exp'])" "$TOKEN"
+```
+
+When the credential genuinely has expired, the fix is to wait for the platform to re-mint it, or to sign in again. Watch the config file's mtime to see the renewal happen; there is no other signal. Note that the mtime alone proves nothing about validity: a freshly written config and a failing connection can coexist, and a stale-looking mtime on a working credential is common. Test the connection, not the timestamp.
 
 ## Never do this
 
