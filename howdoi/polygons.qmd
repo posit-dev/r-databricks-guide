@@ -17,13 +17,9 @@ Worth being clear about what that means, because it is the one thing on this pag
 
 A name the server does not have fails loudly, with `UNRESOLVED_ROUTINE`, whether it is a typo or a real `sf` function with no server equivalent. That is the safe case, and it is not the one to plan around.
 
-The case to plan around is a name that exists on both sides and does not mean the same thing, because that runs cleanly and answers wrongly. Twenty-two names are in that position. It comes in three kinds, and all three are live on this page:
+The case to plan around is a name that exists on both sides and does not mean the same thing, because that runs cleanly and answers wrongly. There is one thing to remember about it, and [the next section](#project-before-you-measure-or-the-server-will-answer-in-degrees) is that thing: **work in a projected CRS, and the two sides agree.** On longitude and latitude they diverge, in measurements and in spatial joins alike, and nothing errors either way.
 
-- **A number that is wrong by a factor of a hundred thousand.** Ask the server for a distance or an area on longitude and latitude and you get degrees where `sf` would give you metres. [The section below](#the-earth-is-round-in-sf-and-flat-on-the-server) works it through.
-- **A true-or-false test that is wrong for a few rows.** `st_contains()` and its relatives agree with `sf` in the middle of a polygon and disagree on its edge. This is the one that will cost you time, because a join off by a handful of rows in thousands does not look like anything.
-- **A different return shape.** `st_contains()` gives one boolean per row on the server and a sparse index list in `sf`; `st_distance()` gives a scalar per row against a matrix; `st_buffer()` takes two arguments and rejects `sf`'s `nQuadSegs`. This one is porting friction rather than a trap: you will see it immediately. [Which spatial functions you have](../ref/spatial-functions.qmd#where-the-semantics-differ-from-sf) tabulates them.
-
-The first two have a single cause and a single fix, which is the next section. Note what the first two have in common: nothing warns you, and both answers are defensible. You will not find these by reading the error log, because there is no error.
+A third difference is harmless by comparison, and worth knowing only because it will interrupt you while porting an expression: `st_contains()` returns one boolean per row on the server against a sparse index list in `sf`, `st_distance()` a scalar per row against a matrix, and `st_buffer()` takes two arguments and rejects `sf`'s `nQuadSegs`. You will see each of those immediately. [Which spatial functions you have](../ref/spatial-functions.qmd#where-the-semantics-differ-from-sf) tabulates them.
 
 So the position of `collect()` is not a stylistic detail in a spatial pipeline: it decides which implementation of a shared name you get. When you are unsure which side you are on, `show_query()` settles it, and anything it shows you is the server's.
 
@@ -131,15 +127,17 @@ So the habit to build is to wrap `st_geomfromwkb()` in `st_setsrid()` every time
 
 Necessary, though, is not sufficient, and this is the point at which it would be reasonable to think the CRS problem is solved. It is not: labelling the coordinates does not make the server measure them the way `sf` would. The next section is the part that bites.
 
-## The Earth is round in `sf`, and flat on the server
+## Project before you measure, or the server will answer in degrees
 
-Setting the CRS is necessary and not sufficient. There is a second divergence underneath it that no error will ever tell you about, and it is the one most likely to end up in a paper.
+**Work in a projected CRS whenever a spatial expression runs on the server.** On EPSG:27700 or any other metric projection, `sf` and Databricks agree. On longitude and latitude they do not, and nothing tells you.
 
-You already know that a distance on a sphere is not a distance on a flat map. The trap is that `sf` and Databricks make opposite default choices about it, and the same line of code gets whichever choice belongs to the side it ran on.
+That is the whole rule, and this data already satisfies it: the catchments are stored in EPSG:27700, which is why the areas above can be trusted. If your own layers are in lon/lat, `st_transform()` them first, and the rest of this section is why.
 
-Since version 1.0, `sf` treats longitude and latitude as points on a sphere. Hand it unprojected coordinates and it uses s2 spherical geometry and returns metres. The server does the opposite: it discards the coordinate system entirely and does flat arithmetic on the raw numbers, so on longitude and latitude it is doing plane geometry on degrees. Neither is a bug. They are two defensible answers to two different questions, and the pipeline gives you no clue which one you asked.
+Setting the CRS is necessary and not sufficient, which is the part that catches people. Labelling the coordinates does not change how they are measured.
 
-Here is the size of it, both sides computed side by side. Two points a nominal five degrees apart:
+You already know that a distance across a sphere is not a distance across a flat map. The trap is that `sf` and Databricks pick opposite defaults, and the same line of code silently gets whichever default belongs to the side it ran on. `sf` treats lon/lat as points on a sphere and gives you metres. The server discards the coordinate system and does flat arithmetic on the raw numbers, so on lon/lat it hands you degrees. Both are correct answers to different questions.
+
+Here is the size of the gap, both sides computed side by side, on two points five degrees apart:
 
 ```{r}
 #| label: divergence
@@ -161,39 +159,31 @@ tibble(
 )
 ```
 
-Five against half a million. The server's `5` is the separation in degrees, computed correctly. `sf`'s figure is the same separation in metres, also computed correctly. Nothing warns, both look like plausible numbers, and if the units are not printed next to them there is nothing to notice.
+Five against half a million: degrees against metres, each computed correctly. On an area it is worse, because square degrees are not a unit anyone would notice in a table of catchment sizes.
 
-The quieter half of the same problem is that true-or-false tests diverge too, and only on boundaries. Take a unit square and a point sitting exactly on the middle of its bottom edge. On the server the point is on the edge, because the edge is a straight line from (0,0) to (1,0). In `sf` the edge is a geodesic that bows away from that straight line, so the point is genuinely not on it. `st_intersects()`, `st_covers()` and `st_touches()` come back TRUE on the server and FALSE in `sf`, and `st_disjoint()` the other way round. Points well inside and well outside the polygon agree on both sides.
+### Spatial joins are affected too, and that is the one that will catch you
 
-That asymmetry is what makes it expensive. A spatial join puts its ambiguous records exactly on boundaries, so the rows that disagree are the ones you would have wanted to look at. A point-in-polygon count comes back a handful of rows different from what R would have said, both numbers are defensible, and nothing in the output suggests you should check.
+The natural conclusion from the numbers above is that measurements are risky and true-or-false tests are safe. That is wrong, and it is the more expensive half.
 
-So do not carry away "measurements are risky, true-or-false tests are safe". It is a natural summary and it is wrong.
+On lon/lat, `st_contains()` and its relatives agree with `sf` in a polygon's interior and disagree **on its boundary**. In `sf` a polygon edge between two lon/lat corners is a great-circle arc, so it bows away from the straight line the server draws between the same two points. A point in that sliver is inside for one and outside for the other.
 
-### The fix is to project, and the tempting alternatives are worse
+Which is exactly where a catchment join lands its difficult records. Catchments share their edges, coastlines are boundaries, and an outfall on a river is on a catchment boundary rather than comfortably inside one. So a point-in-polygon count on lon/lat comes back a handful of rows different from what `sf` would have said, every number in it is plausible, and the rows that moved are the ones you would have wanted to inspect.
 
-Project your coordinates before you ask a spatial question, and both problems disappear at once.
+Project both layers and the disagreement goes away, because `sf` only reaches for spherical geometry when the data is unprojected: on a projected CRS it works on a plane, which is what the server was doing all along.
 
-The reason it works on both sides is worth holding onto: `sf` reaches for spherical geometry only when the data is unprojected. Give it a projected CRS and it does flat arithmetic on a plane, which is what the server was doing all along. The two models coincide, and every case tested agreed exactly.
+### Two things that look like the fix and are not
 
-This data is stored in EPSG:27700, already projected into metres, which is why the areas earlier on this page can be trusted and why the join at the foot of it is sound. Had the catchments been stored in longitude and latitude, that same `st_area()` call would have returned square degrees and the numbers would have looked like a unit mistake nobody made.
+**`sf_use_s2(FALSE)` is a trap**, and it is the first thing an experienced `sf` user reaches for. It does not switch `sf` to a flat model, it switches it to an ellipsoidal one. So the boundary disagreement clears up and it looks as though it worked, while the measurements stay wrong by five orders of magnitude. You have cured the symptom you could have caught and kept the one you could not. Leave s2 alone and project instead.
 
-Five things look like fixes and are not. Three of them are the obvious things to try:
+**Tagging the SRID is not the same as respecting it.** Keep wrapping `st_geomfromwkb()` in `st_setsrid()`, for the reasons in the section above, but `st_distance()` ignores the SRID you attached. A column that carries a CRS has not been measured in it.
 
-- **Attaching `sf`.** The generic is never called, so it changes nothing. Nor does detaching it.
-- **Tagging the SRID.** `st_setsrid()` is still worth doing, for the reasons in the section above, but `st_distance()` ignores it. "The column has a CRS" does not mean the measurement respected it.
-- **Changing connection path.** `odbc`, `brickster` and `sparklyr` were each measured, and all three return the same wrong answer just as silently. There is nothing to choose between them here.
+Nothing will warn you about either. Whether a spatial call is right depends on the CRS of the data, and the SQL is written before anything asks the server what it is holding, so no check can catch this for you. Attaching `sf` makes no difference, and neither does the connection you opened.
 
-The fourth is that nothing can warn you. Whether a call is wrong depends on the CRS of the data, and `dbplyr` writes the SQL before anything has asked the server what it is holding, so no automatic check can decide at that point. This one is yours to get right.
+If you do want a distance across a sphere from lon/lat, ask for it by name: `st_distancesphere()` and `st_distancespheroid()`, as the comparison above shows. Sphere or ellipsoid is the ordinary choice you already make in `sf`.
 
-The fifth is the one to be most careful about, because it is what an experienced `sf` user reaches for first. **`sf_use_s2(FALSE)` is a trap.** It switches `sf` to an ellipsoidal model, not a flat one. That repairs the boundary disagreement, so the true-or-false tests start matching and it looks as though it worked, while the measurements stay wrong by five orders of magnitude. You have removed the symptom you could have found and kept the one you could not. Leave s2 alone and project instead.
+The geography type is a different route rather than a cast. `st_distance()` refuses a geography argument outright, so you cannot repair a flat answer by converting the input: use the two functions just named, or work in geography throughout with `st_length()` and `st_area()`, which do accept it. It is also still Public Preview where the geometry type is generally available.
 
-If you specifically want a distance on a sphere from unprojected coordinates, ask the server for it by name. `st_distancesphere()` and `st_distancespheroid()` do that, as the comparison above shows: the difference between the two is the sphere against the ellipsoid, which is the ordinary choice you already make in `sf`.
-
-The geography type is the other route and it is not a drop-in. `st_distance()` refuses a geography argument outright with a datatype mismatch, so you cannot fix a flat answer by casting the input: use the functions just named, or work in geography throughout with `st_length()` and `st_area()`, which do accept it. Geography is also still Public Preview where the geometry type is generally available, which is worth knowing before you build on it.
-
-Mixing two coordinate systems is the good case by comparison: that fails loudly, as [the section above](#set-the-crs-yourself) shows. This one does not fail at all.
-
-One caveat on the twenty-two overlapping names. That was counted once, against one runtime and one version of `sf`, so treat it as an observation rather than a promise. The modelling difference underneath it is documented behaviour on both sides and will outlast the count.
+Mixing two coordinate systems is the kind case by comparison: that fails loudly, as [the section above](#set-the-crs-yourself) shows. This one does not fail at all.
 
 ## Transforming once, server-side, instead of per iteration
 
