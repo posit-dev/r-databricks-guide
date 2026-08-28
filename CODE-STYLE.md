@@ -137,11 +137,14 @@ Inside a `dplyr` verb on a remote table, nothing in R evaluates `st_area(g)`. `d
 
 A name the server does not have fails loudly with `UNRESOLVED_ROUTINE`, whether it is a typo or a real `sf` function with no server equivalent. That is the safe case. The dangerous case is a name that exists on both sides and means something different:
 
-- **Different value.** Server-side `st_distance()`, `st_length()` and `st_area()` are planar; `sf` on unprojected coordinates is geodesic. On two WGS84 points the server returned `5` and `sf` returned 555,813 metres. Both correct, five orders of magnitude apart, no warning.
+- **Different value.** Server-side `st_distance()`, `st_length()` and `st_area()` are planar; `sf` on unprojected coordinates uses s2 spherical geometry. On two WGS84 points the server returned `5` and `sf` returned 555,813 metres. Both correct, five orders of magnitude apart, no warning.
+- **Different answer, on boundaries only.** The same modelling difference makes predicates diverge exactly on a polygon's edge, where the server sees a straight line and `sf` a geodesic. Interior and exterior agree. So **"measures are unsafe, predicates are safe" is false**, and the predicate case is worse, because it surfaces as a count a few rows out rather than as an implausible number.
 - **Different shape.** `st_contains()` returns one boolean per row server-side against a sparse index list in `sf`; `st_distance()` a scalar per row against a matrix; `st_buffer()` takes two arguments and rejects `sf`'s `nQuadSegs`.
 - **Absent entirely.** `st_makevalid()` and about twenty other `sf` staples have no server-side equivalent. The server will tell you a polygon is invalid and will not repair it.
 
-So write the geometry decode and the CRS assertion in the same `mutate()`, keep `st_setsrid()` around every `st_geomfromwkb()`, and use `show_query()` when you are unsure which side you are on: anything it shows you is the server's. `howdoi/polygons.qmd` and `ref/spatial-functions.qmd` carry the detail.
+**Project the coordinates before writing any spatial expression that crosses the line.** That is the fix for the first two at once, because `sf` engages s2 only for longitude and latitude: on a projected CRS it runs planar GEOS, which is what the server was doing anyway. Nothing else works. `st_setsrid()` is still worth writing, but `st_distance()` ignores the SRID, so a labelled column is not a checked one; attaching `sf` does nothing; `odbc`, `brickster` and `sparklyr` are all wrong identically; and no automated guard can help, because `dbplyr` builds the SQL before anything asks the server what CRS the data is in. Do not write `sf_use_s2(FALSE)`: it switches to an ellipsoidal model, so it repairs the predicates and leaves the measures wrong, which is worse than either error alone.
+
+So write the geometry decode and the CRS assertion in the same `mutate()`, keep `st_setsrid()` around every `st_geomfromwkb()`, project before measuring or testing, and use `show_query()` when you are unsure which side you are on: anything it shows you is the server's. `howdoi/polygons.qmd` and `ref/spatial-functions.qmd` carry the detail.
 
 ## Pipes
 

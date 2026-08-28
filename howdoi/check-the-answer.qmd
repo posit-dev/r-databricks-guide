@@ -11,7 +11,7 @@ The honest limit belongs next to it. This is one comparison on one kind of compu
 
 ## Why they can disagree at all
 
-Four things make two correct machines return different numbers: floating point, aggregation order, a coordinate system you set in one place and not the other, and a measurement function that means something different on each side.
+Four things make two correct machines return different numbers: floating point, aggregation order, a coordinate system you set in one place and not the other, and a spatial function that models the Earth differently on each side.
 
 They are not equally likely and they are not equally serious, and telling them apart is most of what you need.
 
@@ -21,9 +21,11 @@ Aggregation order is the next. When the server computes a sum, it computes it in
 
 The coordinate system is the first one that produces a difference you can see, and it is a genuine mistake rather than a property of the platform. WKB carries no SRID, so nothing in the bytes tells `sf` which projection they are in. Set it wrong, or forget to set it, and you get a valid polygon with a completely wrong area. That difference is a factor, not a rounding artefact, and it is the first thing to check when a comparison fails.
 
-The fourth is the largest and the only one where both machines are right. The server's distance, length and area functions on the geometry type are planar, returning the coordinate system's own units, while `sf` on unprojected coordinates returns geodesic metres. Compare those two and you get a difference of five orders of magnitude with no error on either side, because you asked two different questions and got two correct answers. [Join and transform polygons](polygons.qmd) has the detail; here the thing to know is that a difference that large is more likely to be this than a bug.
+The fourth is the largest and the only one where both machines are right. On longitude and latitude, `sf` measures on a sphere and returns metres, while the server discards the coordinate system and does flat arithmetic on the raw degrees. Compare those two and you get a difference of five orders of magnitude with no error on either side, because you asked two different questions and got two correct answers. [Join and transform polygons](polygons.qmd) has the detail and the fix, which is to project; here the thing to know is that a difference that large is more likely to be this than a bug.
 
 So rank a discrepancy by its size before you go looking for a cause. A relative difference around 1e-12 is the first two causes and needs no action. Something visible in the first few significant figures is a CRS you set in one place and not the other. And a difference of orders of magnitude is usually not a mistake at all: it is the two sides measuring in different units, so check what each function actually returns before you start debugging.
+
+Ranking by size has one blind spot, and it is worth knowing about before you trust the heuristic. The fourth cause has a quiet form that produces no magnitude at all: on unprojected coordinates, `sf` and the server also disagree about points sitting exactly on a boundary, and they agree everywhere else. What you see then is not a number that is wildly out but a count that is a few rows different, which the ranking above would send you looking for a bug in your own code. If you are comparing counts from a spatial join or a point-in-polygon test rather than comparing measurements, check the projection first and the tolerance second.
 
 ## The recipe
 
@@ -183,4 +185,4 @@ Keep the row with the result it describes, in the same file or the same director
 
 ---
 
-This page rests on: worker-computed polygon area matched the warehouse's own to a relative difference of 3.1e-12; hashing an R object is not portable across R minor versions; distance, length and area on the server's geometry type are planar while `sf` on unprojected coordinates is geodesic, so the two disagree silently by orders of magnitude with neither being wrong.
+This page rests on: worker-computed polygon area matched the warehouse's own to a relative difference of 3.1e-12; hashing an R object is not portable across R minor versions; distance, length and area on the server's geometry type are planar while `sf` on unprojected coordinates is spherical, so the two disagree silently by orders of magnitude with neither being wrong; the same modelling difference makes predicates disagree on boundaries alone, which surfaces as a count a few rows out rather than as a difference in magnitude, so ranking a discrepancy by size does not find it; projecting the coordinates removes both, because `sf` uses s2 only for longitude and latitude.

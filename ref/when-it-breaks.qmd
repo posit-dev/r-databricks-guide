@@ -16,7 +16,8 @@ Before anything else: if several things broke at once, or something that worked 
 | `install.packages("sf")` fails at configure | GDAL, GEOS and PROJ are absent from the runtime image. These are system libraries, not R packages, so no `install.packages()` argument changes it and you cannot do it from an R session. **Your administrator's:** forward [Setting up a cluster for geospatial R](../admin/geospatial-setup.qmd). |
 | `terra` fails to load | Usually the same missing system libraries as above. On older runtimes there was a second cause: a `terra` pin against the image's GDAL, and an `Rcpp` upgrade before `units` would install. On DBR 18 neither pin is needed, so a script still carrying them is one to revise rather than a constraint to respect. **Your administrator's** ([Setting up a cluster for geospatial R](../admin/geospatial-setup.qmd)). |
 | A spatial function is not recognised | Either the function does not exist on the compute you are connected to, or you have misspelled it. [See below](#a-spatial-function-is-not-recognised). |
-| A distance, length or area is wildly wrong | Server-side measurement is planar, while `sf` on unprojected coordinates is geodesic. [See below](#a-distance-length-or-area-is-wildly-wrong). |
+| A distance, length or area is wildly wrong | Server-side measurement is planar, while `sf` on unprojected coordinates is spherical. [See below](#a-distance-length-or-area-is-wildly-wrong). |
+| A spatial join or point-in-polygon count is off by a handful of rows | The same cause as the row above, in its quieter form. On longitude and latitude, `sf` and the server disagree about points sitting exactly on a boundary. [See below](#a-spatial-join-or-point-in-polygon-count-is-off-by-a-handful-of-rows). |
 | `columns = list(...)` rejected | The documented list form of `spark_apply(columns =)` does not work here (`sparklyr/sparklyr#3529`). Use a Spark DDL string, `columns = "name type, name type"`, or omit the argument and let the types be inferred. Omitting works everywhere, which is the safest choice. |
 | A `spark_apply()` column is missing, and the function looks fine | The right form of `columns =` depends on where you are running: a Spark type string from a client connection, a plain character vector on the cluster's own R session. Neither is rejected by the other path, and the error never mentions `columns`. Omit the argument, or match it to the context. This is why code moved between a notebook and a client session breaks ([Sending things to where your code runs](sending-things.qmd)). |
 | `context =` rejected | `spark_apply(context =)` does not work on the `databricks_connect` backend, which is the backend a client connection uses. Use a volume to get the object across. The sparklyr documentation describing `context =` is not wrong, it just does not describe this backend. |
@@ -35,9 +36,21 @@ Check both, in that order, because the assumption most people make is backwards:
 
 ## A distance, length or area is wildly wrong
 
-Server-side distance, length and area are planar, while `sf` on unprojected coordinates is geodesic. Nobody has made a mistake and nothing errors. The discrepancy can run to five orders of magnitude.
+Your coordinates are longitude and latitude, and the measurement ran on the server. Nobody has made a mistake and nothing errors. The discrepancy can run to five orders of magnitude, because you are comparing metres with degrees.
 
-Project your coordinates before measuring, or do the measurement in R, and be deliberate about which. This is the expensive one on this page because it is silent: you get a number, and it is wrong. See [Join and transform polygons](../howdoi/polygons.qmd).
+`sf` treats longitude and latitude as points on a sphere and gives you metres. The server discards the coordinate system and does flat arithmetic in whatever units it finds, which for lon/lat means degrees. Both answers are correct to their own question.
+
+Project your coordinates before you measure anything. That fixes it on both sides at once, because `sf` only reaches for spherical geometry when the data is unprojected: give it a projected CRS and it does flat arithmetic too, and the two agree. Doing the measurement in R is the other option, but it is the weaker one, because it only fixes the call you remembered to move.
+
+Do not reach for `sf_use_s2(FALSE)`. It looks like the fix and is worse than the problem: see [Join and transform polygons](../howdoi/polygons.qmd#the-fix-is-to-project-and-the-tempting-alternatives-are-worse).
+
+## A spatial join or point-in-polygon count is off by a handful of rows
+
+The same cause as the entry above, and much harder to spot. If your data is in longitude and latitude and the predicate ran on the server, `sf` and the server disagree about points that sit exactly on a boundary, and they agree everywhere else.
+
+A boundary is where a join puts its ambiguous records, so the rows that differ are precisely the interesting ones. Nothing is wrong by orders of magnitude, so nothing looks wrong at all: a count is a few rows out and both answers are defensible.
+
+This is why "measurements are risky, true-or-false tests are safe" is not a rule you can rely on. Project first, and the disagreement goes away. [Join and transform polygons](../howdoi/polygons.qmd#the-fix-is-to-project-and-the-tempting-alternatives-are-worse) has the detail.
 
 ## An R notebook refuses to attach to a cluster
 

@@ -1,6 +1,6 @@
 ---
 name: r-databricks-unity-catalog
-description: Finding and querying Unity Catalog data from R. Covers browsing catalogs, schemas and tables with brickster, writing dbplyr pipelines rather than SQL strings (including why spatial ST_ functions and the odbc BINARY bug are not reasons to drop to SQL, and why an st_ call above collect() is the server's function and not sf's, which is planar where sf is geodesic), in_catalog() for three-part names, glimpse() without collect(), deciding where the collect() line goes, and using dplyr::sql() for expressions dbplyr cannot translate or tbl(con, sql()) to start from a whole hand-written query. Load when locating a table or writing a query; load r-databricks-connections first to choose a connection path.
+description: Finding and querying Unity Catalog data from R. Covers browsing catalogs, schemas and tables with brickster, writing dbplyr pipelines rather than SQL strings (including why spatial ST_ functions and the odbc BINARY bug are not reasons to drop to SQL, and why an st_ call above collect() is the server's function and not sf's, which models the Earth differently unless the coordinates are projected), in_catalog() for three-part names, glimpse() without collect(), deciding where the collect() line goes, and using dplyr::sql() for expressions dbplyr cannot translate or tbl(con, sql()) to start from a whole hand-written query. Load when locating a table or writing a query; load r-databricks-connections first to choose a connection path.
 ---
 
 # Finding and querying Unity Catalog data from R
@@ -45,15 +45,24 @@ A name the server does not have fails loudly with `UNRESOLVED_ROUTINE`, whether 
 
 | Divergence | What happens |
 |----|----|
-| **Value** | Server-side `st_distance()`, `st_length()`, `st_area()` are planar; `sf` on unprojected coordinates is geodesic. On two WGS84 points: server `5`, `sf` 555,813 m. Both correct, no warning |
+| **Value** | Server-side `st_distance()`, `st_length()`, `st_area()` are planar; `sf` on unprojected coordinates uses s2 spherical geometry. On two WGS84 points: server `5`, `sf` 555,813 m. Both correct, no warning |
+| **Answer** | The same difference makes predicates diverge **exactly on boundaries**: for a point on the interior of a polygon edge, `st_intersects()`, `st_covers()` and `st_touches()` are TRUE server-side and FALSE in `sf`, `st_disjoint()` the reverse. Interior and exterior agree. A corner point agrees `[verified: ran it on 2026-08-28]` |
 | **Shape** | `st_contains()` gives one boolean per row against `sf`'s sparse index list; `st_distance()` a scalar against a matrix; `st_buffer()` rejects `nQuadSegs` |
 | **Absence** | `st_makevalid()` and about twenty other `sf` staples have no server-side equivalent; the server diagnoses invalidity and will not repair it |
 
-`[documented: established downstream, 2026-08-24]`
+`[documented: established downstream, 2026-08-24 and 2026-08-28]`
 
-Three habits keep you out of it. Only ask the server for a distance or area from coordinates already projected into a metric CRS. Wrap every `st_geomfromwkb()` in `st_setsrid()`, in the `mutate()` that decodes the bytes, because stored WKB carries no SRID and the server reports 0. And reach for `show_query()` whenever you are unsure which side you are on: whatever it prints is the server's.
+**"Measures are unsafe, predicates are safe" is false**, and the predicate case is the more dangerous of the two: a boundary is where a spatial join lands its ambiguous records, so a point-in-polygon count comes out a few rows wrong rather than obviously wrong.
 
-For a geodesic answer on unprojected coordinates, name it: `st_distancesphere()` and `st_distancespheroid()`. Casting to the geography type is **not** the fix, because `st_distance()` rejects a geography argument outright.
+**The fix is to project, and it fixes both.** `sf` engages s2 only when `st_is_longlat()` is TRUE, so on a projected CRS it runs planar GEOS, the same model the server uses, and the two then agree on every case tested. Ask the server for a measurement or a predicate only on coordinates already projected into a metric CRS.
+
+Five things are **not** fixes. Attaching `sf` (the generic is never called). Tagging the SRID: keep wrapping `st_geomfromwkb()` in `st_setsrid()`, because stored WKB carries no SRID and the server reports 0, but `st_distance()` ignores the SRID, so a labelled column is not a checked one. Changing connection path: `odbc`, `brickster` and `sparklyr` were each measured and all three are wrong identically `[verified: ran it on 2026-08-28]`. Any automated guard, because correctness depends on the SRID and `dbplyr` builds SQL before consulting the server. And `sf_use_s2(FALSE)`, which is a **trap**: it selects an ellipsoidal rather than a planar model, repairing the predicates while leaving the measures wrong by five orders of magnitude, which is more dangerous than either error alone.
+
+The 22-name overlap that creates all of this is one measurement against one DBR and one `sf` version, not a contract. The other 94 `sf` exports fail loudly.
+
+Reach for `show_query()` whenever you are unsure which side you are on: whatever it prints is the server's.
+
+For a spherical answer on unprojected coordinates, name it: `st_distancesphere()` and `st_distancespheroid()`. Casting to the geography type is **not** the fix, because `st_distance()` rejects a geography argument outright.
 
 ## `glimpse()` works without `collect()`
 

@@ -67,9 +67,9 @@ A wrong argument count is the easy case, and does produce a different error, nam
 
 ## Where the semantics differ from `sf`
 
-The divergence that costs real money is planar against geodesic measurement, and it lives on [Join and transform polygons](../howdoi/polygons.qmd) rather than here. Read that one sentence even if you read nothing else on this page: server-side distance, length and area are planar while `sf` on unprojected coordinates is geodesic, the difference can be five orders of magnitude, and it produces no error and no symptom. Nobody arrives at a lookup page holding a problem that has no symptom, which is why it is flagged here as well as there.
+The divergence that costs real money lives on [Join and transform polygons](../howdoi/polygons.qmd) rather than here. Read this much even if you read nothing else on this page: on longitude and latitude, `sf` and the server model the Earth differently, and the answers differ with no error and no symptom. Measurements differ by five orders of magnitude, and true-or-false tests differ on boundaries. Projecting your coordinates fixes both. Nobody arrives at a lookup page holding a problem that has no symptom, which is why it is flagged here as well as there.
 
-What belongs here is the set of mismatches you meet while porting an expression, all of them shape rather than value:
+What belongs here is the set of mismatches you meet while porting an expression, which are about the shape of what comes back rather than its value:
 
 | Function | `sf` gives you | The server gives you |
 |---|---|---|
@@ -79,7 +79,9 @@ What belongs here is the set of mismatches you meet while porting an expression,
 
 Buffer values also differ slightly, because the two approximate a circle with a different default segment count. That is an approximation difference rather than a disagreement, so do not go hunting for a bug.
 
-Where the semantics were checked, they agreed: boundary containment, self-containment, empty geometry, and the validity of a self-intersecting polygon all match `sf`. Worth saying, because it makes the divergences above readable as specific cases rather than as a general warning about trusting the server.
+Several semantics were checked and agree: self-containment, empty geometry, and the validity of a self-intersecting polygon all match `sf`.
+
+Containment on a boundary is the case to be careful with, because it depends on the projection and on where the point sits. A point at a polygon's corner agrees. A point on the interior of an edge does not, on longitude and latitude: `st_intersects()`, `st_covers()` and `st_touches()` are TRUE on the server and FALSE in `sf`, and `st_disjoint()` the reverse. Project the coordinates and they agree. The reason is on [Join and transform polygons](../howdoi/polygons.qmd#the-fix-is-to-project-and-the-tempting-alternatives-are-worse), and it is the same reason the measurements diverge.
 
 ## What is not settled
 
@@ -95,4 +97,4 @@ If your query fails for a reason that is not a missing function, [When it breaks
 
 ---
 
-This page rests on: the platform reports `r wq_fact("spatial_functions_warehouse")` distinct built-in `ST_` functions on a Pro warehouse running serverless and `r wq_fact("spatial_functions_cluster")` on an all-purpose cluster, where `st_makepoint`, `st_makeenvelope`, `st_pointonsurface` and `st_collect` are absent and nothing is present that the warehouse lacks; `st_point` works on both; about twenty `sf` staples including `st_makevalid`, `st_relate` and `st_voronoi` are absent from both; an unknown-function error differs only in the name it quotes whether the function exists elsewhere or never existed, while a wrong argument count is distinguishable; `sf` and the server differ in return shape for `st_contains`, `st_distance` and `st_buffer`; boundary containment, self-containment, empty geometry and self-intersection validity agree with `sf`; the Classic warehouse exclusion is documented per function and not tested here.
+This page rests on: the platform reports `r wq_fact("spatial_functions_warehouse")` distinct built-in `ST_` functions on a Pro warehouse running serverless and `r wq_fact("spatial_functions_cluster")` on an all-purpose cluster, where `st_makepoint`, `st_makeenvelope`, `st_pointonsurface` and `st_collect` are absent and nothing is present that the warehouse lacks; `st_point` works on both; about twenty `sf` staples including `st_makevalid`, `st_relate` and `st_voronoi` are absent from both; an unknown-function error differs only in the name it quotes whether the function exists elsewhere or never existed, while a wrong argument count is distinguishable; `sf` and the server differ in return shape for `st_contains`, `st_distance` and `st_buffer`; self-containment, empty geometry and self-intersection validity agree with `sf`, and so does containment of a point at a polygon's corner; a point on the interior of an edge does not agree on unprojected coordinates, where `st_intersects`, `st_covers` and `st_touches` are TRUE on the server and FALSE in `sf` and `st_disjoint` is the reverse, because `sf` uses s2 spherical geometry for longitude and latitude while the server discards the coordinate system and works planar, and projecting the coordinates makes both sides agree; the Classic warehouse exclusion is documented per function and not tested here.
