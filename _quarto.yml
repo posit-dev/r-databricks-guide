@@ -30,6 +30,12 @@ website:
       # quarto.org, sparklyr and pkgdown, which is where this reader already is.
       - href: concepts/index.qmd
         text: Get started
+      # Geospatial and simulation are lifted out of Guides as named
+      # destinations. Both were undiscoverable inside a nine-item menu, and a
+      # reader who did not already know that geometry can live in the database
+      # had no way to find the material that says so. The pages stay in
+      # howdoi/: this is a nav grouping, not a move, so no cross-reference
+      # changes. Revisit if the grouping does not hold.
       - text: Guides
         menu:
           - href: howdoi/connect.qmd
@@ -38,18 +44,22 @@ website:
             text: Work in my editor, not a notebook
           - href: howdoi/big-table.qmd
             text: Work with a table that will not fit
-          - href: howdoi/polygons.qmd
-            text: Join and transform polygons
-          - href: howdoi/terra.qmd
-            text: Work with rasters
-          - href: howdoi/monte-carlo.qmd
-            text: Run a simulation
-          - href: howdoi/check-the-answer.qmd
-            text: Check I get the same answer
           - href: howdoi/compute.qmd
             text: Work out what my cluster can do
           - href: howdoi/results.qmd
             text: Get results out, and repeat them
+      - text: Geospatial
+        menu:
+          - href: howdoi/polygons.qmd
+            text: Join and transform polygons
+          - href: howdoi/terra.qmd
+            text: Work with rasters
+      - text: Simulation
+        menu:
+          - href: howdoi/monte-carlo.qmd
+            text: Run a simulation
+          - href: howdoi/check-the-answer.qmd
+            text: Check I get the same answer
       - text: Worked example
         menu:
           - href: example/index.qmd
@@ -101,12 +111,18 @@ website:
         - howdoi/connect.qmd
         - howdoi/interactive.qmd
         - howdoi/big-table.qmd
-        - howdoi/polygons.qmd
-        - howdoi/terra.qmd
-        - howdoi/monte-carlo.qmd
-        - howdoi/check-the-answer.qmd
         - howdoi/compute.qmd
         - howdoi/results.qmd
+    - title: "Geospatial"
+      style: floating
+      contents:
+        - howdoi/polygons.qmd
+        - howdoi/terra.qmd
+    - title: "Simulation"
+      style: floating
+      contents:
+        - howdoi/monte-carlo.qmd
+        - howdoi/check-the-answer.qmd
     - title: "Worked example"
       style: floating
       contents:
