@@ -20,15 +20,15 @@ wq_mask_output()
 
 ```{r}
 #| label: setup
-library(DBI)
-library(dplyr)
-library(dbplyr)
-library(tibble)
-library(cli)
-library(sf)
 
-catalog <- Sys.getenv("DATABRICKS_CATALOG")
-schema <- Sys.getenv("DATABRICKS_SCHEMA")
+suppressPackageStartupMessages({
+  library(DBI)
+  library(dplyr)
+  library(dbplyr)
+  library(tibble)
+  library(cli)
+  library(sf)
+})
 
 con <- dbConnect(
   odbc::databricks(),
@@ -40,6 +40,12 @@ acon <- dbConnect(
   brickster::DatabricksSQL(),
   warehouse_id = basename(Sys.getenv("DATABRICKS_PATH"))
 )
+catalog <- Sys.getenv("DATABRICKS_CATALOG")
+schema <- Sys.getenv("DATABRICKS_SCHEMA")
+```
+
+```{r}
+#| label: catchments
 
 catchments <- tbl(con, in_catalog(catalog, schema, "wfd_catchments"))
 
