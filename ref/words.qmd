@@ -64,9 +64,11 @@ User-defined function: your own function, run by the platform on data it holds. 
 
 ### Volume, DBFS
 
-Storage you can read and write as though it were a filesystem. A Unity Catalog **volume** appears at `/Volumes/...` and is the current, recommended form. **DBFS** is the older mechanism, still present and still referenced by a lot of documentation you will find.
+Storage you can read and write as though it were a filesystem. A Unity Catalog **volume** is the current, recommended form; **DBFS** is the older mechanism, still present and still referenced by a lot of documentation you will find.
 
-Prefer a volume. It is also the answer to most questions about getting a file to where your code runs, which is [Sending things to where your code runs](sending-things.qmd).
+A volume appears at `/Volumes/...`, and the qualification matters more than the path: it is a filesystem path **inside a cluster**, not on your machine. From your own R session that path does not resolve, so pointing `readr`, `arrow` or `sf` at it fails with a message that reads like a typo. Fetching a file from a volume into your session is [Read my files from a volume](../howdoi/volume-files.qmd).
+
+Prefer a volume. That is upstream's direction too, not only this guide's judgement: `brickster` deprecated its `db_dbfs_*` functions in 0.2.13, saying explicitly that it is guiding users towards volumes. It is also the answer to most questions about getting a file to where your code runs, which is [Sending things to where your code runs](sending-things.qmd).
 
 ### Catalog, schema
 

@@ -69,7 +69,7 @@ The escalation is the point. Each step is the smallest thing that works, and the
 6. [When the simulation carries the geometry](bootstrap.qmd)
 7. [Results, figures, and the record](results.qmd)
 
-If you want to load this data into your own catalog rather than read the example, there is an optional [stage zero](ingest.qmd) before any of the above. Most readers should skip it.
+If you want to load this data into your own catalog rather than read the example, the [appendix on loading the data yourself](ingest.qmd) records how these tables were built. Most readers should skip it.
 
 ## Next
 

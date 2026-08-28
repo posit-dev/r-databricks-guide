@@ -40,6 +40,8 @@ website:
         menu:
           - href: howdoi/connect.qmd
             text: Connect my R session to the data
+          - href: howdoi/volume-files.qmd
+            text: Read my files from a volume
           - href: howdoi/interactive.qmd
             text: Work in my editor, not a notebook
           - href: howdoi/big-table.qmd
@@ -64,8 +66,6 @@ website:
         menu:
           - href: example/index.qmd
             text: The question, and the data
-          - href: example/ingest.qmd
-            text: Getting the data into Databricks
           - href: example/connecting.qmd
             text: Getting connected and finding the tables
           - href: example/reducing.qmd
@@ -80,6 +80,9 @@ website:
             text: When the simulation carries the geometry
           - href: example/results.qmd
             text: Results, figures, and the record
+          - text: "---"
+          - href: example/ingest.qmd
+            text: "Appendix: loading the data yourself"
     right:
       - text: Reference
         menu:
@@ -109,6 +112,7 @@ website:
       style: floating
       contents:
         - howdoi/connect.qmd
+        - howdoi/volume-files.qmd
         - howdoi/interactive.qmd
         - howdoi/big-table.qmd
         - howdoi/compute.qmd
@@ -127,7 +131,6 @@ website:
       style: floating
       contents:
         - example/index.qmd
-        - example/ingest.qmd
         - example/connecting.qmd
         - example/reducing.qmd
         - example/spatial.qmd
@@ -135,6 +138,7 @@ website:
         - example/simulation.qmd
         - example/bootstrap.qmd
         - example/results.qmd
+        - example/ingest.qmd
     - title: "For your admin"
       style: floating
       contents:

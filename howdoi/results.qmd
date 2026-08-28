@@ -60,7 +60,7 @@ dbWriteTable(
 )
 ```
 
-Above it, write the data to a volume as Parquet and have the server build the table from the file, which is the same shape [Getting the data into Databricks](../example/ingest.qmd) uses in the other direction. The rows travel as one file rather than as a statement, which is why the limit goes away.
+Above it, write the data to a volume as Parquet and have the server build the table from the file, which is the same shape the [appendix on loading the data yourself](../example/ingest.qmd) uses in the other direction. The rows travel as one file rather than as a statement, which is why the limit goes away.
 
 Geometry does not go back this way. Handing `dbWriteTable()` an `sf` object through the `brickster` backend creates a string column for the geometry and writes into it without warning: nothing errors, and the table afterwards looks entirely plausible. So a round trip out of a table and back into one is **not** lossless for spatial data. Convert the geometry to something you have chosen deliberately, such as WKB or WKT in a column whose type you specify yourself, before it goes anywhere near a write.
 

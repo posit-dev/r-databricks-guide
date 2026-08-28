@@ -182,7 +182,7 @@ sim_result |>
 
 Two routes, and the choice is not a matter of taste.
 
-A results table this size, a few hundred rows, goes back over `dbWriteTable()` without trouble. The route stops working at about 50,000 rows, where it turns into a hard error rather than a slow write, and the fix is the volume-and-`read_files()` path that [Getting the data into Databricks](ingest.qmd) uses for the same reason in the other direction.
+A results table this size, a few hundred rows, goes back over `dbWriteTable()` without trouble. The route stops working at about 50,000 rows, where it turns into a hard error rather than a slow write, and the fix is the volume-and-`read_files()` path that the [appendix on loading the data yourself](ingest.qmd) uses for the same reason in the other direction.
 
 ```{r}
 #| eval: false
