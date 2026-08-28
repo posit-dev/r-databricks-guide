@@ -42,7 +42,7 @@ Your coordinates are longitude and latitude, and the measurement ran on the serv
 
 Project your coordinates before you measure anything. That fixes it on both sides at once, because `sf` only reaches for spherical geometry when the data is unprojected: give it a projected CRS and it does flat arithmetic too, and the two agree. Doing the measurement in R is the other option, but it is the weaker one, because it only fixes the call you remembered to move.
 
-Do not reach for `sf_use_s2(FALSE)`. It looks like the fix and is worse than the problem: see [Join and transform polygons](../howdoi/polygons.qmd#two-things-that-look-like-the-fix-and-are-not).
+Do not reach for `sf_use_s2(FALSE)`. It looks like the fix and is worse than the problem: see [Join and transform polygons](../howdoi/polygons.qmd#sf_use_s2false-and-st_setsrid-do-not-fix-it).
 
 ## A spatial join or point-in-polygon count is off by a handful of rows
 
@@ -50,7 +50,7 @@ The same cause as the entry above, and much harder to spot. If your data is in l
 
 A boundary is where a join puts its ambiguous records, so the rows that differ are precisely the interesting ones. Nothing is wrong by orders of magnitude, so nothing looks wrong at all: a count is a few rows out and both answers are defensible.
 
-This is why "measurements are risky, true-or-false tests are safe" is not a rule you can rely on. Project first, and the disagreement goes away. [Join and transform polygons](../howdoi/polygons.qmd#two-things-that-look-like-the-fix-and-are-not) has the detail.
+This is why "measurements are risky, true-or-false tests are safe" is not a rule you can rely on. Project first, and the disagreement goes away. [Join and transform polygons](../howdoi/polygons.qmd#sf_use_s2false-and-st_setsrid-do-not-fix-it) has the detail.
 
 ## An R notebook refuses to attach to a cluster
 
