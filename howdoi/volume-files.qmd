@@ -51,13 +51,15 @@ Everything below follows from that one fact. The file has to travel to you befor
 `brickster::db_volume_read()` brings a file down to a local path of your choosing. From there nothing is Databricks-specific: you open it with whatever you already use.
 
 ```{r}
-#| label: readcsv
+#| label: readcsv-fetch
+#| results: hide
 local_csv <- file.path(tempdir(), "stations.csv")
 
-invisible(
-  db_volume_read(glue("{volume_root}/sample/stations.csv"), destination = local_csv)
-)
+db_volume_read(glue("{volume_root}/sample/stations.csv"), destination = local_csv)
+```
 
+```{r}
+#| label: readcsv
 stations <- read_csv(local_csv, show_col_types = FALSE)
 
 stations |>
@@ -68,16 +70,18 @@ stations |>
 This is the default route, and it is the one to reach for unless you have a specific reason not to. It needs neither a cluster nor a warehouse, so there is no wait for compute to start. It moves bytes rather than parsing them, which is why the format does not matter: the same two lines work for Parquet with `arrow::read_parquet()`, for a workbook with `readxl::read_excel()`, and for anything else you can open locally.
 
 ```{r}
-#| label: readparquet
+#| label: readparquet-fetch
+#| results: hide
 local_pq <- file.path(tempdir(), "stations.parquet")
 
-invisible(
-  db_volume_read(
-    glue("{volume_root}/hydrology_stations/data.parquet"),
-    destination = local_pq
-  )
+db_volume_read(
+  glue("{volume_root}/hydrology_stations/data.parquet"),
+  destination = local_pq
 )
+```
 
+```{r}
+#| label: readparquet
 read_parquet(local_pq) |>
   dim()
 ```
@@ -101,13 +105,15 @@ This is the sharpest trap on the page, because one half of it is silent.
 A shapefile is not a file. It is at least four, sitting beside each other: `.shp` holds the geometry, `.shx` the index, `.dbf` the attributes, and `.prj` the coordinate reference system. Fetch the directory rather than the parts, with `db_volume_download_dir()`:
 
 ```{r}
-#| label: shapefile
+#| label: shapefile-fetch
+#| results: hide
 shp_dir <- file.path(tempdir(), "stations_shp")
 
-invisible(
-  db_volume_download_dir(glue("{volume_root}/sample/stations_shp"), shp_dir)
-)
+db_volume_download_dir(glue("{volume_root}/sample/stations_shp"), shp_dir)
+```
 
+```{r}
+#| label: shapefile
 list.files(shp_dir)
 ```
 
@@ -128,19 +134,21 @@ Forget the `.prj` and **nothing tells you anything**. The read succeeds, you get
 
 ```{r}
 #| label: noprj
+#| results: hide
 partial_dir <- file.path(tempdir(), "stations_noprj")
 dir.create(partial_dir, showWarnings = FALSE)
 
 # The three parts somebody fetching by hand would think of.
 for (ext in c("shp", "shx", "dbf")) {
-  invisible(
-    db_volume_read(
-      glue("{volume_root}/sample/stations_shp/stations.{ext}"),
-      destination = file.path(partial_dir, glue("stations.{ext}"))
-    )
+  db_volume_read(
+    glue("{volume_root}/sample/stations_shp/stations.{ext}"),
+    destination = file.path(partial_dir, glue("stations.{ext}"))
   )
 }
+```
 
+```{r}
+#| label: noprj-read
 partial <- st_read(file.path(partial_dir, "stations.shp"), quiet = TRUE)
 
 cli_alert_info("{nrow(partial)} features, CRS: {format(st_crs(partial)$epsg)}")
