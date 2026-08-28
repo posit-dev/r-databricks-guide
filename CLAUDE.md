@@ -228,7 +228,9 @@ Two consequences follow, and neither is optional:
 
 If output needs reshaping before it is fit to show, that is a job for a chunk option or a knitr hook, applied to real output. It is never a reason to hand-write the result.
 
-The site currently violates this: 54 code blocks across `concepts/`, `howdoi/`, `ref/`, `admin/` and `index.qmd` are plain ```` ```r ```` blocks with output pasted beneath. Converting them is tracked work, not a licence to add more. Do not add a static block with pasted output to any page, for any reason.
+The site now complies, and that is worth keeping. The 54 pasted-output blocks that once sat across `concepts/`, `howdoi/`, `ref/`, `admin/` and `index.qmd` are gone: as of 2026-08-28 every `r` block on the site is an executing ```` ```{r} ```` chunk and none is a plain ```` ```r ```` block with output beneath it. Verify with `grep -rhoE '^\`{3,}[^ ]*' --include=*.qmd` over the rendered sections rather than trusting this paragraph.
+
+So there is no remaining debt to hide behind, and a new static block with pasted output would be a regression rather than one more instance of a known problem. Do not add one to any page, for any reason. A fenced block with no output beneath it is fine and is how an illustrative snippet is written.
 
 ## House style
 

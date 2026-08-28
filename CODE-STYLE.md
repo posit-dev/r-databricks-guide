@@ -205,7 +205,9 @@ And keep the jitter arithmetic off the geometry. `example/bootstrap.qmd` covers 
 
 Under `example/`, chunks carry a `label`. Pages that reach a cluster gate on `eval` and degrade to a callout rather than breaking the site render.
 
-Under `howdoi/`, chunks are `#| eval: false` with real output pasted beneath, so those pages stay outside the `freeze: true` discipline. That output must be copied from a genuine run, never typed by hand.
+Under `howdoi/`, chunks carry a `label` too, and they execute. Those pages once used `#| eval: false` with output pasted beneath; they no longer do, and nothing on the site does. Every page that shows output executes it, under `freeze: true`, so editing one means re-rendering it with `scripts/rerender.sh`.
+
+Two consequences of that, both easy to miss. A `howdoi/` page that connects needs `wq_mask_output()` in a hidden chunk, which `scripts/check-public.sh` enforces. And a plain fenced ```` ```r ```` block interpolates nothing, so a `{variable}` written inside one reaches the reader as literal braces: keep an illustrative snippet free of anything that looks like it should have been substituted.
 
 ## Width
 
