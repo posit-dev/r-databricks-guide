@@ -41,6 +41,7 @@ An **environmental research scientist**. PhD, probably post-doc. Fluent and comf
 - **Do explain** driver versus executor, partitions, serialisation, pushdown, Unity Catalog, access modes, cluster lifecycle. That is where the whole explaining budget goes.
 - **Translate platform vocabulary into hers, never the reverse.** She knows CRS, EPSG, catchments, raster versus vector, Monte Carlo, bootstrap, resamples, tuning. She may not know executor, partition, UDF, DBFS, artifact, serialisation. Where she and the platform have different words for one thing, the page title carries **hers**.
 - **She can use compute, and cannot create it.** She can start and stop what she has. A new cluster means asking someone and waiting. So never help her choose a cluster: help her read the one she has and design inside it.
+- **Assume her permissions are restricted, and that you do not know where the line falls.** Teams are governed differently, and a scientist may be blocked at any level: catalog, schema, volume, directory or table. One observed team is given a volume by IT and can create folders and tables inside it, but cannot create a volume at all. So state what a piece of code needs before it needs it, prefer the route that assumes least, and never write a workflow whose first step is creating something she may not be allowed to create.
 - **Not the audience:** a platform engineer, a Databricks administrator, or a sceptic who needs persuading that R can do this. She is already doing it.
 
 ## The rule that this repo exists to enforce
