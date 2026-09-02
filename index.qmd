@@ -101,6 +101,7 @@ If you have ten minutes and no particular emergency, start with [What changes wh
 If you arrived with a specific problem, go straight to it. These are the **Guides**.
 
 - [Connect your R session to the data](howdoi/connect.qmd). Which connection to open, and why the choice matters before you write any code.
+- [Read my files from a volume](howdoi/volume-files.qmd). A CSV, workbook or shapefile somebody else put in a volume, and how to open it when `/Volumes/...` is not a path your session can see.
 - [Write and run R against the cluster, without leaving your editor](howdoi/interactive.qmd). An interactive R session with cluster compute behind it, rather than a notebook.
 - [Work with a table that will not fit in your session](howdoi/big-table.qmd). Where each step of your pipeline runs, and how much data comes back.
 - [Join and transform polygons](howdoi/polygons.qmd). Real spatial work when the polygons start out in the table rather than in R.

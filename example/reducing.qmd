@@ -178,9 +178,12 @@ The coordinates are eastings and northings on the British National Grid (EPSG 27
 #| fig-width: 4.5
 #| fig-height: 5.5
 #| fig-alt: "Gauging stations across England, with the thousand-odd stations that have at least a thousand days of record picked out against the rest. The survivors are spread across the whole network rather than concentrated in any region."
-# station_xy.rds carries easting and northing for every station, from the
-# same query [Joining tables that do not share a key](spatial.qmd) uses.
-station_xy <- readRDS("station_xy.rds") |>
+# The stations table carries easting and northing directly, so the map needs
+# one small query rather than anything the reduction above produced.
+station_xy <- wq_tbl("hydrology_stations") |>
+  select(station_id, easting, northing) |>
+  filter(!is.na(easting), !is.na(northing)) |>
+  collect() |>
   st_as_sf(coords = c("easting", "northing"), crs = 27700) |>
   mutate(kept = station_id %in% per_station$station_id)
 
