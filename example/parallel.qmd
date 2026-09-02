@@ -138,7 +138,7 @@ tibble(
 )
 ```
 
-Both numbers come from one run in a session of this size, and neither is a benchmark. The point is the ratio being roughly the core count, not the seconds.
+Both numbers come from one run in a session of this size. The point is the ratio being roughly the core count, not the seconds.
 
 ## Memory goes down, not up
 

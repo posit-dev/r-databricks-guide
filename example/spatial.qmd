@@ -48,7 +48,7 @@ This example brings the geometry back and joins in `sf`, for three reasons worth
 
 - The geometry is small. Four thousand catchment polygons is a few tens of megabytes, which is nothing.
 - The result of the join feeds a bootstrap that has to run in R anyway, so the polygons have to arrive at some point regardless.
-- `sf` is the thing she already knows. Server-side spatial SQL is another dialect to learn for no gain at this size.
+- `sf` is the thing you already know. Server-side spatial SQL is another dialect to learn for no gain at this size.
 
 What the other route would cost, if your polygons were national coverage at full resolution rather than catchments: the geometry never enters the session, and you get back only the join keys. That is the right answer when the geometry is large and the result is small, which is the opposite of the case here.
 

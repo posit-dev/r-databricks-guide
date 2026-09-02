@@ -183,4 +183,4 @@ checked
 
 Two reasons to bother. A reviewer asking how you know the server-side result is trustworthy gets a sentence and a number instead of an assurance. And the tolerance recorded before the run is the only thing that stops it drifting afterwards: a tolerance chosen once the answer is in front of you is not a check, it is a description.
 
-Keep the row with the result it describes, in the same file or the same directory, and write it out at the same moment. [Get results out, and repeat them](results.qmd) covers where that file should go.
+Keep the row with the result it describes, in the same file or the same directory, and write it out at the same moment. [Get results out, and get the same answer next year](results.qmd) covers where that file should go.

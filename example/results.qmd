@@ -242,6 +242,6 @@ What is open rather than solved:
 
 A short list, so the boundary is visible: rasters, scheduling, streaming, and anything the analysis did not happen to need.
 
-Two things the example did reach and could not settle. How the distributed stage behaves at more than two worker machines is untested, so nothing on this site claims a scaling property. And the grouped form of the distributed call could not be measured at all, because it does not run on a current runtime.
+Two things the example did reach and could not settle. How the distributed stage behaves at more than two worker machines is untested, so treat scaling as an open question to measure on your own cluster. And the grouped form of the distributed call could not be measured at all, because it does not run on a current runtime.
 
 One thing it reached and had to work around: on the Databricks Connect backend, `spark_apply()` does not carry the calling environment to the worker, so geometry had to travel as a column rather than in the closure. [When the simulation carries the geometry](bootstrap.qmd) shows the route that works.

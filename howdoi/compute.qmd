@@ -74,7 +74,7 @@ What is genuinely open: whether `spark_apply()` works under Standard access mode
 
 | Situation | What it costs you |
 |---|---|
-| Starting a stopped personal cluster | Minutes. On the cluster used throughout this guide, terminated to running took between seven and eleven minutes across several starts |
+| Starting a stopped personal cluster | Minutes. Expect seven to eleven from terminated to running, and plan the wait rather than trying to shorten it |
 | Connecting to an already-running cluster | Seconds. It is warm |
 | Leaving a cluster running | It bills until it stops, and yours likely stops itself after the idle period in `autotermination_minutes` |
 | Waking a SQL warehouse | Far less than an all-purpose cluster |

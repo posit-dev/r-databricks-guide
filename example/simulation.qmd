@@ -172,7 +172,7 @@ parallel_time <- system.time(
 nrow(sim_result)
 ```
 
-The two runs are not the same size, so they are not comparable as timings. Both are single runs in a session with `r n_cores` core`r if (n_cores != 1) "s"` available, quoted so the numbers mean something rather than as a benchmark.
+The two runs are not the same size, so they are not comparable as timings. Both are single runs in a session with `r n_cores` core`r if (n_cores != 1) "s"` available, which is the number that gives them any meaning at all.
 
 ```{r}
 #| label: timings

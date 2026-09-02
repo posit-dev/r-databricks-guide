@@ -47,7 +47,7 @@ Base64 on the way out, decode in the worker. If you skip that, what arrives is a
 
 This is the third place `BINARY` behaves unlike bytes, and if you have met either of the others you should expect this one. The first is on the way in, where `odbc` silently returns part of a `BINARY` value, which is why [Connect your R session to the data](../howdoi/connect.qmd) requires the `brickster` path for geometry. The second is the string-length limit on that same page.
 
-### `spark_apply()`'s documented `columns = list(...)` form fails here
+### The `columns` argument
 
 Use a Spark DDL string instead:
 
@@ -64,7 +64,7 @@ Omitting the argument entirely works on both, and is the safest thing to do if y
 
 ### Hashes across R versions
 
-Compare content instead. A worker can be on a different R patch release from your session: at the time of writing this repository's session runs 4.5.2 and its cluster's workers run 4.5.1. Serialisation details differ across versions, so identical objects can hash differently, and you will conclude something is corrupted when nothing is.
+Compare content instead. A worker can be on a different R patch release from your session, and serialisation details differ across versions, so identical objects can hash differently, and you will conclude something is corrupted when nothing is.
 
 If you need to check that an object survived the trip, compare the thing you care about. Row counts, a summary, `all.equal()` on the reconstructed object.
 
