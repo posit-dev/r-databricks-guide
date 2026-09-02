@@ -62,3 +62,6 @@ flow_variability_results.rds
 # Python bytecode from scripts/ and .claude/skills/
 __pycache__/
 *.pyc
+
+# knitr intermediate, left behind by an interrupted render
+*.knit.md

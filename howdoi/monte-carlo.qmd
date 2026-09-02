@@ -51,14 +51,10 @@ sim_one <- function(i) {
   tibble(rep = i, boot_se = sd(b))
 }
 
-serial <- system.time(
-  results <- map(1:24, sim_one) |> list_rbind()
-)[["elapsed"]]
+results <- map(1:24, sim_one) |> list_rbind()
 
-round(serial, 1)
+head(results, 3)
 ```
-
-These numbers are measured when the page is built, so they will move, and yours will differ. What matters is the ratio below, and that it falls well short of fourfold on four workers.
 
 ## Running them on your own cores
 
@@ -70,20 +66,17 @@ One line changes:
 library(future)
 library(furrr)
 
-plan(multicore, workers = 4)
+plan(multicore, workers = 2)
 
-parallel <- system.time(
-  results <- future_map(1:24, sim_one, .options = furrr_options(seed = TRUE)) |>
-    list_rbind()
-)[["elapsed"]]
+results <- future_map(1:24, sim_one, .options = furrr_options(seed = TRUE)) |>
+  list_rbind()
 
-tibble(
-  run = c("serial purrr::map", "furrr, 4 forked workers"),
-  seconds = round(c(serial, parallel), 1)
-)
+head(results, 3)
 ```
 
-That is the whole argument for trying your own cores first. `map()` becomes `future_map()`, you add a plan, and nothing else about the code moves. Given how little it costs to try, try it before you consider anything involving the cluster.
+That is the whole argument for trying your own cores first: `map()` becomes `future_map()`, you add a plan, and nothing else about the code moves. Given how little it costs to try, try it before you consider anything involving the cluster.
+
+What it buys you depends on how many cores you actually have, which is the next section but one, and on how much work each replicate does. Time your own serial run and multiply: that arithmetic is more use than any figure this page could quote, because the machine building this page is not yours.
 
 `furrr_options(seed = TRUE)` is not optional decoration. Without it the workers do not get independent, reproducible streams, and `furrr` will warn you about exactly that.
 
@@ -101,10 +94,10 @@ peak_mb <- function(expr) {
 }
 
 tibble(
-  run = c("serial", "forked, 4 workers"),
+  run = c("serial", "forked, 2 workers"),
   peak_mb = c(
     peak_mb(map(1:8, sim_one) |> list_rbind()),
-    peak_mb(mclapply(1:8, sim_one, mc.cores = 4) |> list_rbind())
+    peak_mb(mclapply(1:8, sim_one, mc.cores = 2) |> list_rbind())
   )
 )
 ```
@@ -141,7 +134,7 @@ A bootstrap replicate does not need the previous one, so everything on this page
 
 `tune` already parallelises over resamples through the same `future` plan. The plan you set earlier applies, and there is no separate step to take.
 
-So if you have set `plan(multicore, workers = 4)` and then call `tune_grid()`, the resamples spread across those workers. You do not pass anything to the tuning call, and you do not need a `tune`-specific option.
+So if you have set `plan(multicore, workers = 2)` and then call `tune_grid()`, the resamples spread across those workers. You do not pass anything to the tuning call, and you do not need a `tune`-specific option.
 
 The corollary is worth holding on to: if you have not set a plan, tuning runs serially and nothing tells you so.
 
