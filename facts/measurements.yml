@@ -43,8 +43,6 @@ spatial_functions_warehouse:
     the same figure.
   used_by:
     - ref/spatial-functions.qmd
-    - howdoi/polygons.qmd
-
 spatial_functions_cluster:
   value: 93
   unit: functions
@@ -58,8 +56,6 @@ spatial_functions_cluster:
     the warehouse lacks.
   used_by:
     - ref/spatial-functions.qmd
-    - howdoi/polygons.qmd
-
 readings_rows:
   value: 32540721
   unit: rows
@@ -76,11 +72,8 @@ readings_rows:
   used_by:
     - ref/data.qmd
     - howdoi/big-table.qmd
-    - howdoi/monte-carlo.qmd
     - example/index.qmd
     - example/ingest.qmd
-    - example/reducing.qmd
-
 stations_rows:
   value: 9536
   unit: rows
