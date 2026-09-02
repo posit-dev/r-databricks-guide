@@ -33,7 +33,7 @@ Only then parallelise. Independent pages can be drafted concurrently by subagent
 
 ## Sorting the pages
 
-Check what a page needs by reading its `This page rests on:` line, not by guessing from the title. In the session that produced this file the split was five warehouse-only, two cluster-backed, and two already written.
+Check what a page needs by reading its entry in `facts/rests-on.yml`, not by guessing from the title. In the session that produced this file the split was five warehouse-only, two cluster-backed, and two already written.
 
 A page needs the cluster only if it rests on a claim about worker machines, distributed execution, forked workers on cluster compute, or cluster metadata. Everything about queries, pushdown, geometry transport, types and licences is warehouse work.
 
@@ -42,7 +42,7 @@ A page needs the cluster only if it rests on a claim about worker machines, dist
 A fresh agent has none of this conversation. What it needs, in the brief itself rather than as a file to find:
 
 - **Read order**, explicitly: `CLAUDE.md`, then `CODE-STYLE.md`, then its own page's scaffolding, then an already-finished page to match voice against. Naming a finished page is what keeps nine pages sounding like one author.
-- **The factual budget.** Only claims on that page's own `rests on:` line. If it needs a fact that is not there, stop and report rather than invent. Running code does not enlarge the budget: code may demonstrate a claim already on the line, never establish a new one.
+- **The factual budget.** Only claims under that page's own key in `facts/rests-on.yml`. If it needs a fact that is not there, stop and report rather than invent. Running code does not enlarge the budget: code may demonstrate a claim already on the line, never establish a new one.
 - **Schema facts up front**, so nobody rediscovers them. `hydrology_readings` has 32,540,721 rows and keys on `measure`, not `station_id`, which is the mistake to pre-empt. `wfd_catchments` has 4,080 rows with `geom_wkb` as `BINARY`.
 - **Which compute it may use**, and an explicit instruction not to start a cluster if it is not its job.
 - **Report disagreements, do not reconcile them.** This one earns its place. Four of the five subagents in that session hit a scaffolding claim their measurement did not support, and all four reported rather than quietly adjusting. One found the stated 2.5 GB was nearer 2.11 GB; another found a claim that is true in R and false server-side. Silently reconciling any of them would have produced a page that looked authoritative and was wrong, which is exactly the defect the 2026-08-24 review found in the worked example.
@@ -81,4 +81,4 @@ Do not put `#| eval: false` inside a plain fenced block. It is not consumed as a
 
 ## What this does not cover
 
-Deciding what a page says. The scaffolding, the headings and the `rests on:` lines were settled separately and reviewed separately. A page that quietly grows a section has escaped that review, so a subagent that wants to add, merge or reorder one should stop and ask.
+Deciding what a page says. The scaffolding, the headings and the claims in `facts/rests-on.yml` were settled separately and reviewed separately. A page that quietly grows a section has escaped that review, so a subagent that wants to add, merge or reorder one should stop and ask.

@@ -186,7 +186,3 @@ The backend is settled here, and the next two pages lean on it rather than repea
 ## Next
 
 [Simulating from a summary](simulation.qmd).
-
----
-
-This page rests on: `future` and `furrr` are absent from the cluster runtime bundle while `sf`, `dplyr` and base `parallel` are present on the workers, confirmed by asking the workers directly; forked parallel workers share what the parent already held, because the fork is copy-on-write, but each pays in full for whatever it allocates itself; `detectCores()` reports the host's cores rather than the container's CPU quota, so forking on its answer overcommits and the session is killed without an error message; whether a `future` multicore plan behaves correctly under a Spark executor is untested.

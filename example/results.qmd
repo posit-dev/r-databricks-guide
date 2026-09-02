@@ -251,7 +251,3 @@ A short list, so the boundary is visible: rasters, scheduling, streaming, and an
 Two things the example did reach and could not settle. How the distributed stage behaves at more than two worker machines is untested, so nothing on this site claims a scaling property. And the grouped form of the distributed call could not be measured at all, because it does not run on a current runtime.
 
 One thing it reached and had to work around: on the Databricks Connect backend, `spark_apply()` does not carry the calling environment to the worker, so geometry had to travel as a column rather than in the closure. [When the simulation carries the geometry](bootstrap.qmd) shows the route that works.
-
----
-
-This page rests on: `dbWriteTable()` fails hard at about 50,000 rows, so a large result needs the volume route; environmental agency data is OGL v3.0 while storm overflow locations are CC BY 4.0; an `renv.lock` pins this session's package versions but reaches neither the cluster runtime nor the worker library; per-unit seeding reproduces only for a fixed partitioning.

@@ -173,7 +173,3 @@ That distinction decides what your code can do. An object in your R session is n
 ## Next
 
 Whichever of these resembles the code you have written: [work with a table that will not fit in your session](big-table.qmd), [join and transform polygons](polygons.qmd), or [run a Monte Carlo simulation](monte-carlo.qmd).
-
----
-
-This page rests on: ODBC truncates `BINARY` values to length mod 1024 at every setting tried, returning a correct prefix so nothing errors; the text truncation applies to any long string value, including geometry a server-side function produced rather than a column read from a table, and the truncated value still parses; `brickster::DatabricksSQL()` returns `BINARY` byte-exact; the server-side text encoding workaround meets a separate silent truncation at 1,023 characters unless the driver's string-length setting is raised, and a round number there can be silently dropped; both truncation bugs have unmerged fix PRs open against the driver package; `config::get()` falls back to the default profile without warning when a profile name is unrecognised.

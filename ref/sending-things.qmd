@@ -87,7 +87,3 @@ Serialising into the function body, the middle row of the table above, works but
 ## Next
 
 If what you are moving is a package rather than an object, that is [Packages](packages.qmd). If something failed in a way this page did not predict, [When it breaks](when-it-breaks.qmd) is organised by symptom.
-
----
-
-This page rests on: `brickster::db_volume_write()` works and the worker reads the result as a local file, up to 5 GiB; serialising into the closure body works but needs `version = 2` and stripped line breaks, and both failures report `unknown type 0`; `dbWriteTable()` hard errors above 50,000 rows without a staging volume; `spark_apply(context =)` does not work on the `databricks_connect` backend; a `BINARY` column arrives in a worker as a text representation; `columns = list(...)` fails where a Spark DDL string works, the correct form differs between a client connection and the cluster's own R session, and omitting it works on both; a worker's R patch version can differ from the session's.

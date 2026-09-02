@@ -69,7 +69,3 @@ Check how many machines you have with [Work out what the cluster you have can do
 ## Next
 
 If nothing above matches, the cause is often vocabulary rather than a fault: [Same thing, different words](words.qmd) translates the term in the error message. If it looks like a missing package, see [Packages](packages.qmd). If it looks like the shape of your compute, [Work out what the cluster you have can do](../howdoi/compute.qmd).
-
----
-
-This page rests on the same claims as the pages that link to it, keyed to the symptom rather than the mechanism.

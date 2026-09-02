@@ -104,7 +104,3 @@ Two things, and they are unknown rather than unpublished.
 Whether `spark_apply()` runs under Standard access mode. Nobody has tested it, so this guide says nothing about it in either direction.
 
 How work spread across worker machines scales. Distribution has been observed on a two-worker cluster, by counting distinct machine names. That answers whether it distributes at all and nothing else. It says nothing about four workers, or forty, or about what shuffle costs at any size. If your plan depends on scaling, that is a measurement to make on your own cluster rather than a claim to take from here.
-
----
-
-This page rests on: `num_workers = 0` means a single machine; a Standard access-mode cluster refuses R notebooks while a client connection to one works; whether `spark_apply()` works under Standard access mode is unresolved; a cluster's runtime version and its setup script are one decision, and a script left attached across a runtime change either leaves packages missing or recompiles them at every start.

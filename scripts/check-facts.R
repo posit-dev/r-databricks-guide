@@ -230,6 +230,60 @@ if (length(definers) > 1) {
   cli_alert_success("Only {.file dbx-config.R} defines {.code `%||%`}.")
 }
 
+# --- rests-on.yml matches the pages that exist -----------------------------
+#
+# The claims moved out of the pages on 2026-09-02, so nothing on a page points
+# at its own entry any more. Two ways that drifts: a page is added and never
+# gets an entry, or a page is renamed and its entry is orphaned. Neither is
+# visible when reading either file alone.
+
+rests_path <- here::here("facts", "rests-on.yml")
+if (file.exists(rests_path)) {
+  rests <- yaml::read_yaml(rests_path)
+  # The render list is globs ("howdoi/*.qmd"), so expand rather than match.
+  patterns <- yaml::read_yaml(here::here("_quarto.yml"))$project$render
+  rendered <- unlist(lapply(patterns, \(g) {
+    hits <- Sys.glob(here::here(g))
+    sub(paste0("^", here::here(), "/"), "", hits)
+  }))
+  rendered <- rendered[grepl("\\.qmd$", rendered)]
+
+  orphans <- setdiff(names(rests), rendered)
+  if (length(orphans)) {
+    cli_text()
+    cli_alert_danger("{.file facts/rests-on.yml} names {length(orphans)} page{?s} that {?is/are} not rendered:")
+    cli_ul(orphans)
+    fail <- TRUE
+  } else {
+    cli_alert_success("Every {.file facts/rests-on.yml} entry names a rendered page.")
+  }
+
+  empty <- names(rests)[vapply(rests, \(x) length(x$claims) == 0, logical(1))]
+  if (length(empty)) {
+    cli_text()
+    cli_alert_danger("Entries with no claims (delete them rather than leaving them empty):")
+    cli_ul(empty)
+    fail <- TRUE
+  }
+
+  leaked <- character()
+  for (page in rendered) {
+    if (!file.exists(here::here(page))) next
+    if (any(grepl("rests on", readLines(here::here(page), warn = FALSE)))) {
+      leaked <- c(leaked, page)
+    }
+  }
+  if (length(leaked)) {
+    cli_text()
+    cli_alert_danger("{length(leaked)} page{?s} still carr{?ies/y} a {.code rests on} line in prose:")
+    cli_ul(leaked)
+    cli_alert_info("Claims belong in facts/rests-on.yml, not on the page.")
+    fail <- TRUE
+  } else {
+    cli_alert_success("No page carries a {.code rests on} line.")
+  }
+}
+
 # --- summary ---------------------------------------------------------------
 
 cli_text()

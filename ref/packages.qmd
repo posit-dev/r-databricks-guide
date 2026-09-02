@@ -96,7 +96,3 @@ The version numbers themselves are worth checking rather than assuming: a worker
 ## Next
 
 If a package is present but something else broke, [When it breaks](when-it-breaks.qmd) is organised by what you saw. Full setup detail, for whoever administers your workspace, is in [Setting up a cluster for geospatial R](../admin/geospatial-setup.qmd).
-
----
-
-This page rests on: every R context gets its own ephemeral library; a prebuilt library tree on a volume, prepended to `.libPaths()`, is reusable by a later cluster with the same R version and image and works inside a `spark_apply()` worker; the stock runtime image ships no GDAL, GEOS or PROJ, so `install.packages("sf")` fails at configure; an init script runs on every node where an interactive install touches only the driver; a worker's R patch version can differ from the session's.

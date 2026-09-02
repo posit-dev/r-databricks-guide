@@ -10,7 +10,7 @@ So a finding that changes what the guide says comes through the changelog even w
 
 Read the briefing when an entry's numbers are going onto a page, because the entry compresses and the compression loses things that change what to write. The 2026-08-24 spatial entry is the worked case: its briefing showed that the geography type **rejects** a geometry-typed distance call, so advice to "reach for geography" that the entry's wording supported would have sent the reader into an error. It also named twenty-two absent functions the entry did not mention, one of which (`st_makevalid`) is a routine `sf` step with no server-side equivalent.
 
-Each page here should carry a short note naming the claims it rests on, phrased as claims rather than file references, so a changelog entry can be matched to the pages it affects without either repo knowing the other's internals.
+`facts/rests-on.yml` names the claims each page rests on, phrased as claims rather than file references, so a changelog entry can be matched to the pages it affects without either repo knowing the other's internals. It used to be a line at the foot of each page; it moved on 2026-09-02 because it was addressed to someone auditing the guide rather than to the reader.
 
 ### What has been taken from the changelog
 
@@ -18,7 +18,7 @@ Entries are dated and newest-first upstream, so a date and a heading is enough t
 
 **Consumed through: 2026-08-28, "`sf` and Databricks disagree about the shape of the Earth, and the fix is to project".**
 
-To bring the guide up to date, read the entries above that marker, match each `Bears on:` line against the `rests on:` lines here, change what needs changing, then move the marker. Matching is a judgement, not a string comparison: an entry can leave a claim standing but incomplete, which reads as agreement until you look at what it adds. Move the marker only for entries you have actually acted on or actively declined, and note a declined one in the commit message, or the next reader will re-litigate it.
+To bring the guide up to date, read the entries above that marker, match each `Bears on:` line against the claims in `facts/rests-on.yml`, change what needs changing, then move the marker. Matching is a judgement, not a string comparison: an entry can leave a claim standing but incomplete, which reads as agreement until you look at what it adds. Move the marker only for entries you have actually acted on or actively declined, and note a declined one in the commit message, or the next reader will re-litigate it.
 
 The 2026-08-23 batch was read on 2026-08-24 while drafting the nine `howdoi/` pages, and this is where it landed:
 

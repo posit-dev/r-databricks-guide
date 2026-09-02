@@ -75,7 +75,3 @@ Tell the person who sent you here that the volume exists and what its path is. F
 Which is why the volume above is the durable fix and an install is not.
 
 An install goes away. Users read that as the upgrade having failed, run it again, get the same result, and eventually ask you. The library on a volume is the thing that stops the cycle.
-
----
-
-This page rests on: the stock runtime image ships no GDAL, GEOS or PROJ, so `install.packages("sf")` fails at configure; an init script fixes the system layer and runs on every node where an interactive install touches only the driver; on older runtimes the image's pinned `Rcpp` is older than current `units` requires and `terra` must be pinned against the image's GDAL, and on DBR 18 neither pin is needed; a runtime version and its setup script are one decision; a binary repository serves sources unless the request's user agent carries an `R/<version>` token, which `Rscript` omits, costing about fifteen minutes per node; a prebuilt library tree on a volume is reusable and works inside a `spark_apply()` worker; every R context gets its own ephemeral library.

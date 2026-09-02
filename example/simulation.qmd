@@ -297,7 +297,3 @@ saveRDS(sim_result, "sim_result.rds")
 ## Next
 
 [When the simulation carries the geometry](bootstrap.qmd), which is the same shape with one thing added, and the addition is what changes the answer.
-
----
-
-This page rests on: per-station mean and standard deviation of daily flow are sufficient to parameterise a lognormal without a second pass over the readings; the count of days behind each fit is available in the same summary, so the sampling error of those two parameters can be formed without returning to the readings either; about a thousand stations at a thousand draws each finishes on a handful of local cores; on a single-node cluster `parallel::mclapply()` in one cluster-side session was over twice as fast as `spark_apply()` for the same draws; `spark_apply(group_by =)` uses one R process where the partition path uses several, runs slower for an identical answer, and fails outright on `rpy2` 3.6.x.

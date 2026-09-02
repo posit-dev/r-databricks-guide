@@ -449,7 +449,3 @@ What remains open, named rather than tidied away: how any of this behaves at twe
 ## Next
 
 [Results, figures, and the record](results.qmd).
-
----
-
-This page rests on: adding a two-column matrix to an `sfc` recycles the matrix per geometry rather than shifting point `i` by row `i`, costing gigabytes in GEOS that never appear in R's `gc()` accounting, so coordinate jitter must be done on a plain matrix; the catchment column that reads as an overall grade is unusable, with nearly all rows "Not assessed", while `ecological_class` carries a usable ordinal grade, so the distribution of a categorical column is worth reading before it is relied on; decoded catchment area matches the declared area column to thousandths of a percent; `spark_apply()` on the Databricks Connect backend does not capture the calling environment and rejects `context =` outside the `group_by` path, so geometry must travel as a column in the Spark table; `spark_apply()` has been observed distributing work across two worker machines, neither of them the driver, with `sf` loaded and doing real spatial work; one R process runs per task and a task gets one core, so partition count controls how much of a machine is used; `sf` is absent from a stock cluster image and must be installed on every node; `future` and `furrr` are absent from the cluster runtime bundle while base `parallel` is present.

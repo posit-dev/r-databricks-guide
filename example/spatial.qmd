@@ -315,7 +315,3 @@ dbDisconnect(con)
 ## Next
 
 [Using the cores you already have](parallel.qmd).
-
----
-
-This page rests on: catchment geometry is stored as `BINARY` and must be base64-encoded server-side to travel over ODBC; WKB carries no SRID, so the CRS must be supplied and is EPSG:27700 for this data; decoded catchment area agrees with the table's declared area column to within thousandths of a percent; storm overflow locations are EPSG:4326 and need transforming before they will join; about 92% of overflows fall inside a river catchment, the remainder being coastal.

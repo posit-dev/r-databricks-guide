@@ -182,7 +182,3 @@ checked
 Two reasons to bother. A reviewer asking how you know the server-side result is trustworthy gets a sentence and a number instead of an assurance. And the tolerance recorded before the run is the only thing that stops it drifting afterwards: a tolerance chosen once the answer is in front of you is not a check, it is a description.
 
 Keep the row with the result it describes, in the same file or the same directory, and write it out at the same moment. [Get results out, and repeat them](results.qmd) covers where that file should go.
-
----
-
-This page rests on: worker-computed polygon area matched the warehouse's own to a relative difference of 3.1e-12; hashing an R object is not portable across R minor versions; distance, length and area on the server's geometry type are planar while `sf` on unprojected coordinates is spherical, so the two disagree silently by orders of magnitude with neither being wrong; the same modelling difference makes predicates disagree on boundaries alone, which surfaces as a count a few rows out rather than as a difference in magnitude, so ranking a discrepancy by size does not find it; projecting the coordinates removes both, because `sf` uses s2 only for longitude and latitude.

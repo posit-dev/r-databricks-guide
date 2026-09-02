@@ -284,7 +284,3 @@ The reason to name the gap rather than gesture at it is that you can then check 
 ## Next
 
 If the repeats are the expensive part, see [Run a Monte Carlo simulation](monte-carlo.qmd).
-
----
-
-This page rests on: a `r wq_fact("readings_rows", "round")` row table reduces by three orders of magnitude before crossing into R; `dplyr::sql()` reaches Spark SQL functions `dbplyr` cannot translate; `UNRESOLVED_ROUTINE` is raised identically for an untranslated function, a function absent from the connected compute, and a misspelling; Spark SQL has no ordinal-regression primitive.

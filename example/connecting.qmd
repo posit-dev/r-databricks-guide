@@ -290,7 +290,3 @@ dbDisconnect(acon)
 ## Next
 
 [Exploring and reducing the big table](reducing.qmd).
-
----
-
-This page rests on: ODBC truncates `BINARY` values to length mod 1024 at every setting tried, so a 1,025-byte value returns 1 byte with no error; `brickster::DatabricksSQL()` returns `BINARY` byte-exact; encoded geometry as text is separately truncated at 1,023 characters unless `DefaultStringColumnLength` is raised, and a round number there can be silently dropped; decoded catchment area matches the table's declared area column to within thousandths of a percent; `config::get()` falls back to the default profile without warning when a profile name is unrecognised.

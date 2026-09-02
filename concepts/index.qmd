@@ -70,7 +70,3 @@ If a package will not load, that is the fourth: ask which context you are in. If
 ## Next
 
 [Connect your R session to the data](../howdoi/connect.qmd) is where the site actually starts. If you already have a connection and a specific problem, the [guides](../howdoi/connect.qmd) are written to be arrived at one at a time, and [When it breaks](../ref/when-it-breaks.qmd) is organised by what you saw.
-
----
-
-This page rests on: `spark_apply()` has been observed distributing tasks across two worker machines, neither of them the driver; `spark_apply()` was slower than forked workers on a single node; `spark_apply(group_by =)` fails on `rpy2` 3.6.x; `spark_apply(columns =)` takes a Spark type string from a client connection and a character vector on the cluster's own R session, and the wrong form fails without naming the argument; every R context gets its own ephemeral library.

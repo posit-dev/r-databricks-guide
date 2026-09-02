@@ -76,7 +76,3 @@ Worth noting which way the risk actually points here. The open bugs this guide r
 ## Next
 
 If you arrived from a search result and are not sure the page you found applies to you, the structural answer is above. If something has already gone wrong, [When it breaks](when-it-breaks.qmd) is organised by symptom.
-
----
-
-This page rests on: none of the seventeen `spark.posit.co/guides/` pages mentions Databricks or Spark Connect, and `deployment/databricks-connect.html` is not linked from them; sparklyr's caching guide teaches `memory = TRUE` and `compute()`, which upstream states do not work on serverless; the S3 guide's mechanism requires adding a Hadoop jar to a managed cluster's classpath; `rsparkling` is off CRAN; the sparklyr `tidymodels` integration is a translation layer over MLlib with no `recipes` support, while `tune_grid_spark()` runs R on the executors and requires R and modelling packages on every node; brickster's documentation states no data type behaviour in either direction, its DBI backend is warehouse-only, `db_repl()` is cluster-only and R only on single-user clusters, and its cluster-management article assumes create rights; Posit's Databricks pages recommend `odbc` without qualification and do not mention brickster; none of the three sites documents the symptom of an expired credential, and Posit's only troubleshooting page covers ODBC driver installation; brickster 0.2.14 and sparklyr 1.9.5 are both current CRAN releases, published 2026-07-24 and 2026-06-20.

@@ -109,7 +109,3 @@ And the honest case: if the raster fits on your laptop and nobody is telling you
 ## Next
 
 [Sending things to where your code runs](../ref/sending-things.qmd).
-
----
-
-This page rests on: the native `ST_` functions are vector functions with no raster equivalent, so gridded work has no server-side path; a disk-backed raster object serialises its file path rather than its pixels.

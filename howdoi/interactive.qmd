@@ -136,7 +136,3 @@ columns = c("host", "rver")
 Neither form is rejected by the other path with anything useful. The character vector fails from a client connection with a `ParseException`, and the message never mentions `columns` at all, so code copied between the two contexts breaks in a way that reads as the worker function misbehaving. If a `spark_apply()` call fails with a parse error and the function looks correct, check this argument first.
 
 Access mode is a separate question from notebook versus client, and it is easy to conflate them. A Standard access mode cluster refuses R *notebooks*, while a client connection to one works, which is exactly the case where this page's premise matters most. [Work out what the cluster you have can do](compute.qmd) is where that belongs.
-
----
-
-This page rests on: an interactive R session can drive cluster compute through a client connection, without an R notebook attached to the cluster; `spark_apply(columns =)` takes a Spark type string from a client connection and a character vector on the cluster's own R session, and the wrong form fails without naming the argument.

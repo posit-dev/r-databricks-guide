@@ -224,7 +224,3 @@ Reading and writing files inside a volume needs `READ VOLUME` and `WRITE VOLUME`
 ## Next
 
 If your data is a governed table rather than a file, [connect your R session to the data](connect.qmd) is the page you want instead. If the file you just fetched is geometry, [join and transform polygons](polygons.qmd) picks it up from there. To send a file the other way, to where distributed code runs, see [Sending things to where your code runs](../ref/sending-things.qmd).
-
----
-
-This page rests on: `/Volumes/...` is not resolvable from a remote R session, and `readr`, `arrow` and `sf` all fail there with a message indistinguishable from a typo; `db_volume_read()` and `db_volume_write()` move bytes without parsing, so every format including xlsx round-trips intact, and neither needs a cluster or a warehouse; `db_volume_read()` takes no `overwrite` argument while `db_volume_write()` and the directory functions do; a four-part shapefile fetched with `db_volume_download_dir()` reads with its EPSG code preserved, while the same shapefile missing its `.prj` reads with no error or warning and `st_crs()` as `NA`, and missing its `.shx` fails loudly; `db_volume_file_exists()` throws `HTTP 404` on a missing path rather than returning `FALSE`; `read_files()` over a volume path composes with `dbplyr` through `tbl(con, sql(...))`, reads every file in a directory regardless of extension, and does not support xlsx; the documented per-file ceiling is 5 GiB; reading and writing inside a volume needs `READ VOLUME` and `WRITE VOLUME` but not `CREATE VOLUME`.

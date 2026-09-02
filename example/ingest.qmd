@@ -555,7 +555,3 @@ dbDisconnect(con)
 ## Next
 
 [Getting connected and finding the tables](connecting.qmd).
-
----
-
-This page rests on: `dbWriteTable()` through the DBI backend works to about 50,000 rows and warns from about 20,000, so bulk loading goes through a volume and `read_files()`; `read_files()` reads every file in the directory it is given regardless of extension, so a re-run with a fresh filename doubles the row count and a mixed directory fails rather than reading the files it recognises; encoding catchment geometry as WKB is far faster than WKT and produces a smaller value; `hydrology_stations` carries easting/northing in EPSG:27700 and no lon/lat, while `storm_overflows` carries lon/lat in EPSG:4326; `station_id` lives on the measures table rather than the readings table; the storm overflow locations are CC BY 4.0 rather than OGL.

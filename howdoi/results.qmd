@@ -128,7 +128,3 @@ See [The data and its licences](../ref/data.qmd). Two licences, and they are not
 Copy them verbatim rather than paraphrasing. CC BY requires attribution in a way OGL does not, so collapsing the two into one credit line loses something the licence asks for.
 
 If your analysis uses the river network data, that carries a third set of attribution wording, different again from both, and it needs its own line.
-
----
-
-This page rests on: every R context gets its own ephemeral library, so installs do not persist between contexts; a prebuilt library tree on a volume can be reused; `dbWriteTable()` hard errors above 50,000 rows without a staging volume.

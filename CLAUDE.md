@@ -254,4 +254,6 @@ So there is no remaining debt to hide behind, and a new static block with pasted
 
 The research behind this guide lives in a separate private repository and reaches this one two ways: **facts as a downstream changelog**, prose to read and act on, and **code in `skills/`**, as runnable examples upstream has executed. Nothing else crosses; the site's own pages are written here.
 
-**`process/upstream-changelog.md`** holds the protocol, the marker recording how far the changelog has been consumed, and what each entry changed. Read it before acting on an entry, and before widening a page's `rests on:` line.
+**`process/upstream-changelog.md`** holds the protocol, the marker recording how far the changelog has been consumed, and what each entry changed. Read it before acting on an entry, and before widening a page's claims.
+
+**`facts/rests-on.yml`** holds what each page's claims rest on, keyed by page. It used to sit at the foot of every page as a `This page rests on:` line, which published a research artefact to a reader who had not asked for one. It is build metadata: the factual budget for drafting a page, and what a changelog entry's `Bears on:` line is matched against. Nothing on the site links to it and nothing renders it.
