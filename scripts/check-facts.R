@@ -269,7 +269,9 @@ if (file.exists(rests_path)) {
   leaked <- character()
   for (page in rendered) {
     if (!file.exists(here::here(page))) next
-    if (any(grepl("rests on", readLines(here::here(page), warn = FALSE)))) {
+    # Anchored: the footer always began a line. "It rests on one worked
+    # comparison" mid-sentence is ordinary prose and must not trip this.
+    if (any(grepl("^This page rests on", readLines(here::here(page), warn = FALSE)))) {
       leaked <- c(leaked, page)
     }
   }
