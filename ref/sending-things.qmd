@@ -41,7 +41,7 @@ The middle row is a fallback, not a preference. Use it when you have no volume t
 
 ## Traps on the way through
 
-### A `BINARY` column reaches a worker as a text representation, not as bytes
+### `BINARY` arrives as text
 
 Base64 on the way out, decode in the worker. If you skip that, what arrives is a string that looks structurally plausible and is not your geometry.
 
@@ -62,27 +62,19 @@ There is a further wrinkle, and it is the kind that costs a morning. The correct
 
 Omitting the argument entirely works on both, and is the safest thing to do if you can let the types be inferred.
 
-### Do not compare hashes across R minor versions
+### Hashes across R versions
 
 Compare content instead. A worker can be on a different R patch release from your session: at the time of writing this repository's session runs 4.5.2 and its cluster's workers run 4.5.1. Serialisation details differ across versions, so identical objects can hash differently, and you will conclude something is corrupted when nothing is.
 
 If you need to check that an object survived the trip, compare the thing you care about. Row counts, a summary, `all.equal()` on the reconstructed object.
 
-## What else was tried, and what it did
-
-::: {.callout-note collapse="true"}
-
-## The full comparison
-
-For anyone auditing the claims rather than getting work done.
+## Two routes that look right
 
 `spark_apply(context =)` is the documented mechanism for exactly this problem, and it does not work on the `databricks_connect` backend. If you find it in sparklyr documentation, that documentation is not wrong, it just does not describe the backend you are on.
 
-An unexported internal function also moves objects, and is not recommended here for the obvious reason: it is unexported, so it can change without notice, and code resting on it breaks silently on upgrade.
+An unexported internal function also moves objects. Do not build on it: unexported means it can change without notice, so code resting on it breaks silently on upgrade.
 
 Serialising into the function body, the middle row of the table above, works but is fiddly enough to be a last resort. `serialize(version = 2)` is required, and the base64 must have its line breaks stripped. Getting either wrong produces `unknown type 0`, which names neither cause.
-
-:::
 
 ## Next
 

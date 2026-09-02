@@ -256,7 +256,7 @@ sim_result |>
 
 That is the shape a sampling-error argument predicts, and seeing it is the check that the stage is measuring what it claims to. A station with three years of record carries roughly twice the uncertainty of one with ten.
 
-## This one is finished
+## Where this leaves us
 
 This is the checkpoint, and the stage stops here rather than reaching for the cluster to complete a demonstration.
 
@@ -264,7 +264,7 @@ The arithmetic is small: about a thousand stations, a thousand parameter draws e
 
 On the next page the answer is different.
 
-## When this shape does need the cluster
+## When the cluster earns it
 
 The example's own simulation is small. The shape is not inherently small, and yours may not be.
 
@@ -277,7 +277,7 @@ Two things carry over unchanged, and both matter for the next page:
 
 What does not carry over is the assumption that distributing is free. On a single-node cluster, R in one session using `mclapply()` was more than twice as fast as distributing the same work, because distribution costs serialisation and there were no other machines to spread onto. Reaching for the cluster when there is nothing to distribute to is slower than not reaching for it.
 
-## The trap in expressing it the natural way
+## The `group_by` trap
 
 Worth carrying here even though the cluster is not used on this page, because it is the mistake made at exactly the moment this code first moves across.
 

@@ -96,7 +96,7 @@ Use 65535 rather than a round number like 100000. Round values can be silently d
 
 Both truncation bugs now have fix pull requests open against the driver package. Neither has merged, so the workarounds are needed today, and this section describes the situation until those fixes ship rather than a permanent property of the stack.
 
-## Check, do not assume
+## Checking the connection
 
 Both failures are silent, so the recipe is worth nothing without a check. Two checks, and they answer different questions.
 
@@ -166,7 +166,7 @@ compute_id <- function(profile, file = "compute.yml") {
 
 Store the warehouse identifier on its own rather than as part of a longer connection path. Different clients want different forms of it: `odbc` wants the HTTP path, `brickster` wants the bare identifier. Storing the path means every `brickster` call takes it apart again with `basename()`, and the two drift out of step the first time one is edited and the other is not.
 
-## What your connection is, and is not
+## What a connection is
 
 Your connection is a client to remote compute, not a session on it. The R process is yours, running where you started it. `con` is a handle that sends SQL somewhere else and brings answers back.
 

@@ -11,7 +11,7 @@ On your own machine, "where does this run" is not a question anyone asks, becaus
 
 None of that needed thinking about, and none of it was wrong. Four of those assumptions now break, and the order matters, because each one depends on the one before. A fifth section follows them, on running R where the data is, which is a mechanism rather than an assumption.
 
-## There is more than one machine
+## More than one machine
 
 The first and the largest. Your R session is on one machine, the data is on another, and there may be several more behind it.
 
@@ -21,7 +21,7 @@ Your cluster may have exactly one machine, in which case the driver is also the 
 
 Everything below is a consequence of this section.
 
-## Your session is a client, not a place the work happens
+## Your session is a client
 
 This is the distinction that catches people. Connecting to Databricks does not move your R session onto Databricks. Your session stays exactly where it is and sends instructions.
 
@@ -29,7 +29,7 @@ So there are two machines with two different jobs, and the interesting question 
 
 That is why the pipeline in [Work with a table that will not fit in your session](../howdoi/big-table.qmd) has a line through the middle of it, and why "the data is too big to fit" and "the data is too big to move" are different problems with different answers.
 
-## Anything the far side needs has to get there, and that costs something
+## Serialisation
 
 If the work happens on another machine, then the function you wrote, the objects it refers to, and any file it reads all have to travel. Converting them to bytes, shipping them, and rebuilding them on the far side is called **serialisation**, and it is the one platform word worth knowing properly, because it is the hidden term in most performance surprises.
 
@@ -37,7 +37,7 @@ The consequence is counterintuitive, and the site relies on it repeatedly: distr
 
 Getting a specific object to the far side is a practical problem with a practical answer, which is [Sending things to where your code runs](../ref/sending-things.qmd).
 
-## Each context has its own library
+## One library per context
 
 The last one, and the one that produces the most confusing symptoms.
 

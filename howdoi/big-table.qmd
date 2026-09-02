@@ -74,7 +74,7 @@ readings |>
   collect()
 ```
 
-### Seeing the line in your own pipeline
+### Finding the line yourself
 
 Do not take the site's word for where the boundary falls in your code. `show_query()` prints the SQL `dbplyr` will send, so you can read exactly what the server is being asked to do:
 
@@ -100,7 +100,7 @@ It is used here anyway, because the technique is visible on it and because the n
 
 Worth saying plainly: if your data does fit in your laptop's memory and nobody is dictating where it lives, working locally is faster to set up and better for your science. This page is for when it does not, or when someone else decided.
 
-## Three things can happen at that line
+## Three cases
 
 Every step in your pipeline is one of three cases, and which one it is depends on two questions. Does Databricks have the function? And does the step produce one row out per row in, or fewer?
 
@@ -194,7 +194,7 @@ If your R function is genuinely irreducible and has to see every row, the honest
 
 Where this case usually turns out to be tractable is when the expensive part is not the crossing but the *repetition*: a small result crossed once, then simulated or resampled thousands of times. That has a good answer, and it is on [Run a Monte Carlo simulation](monte-carlo.qmd).
 
-## Reaching a function `dbplyr` cannot translate, with `dplyr::sql()`
+## When `dbplyr` cannot translate
 
 `dbplyr` not knowing a function is not the same as the server not having it. Those two get conflated constantly, and conflating them pushes work into R that never needed to leave the warehouse.
 
@@ -229,7 +229,7 @@ That is the same `flow_measures` the reduction above uses, and it still runs ent
 
 So when `dbplyr` refuses a function, the question to ask is whether Spark SQL has an equivalent, not whether you now have to collect the table. Usually it does, and `sql()` reaches it.
 
-## Fitting a model on what came back
+## Fitting a model
 
 Once the data is in your session, there is nothing special about it. `per_station` is a 1,029-row tibble and everything you already know applies:
 

@@ -102,7 +102,7 @@ That is not wrong in its answer, it is wrong in where the work lands. The join r
 
 The rule generalises: **filter the small side before the join, not the large side after it.**
 
-## Reaching a function `dbplyr` will not translate
+## When `dbplyr` cannot translate
 
 Picking daily mean flow needs a match on the end of `value_statistic`, and the natural R way to write that does not survive the trip:
 
@@ -129,7 +129,7 @@ flow_measures |>
   collect()
 ```
 
-## Where the line falls in this pipeline
+## Where the line falls
 
 Here is the whole reduction, with the one line that matters marked. Everything above `collect()` runs on Databricks; everything below runs in your session.
 

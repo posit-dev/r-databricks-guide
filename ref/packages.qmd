@@ -3,6 +3,14 @@ title: "Packages"
 subtitle: "Checking, and fixing, which packages exist where your code runs"
 ---
 
+## Introduction
+
+::: {.answer}
+"Installed" is a property of one R context, not of the cluster. Your session, the driver and each worker have their own library, so a package that loads in one says nothing about the others.
+:::
+
+That is why an install can appear not to have taken, and why the check below is worth running in each context rather than once. Start with the check, then the three contexts, then what to do when a package is missing from one.
+
 ## The check
 
 Run this, and if it loads you are done. Most likely you are done.
@@ -70,7 +78,7 @@ Forward [Setting up a cluster for geospatial R](../admin/geospatial-setup.qmd), 
 
 That last sentence is the one worth keeping. An install that works when someone tries it by hand and then fails in a worker is the commonest way this gets misdiagnosed as fixed.
 
-## If your workspace has a prebuilt library volume
+## Prebuilt library volumes
 
 This is the good case, and it is worth being able to recognise it. Someone has already paid the build cost once, and left the result on a Unity Catalog volume:
 
@@ -83,7 +91,7 @@ The tree is reusable by any later cluster with the same R version and image, whi
 
 Ask whether one exists before assuming it does not. It is a common enough arrangement that the answer is often yes.
 
-## Installs do not persist between R contexts
+## Why installs vanish
 
 A package you upgraded may read as the old version next time you look, which looks exactly like the upgrade having failed.
 

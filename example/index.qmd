@@ -13,7 +13,7 @@ source(here::here("R/facts.R"))
 
 The rest of this site answers one question at a time. This section does the opposite: a single analysis, start to finish, with nothing skipped and nothing idealised. If you want to see how the pieces fit rather than what each one does, read this.
 
-## Why a worked example, when the task pages exist
+## Why a worked example
 
 The task pages cannot show continuity, because each one is written to be arrived at from a search. What they leave out is the ordinary friction of a real analysis: the check that fails, the CRS you have to supply, the column that turns out to be unusable, the step that was in the wrong place.
 

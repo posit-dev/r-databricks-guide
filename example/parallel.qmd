@@ -22,7 +22,7 @@ library(parallel)
 catchment_panel <- readRDS("catchment_panel.rds")
 ```
 
-## The repeats are the cost now, not the crossing
+## Where the cost moved
 
 The table shrank by three orders of magnitude on [Exploring and reducing the big table](reducing.qmd), and what came back fits comfortably in the session.
 
@@ -45,7 +45,7 @@ The test, stated once and used by both simulation stages that follow: **if repea
 
 Both stages that follow satisfy it, which is why this page can settle the backend for both.
 
-## Try `furrr` first, and watch what happens
+## Trying `furrr` first
 
 `furrr::future_map()` over a `future::plan()` is the natural first reach. It is one line of change from `purrr::map()`, and on a laptop it is the right answer.
 
@@ -59,7 +59,7 @@ Whether those are present depends on your session. Installing them is ordinary h
 
 That is the whole story locally. It is not the story on the cluster, and the next section is where the difference bites.
 
-## The one thing that does not travel
+## Packages on the worker
 
 This is the finding that shapes the rest of the example, and the reason this page comes before the simulations rather than inside one.
 
@@ -81,7 +81,7 @@ So the two are not interchangeable, and the difference is not about which is bet
 
 This is a fact about the runtime as it stands, not a permanent property. An administrator can change it, and [Packages](../ref/packages.qmd) is where that conversation belongs.
 
-## `mclapply()`, and why forking is the right default here
+## Forking with `mclapply()`
 
 The version this example carries forward.
 
@@ -96,7 +96,7 @@ Forking is available because this is Linux, and it is cheaper than the alternati
 
 Copy-on-write is worth being precise about, because the next section depends on it. It means a worker pays nothing to *read* what the parent already had. It does not mean a worker pays nothing for what it allocates itself, and a spatial index built inside the worker is exactly that.
 
-## Count the cores you are allowed, not the cores you can see
+## Cores you are allowed
 
 `detectCores()` is the obvious call and it answers the wrong question. It reports the machine's cores, which is not the same as your share of them.
 
@@ -162,7 +162,7 @@ Reading shared data across forked workers costs almost nothing, because the fork
 
 What does cost is anything a worker builds for itself. Multiply it by the worker count, because none of it is shared: `n` workers each constructing a spatial index over the same polygons pay for `n` indexes. That is the term to watch, and it is the one that goes wrong quietly.
 
-## Too few workers is cheap, too many is not
+## Overshooting the quota
 
 The two directions are not symmetric, which is worth knowing before you tune anything.
 
@@ -170,7 +170,7 @@ Asking for fewer workers than you could have is mild: the job takes longer and n
 
 So round down. Leaving a core for the parent, as above, is a habit rather than a rule, but taking the quota rather than the machine count is a rule.
 
-## What this decides for the rest of the example
+## What this settles
 
 The backend is settled here, and the next two pages lean on it rather than repeating it.
 

@@ -60,7 +60,7 @@ So a test written as `num_workers == 0` returns `logical(0)` on an autoscaling c
 
 The same object carries the node type and the idle timeout, which are the other two things worth knowing about compute you did not choose.
 
-## Access modes, and the honest state of it
+## Access modes
 
 A Standard access mode cluster refuses R **notebooks**. A client connection to the same cluster works.
 
@@ -91,7 +91,7 @@ That matters most in the one situation where people keep two clusters: comparing
 
 So confirm which cluster answered rather than assuming. [Connect your R session to the data](connect.qmd) has the setup, including how to validate a profile name against the configuration file's own keys. This page is only here to say why you should care.
 
-## The one thing you have to ask for
+## What to ask for
 
 If the shape of the cluster is genuinely wrong for your work, that is a request to whoever provisions compute, and it is worth making it once, completely.
 
@@ -99,10 +99,4 @@ Ask for the runtime version and the setup script together. They are one decision
 
 So the request is "this runtime, with this setup script, tested together", not "please upgrade the runtime". [Setting up a cluster for geospatial R](../admin/geospatial-setup.qmd) is written for the person who will action it, and is meant to be forwarded.
 
-## What is still unknown
-
-Two things, and they are unknown rather than unpublished.
-
-Whether `spark_apply()` runs under Standard access mode. Nobody has tested it, so this guide says nothing about it in either direction.
-
-How work spread across worker machines scales. Distribution has been observed on a two-worker cluster, by counting distinct machine names. That answers whether it distributes at all and nothing else. It says nothing about four workers, or forty, or about what shuffle costs at any size. If your plan depends on scaling, that is a measurement to make on your own cluster rather than a claim to take from here.
+One thing this page will not tell you: how work spread across worker machines scales. Distributing at all is one question and scaling is another, so if your plan depends on the second, measure it on your own cluster rather than taking a number from anywhere.

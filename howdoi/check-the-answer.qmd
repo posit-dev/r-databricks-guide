@@ -92,7 +92,7 @@ Two properties of that column are the point. The differences are around 1e-13, f
 
 Note what this comparison is not. The table also carries a `water_body_area_m2` column, recorded by whoever prepared the data, and your computed area will differ from that by a fraction of a percent rather than a fraction of a part per trillion. That is a useful check of a different thing: it tells you the bytes survived transport and the CRS is right. It cannot tell you whether two implementations of the same calculation agree, because the recorded column was not produced by either of them.
 
-## Choosing a tolerance, and why "identical" is the wrong test
+## Choosing a tolerance
 
 Exact equality fails on correct results. Write the test that way and it will report corruption that is not there, on data where nothing is wrong.
 
@@ -145,7 +145,7 @@ Reporting the worst difference on success, not just the pass, is what makes this
 
 `all.equal()` is the base R version of the same idea and it is fine for an interactive look. It defaults to a tolerance of about 1.5e-8 and returns a message rather than `FALSE` on failure, so wrap it in `isTRUE()` if you branch on it. The reason to write your own is the tolerance: `all.equal()`'s default is a number somebody else chose, and the point of this section is that the number should be one you chose.
 
-## What to check when the work ran in a worker rather than in your session
+## Checks inside a worker
 
 Everything above assumed the R side ran in your session. When it ran in a worker instead, there is one extra variable, and it is the worker's library.
 
@@ -153,7 +153,7 @@ Your session's packages and the worker's packages are separate installations. A 
 
 So establish which versions ran before you try to explain a discrepancy. [Packages](../ref/packages.qmd) covers getting a worker's library into a state you can name. The order matters: a version mismatch you have not ruled out will send you debugging your own code for a difference that is not in it.
 
-## Do not compare hashes
+## Hashes
 
 Hashing an R object is not portable across R minor versions, so a hash comparison between two machines can report a mismatch when the values are identical.
 
@@ -163,7 +163,7 @@ It also cannot work here even when the R versions match, because of everything a
 
 Compare content. If you need a compact summary rather than the full vectors, compare a few rounded aggregates: a sum, a range, a count, each with a stated tolerance. Those degrade gracefully, and they tell you how far apart two answers are rather than only that they are not the same.
 
-## Recording the check alongside the result, so the paper can refer to it
+## Recording the check
 
 Save the tolerance and the worst observed difference next to the answer, not in your head or your terminal scrollback. It is a row of data, so store it as one:
 

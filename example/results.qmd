@@ -220,7 +220,7 @@ Both licences, worded exactly. This is the page to copy from into a paper, and t
 
 The hydrology and catchment data is OGL v3.0. The storm overflow locations are **CC BY 4.0, not OGL**, and they are operational rather than regulatory data. CC BY requires attribution in a way OGL does not, so the distinction has to survive into anything published from this.
 
-## What it would take to run this again next year
+## Running it again next year
 
 The honest version.
 

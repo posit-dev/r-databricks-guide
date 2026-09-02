@@ -14,7 +14,7 @@ source(here::here("R/facts.R"))
 
 A lookup page, for the moment a query fails with an unknown-function error and you need to know whether the function is missing or your spelling is. Nothing here is worth reading in advance. If you are trying to decide where spatial work should run, that is [Join and transform polygons](../howdoi/polygons.qmd) instead, and it explains why the answer is usually the server.
 
-## Ask your own compute, rather than trusting a list
+## Ask your own compute
 
 ```sql
 SHOW FUNCTIONS LIKE 'st_*'
@@ -26,7 +26,7 @@ This beats any published figure, including the ones below. The platform's own do
 
 One practical note. On a cluster, run the statement through Spark rather than wrapping it in `SELECT count(*)`, which is not valid there. That one-line difference reads as "spatial support is broken" when it is nothing of the sort.
 
-## What was there when this was measured
+## Function counts by compute
 
 `r wq_fact("spatial_functions_warehouse", "words")` distinct functions on a Pro warehouse running serverless, and `r wq_fact("spatial_functions_cluster")` on an all-purpose cluster, measured on 2026-08-24.
 
@@ -34,7 +34,7 @@ Both numbers need the compute attached, always, because the gap between them is 
 
 The count also needs its definition next to it, or it means nothing: four different figures were in circulation before this was pinned down. `r wq_fact("spatial_functions_warehouse", "words")` is distinct names, with no aliases inflating it and no separate geography family counted twice, since most functions take either type in one signature. Two of the `r wq_fact("spatial_functions_warehouse")` are aggregates and five are geography constructors. Counting only what you would call a spatial operation gives the same `r wq_fact("spatial_functions_warehouse")`.
 
-## The cluster has fewer, not more
+## Missing from a cluster
 
 Four functions exist on the warehouse and not on an all-purpose cluster:
 
@@ -51,7 +51,7 @@ Use `st_point()` in place of `st_makepoint()`. It exists on both and takes the s
 
 The older Classic warehouse type is a third case. It is documented as not supporting these functions, and that was not confirmed here by running anything, so treat it as documented rather than measured. The exclusion appears on each function's own reference page rather than in any overview, which is why it is easy to miss.
 
-## Absent from both, and what to do instead
+## Absent from both
 
 About twenty `sf` staples have no server-side equivalent anywhere. The ones worth naming, because you are most likely to reach for them:
 
@@ -81,7 +81,7 @@ Buffer values also differ slightly, because the two approximate a circle with a 
 
 Several semantics were checked and agree: self-containment, empty geometry, and the validity of a self-intersecting polygon all match `sf`.
 
-Containment on a boundary is the case to be careful with, because it depends on the projection and on where the point sits. A point at a polygon's corner agrees. A point on the interior of an edge does not, on longitude and latitude: `st_intersects()`, `st_covers()` and `st_touches()` are TRUE on the server and FALSE in `sf`, and `st_disjoint()` the reverse. Project the coordinates and they agree. The reason is on [Join and transform polygons](../howdoi/polygons.qmd#spatial-joins-are-affected-too-and-that-is-the-one-that-will-catch-you), and it is the same reason the measurements diverge.
+Containment on a boundary is the case to be careful with, because it depends on the projection and on where the point sits. A point at a polygon's corner agrees. A point on the interior of an edge does not, on longitude and latitude: `st_intersects()`, `st_covers()` and `st_touches()` are TRUE on the server and FALSE in `sf`, and `st_disjoint()` the reverse. Project the coordinates and they agree. The reason is on [Join and transform polygons](../howdoi/polygons.qmd#spatial-joins), and it is the same reason the measurements diverge.
 
 ## What is not settled
 

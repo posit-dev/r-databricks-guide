@@ -21,7 +21,7 @@ If none of those hold, and the data fits in your session, work locally. Local R 
 
 When one of them does hold, this guide exists to close as much of the gap as can be closed.
 
-## Two shapes of work, and a third
+## Three shapes of work
 
 Most of what you will do falls into one of these. They are not a taxonomy to learn, and you do not have to decide which one you are in before reading on. Look for the one that resembles code you have written.
 

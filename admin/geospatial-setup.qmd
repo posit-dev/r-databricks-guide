@@ -7,25 +7,25 @@ If you have arrived here from another page, this one is not addressed to you. Pa
 
 This was verified in a test workspace, and in yours much of it may already be done. It addresses **DBR 18.1**; where a detail is runtime-specific that is called out, because several of these answers have changed.
 
-## What an R user needs from a runtime image to do geospatial work
+## What is missing
 
 The stock runtime image ships no GDAL, GEOS or PROJ, so `install.packages("sf")` fails while configuring. That single fact is the whole reason this page exists.
 
 The person who sent you here cannot fix it. System libraries need root and need to be present on every machine in the cluster, so no amount of work in an R session gets there. The error surfaces in R, which is why it is usually reported to you as an R problem.
 
-## System libraries and R packages are two separate problems
+## Two separate layers
 
 Conflating them costs a week. The system layer needs an init script and root privileges. The R layer needs a package repository and a library path. Fixing either one alone leaves the same symptom, which is precisely why the two get conflated.
 
 So expect to do both, and expect the first to look like it did nothing until the second is also done.
 
-## The init script, and why it must be an init script
+## Why an init script
 
 It runs on every node. An interactive install touches only the driver.
 
 That is the whole argument, and it is worth being firm about, because an interactive install appears to work. Someone tries it by hand, `sf` loads, the problem looks solved, and then it fails inside a worker where the libraries were never installed. An init script is the only form that reaches every machine.
 
-## Build times, and why a binary repository does not help
+## Build times
 
 Point the install at a binary repository and it will still compile from source, taking about fifteen minutes per node instead of seconds. There are two reasons, and the second is the one nobody guesses.
 
@@ -56,8 +56,6 @@ Two things follow. A script carrying those constraints forward keeps pins that n
 
 And if you are going to quote measured library versions to anyone, pin the runtime to a specific version rather than a rolling alias. An alias moves, and the GDAL or GEOS version you documented silently stops matching.
 
-This repository is currently an example of that hazard rather than an exception to it. The single-node cluster behind these pages is pinned to `18.1.x-scala2.13`, while the multi-node cluster runs on the rolling `18.x` alias, which can move to 18.2 and quietly date anything quoted from it.
-
 ## Pay it once
 
 The durable arrangement, and the one worth the extra half hour:
@@ -70,7 +68,7 @@ Any later cluster with the same R version and image can reuse the tree, so the b
 
 Tell the person who sent you here that the volume exists and what its path is. From their side it is one line, and they have no way to discover it.
 
-## Every R context gets its own ephemeral library
+## Why installs vanish
 
 Which is why the volume above is the durable fix and an install is not.
 

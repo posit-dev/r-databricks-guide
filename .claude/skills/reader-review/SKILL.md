@@ -100,6 +100,8 @@ Rules 1 to 3 are largely countable and Phase A pre-computes them. Rules 4 to 7 a
 
 A verdict heading is only navigable to someone who already knows the question, which is the author. She scans for "how do I use my cores" and finds "Memory is not the constraint here".
 
+*Exception*: on a symptom-shaped page, the heading is the symptom she is matching against what she saw, so it has to carry enough to be recognised. `ref/when-it-breaks.qmd` is the one such page here, and "A spatial join or point-in-polygon count is off by a handful of rows" is right at thirteen words. Do not shorten a symptom into a label.
+
 **4. Order.** Is the running order her path through the work? Specifically: does any reassurance, caveat or negation arrive **before** the thing it qualifies? Does the page say what it covers before its first code block?
 
 Deliberately narrow. Order is a check on a permutation, so it cannot see a missing section and it will find a good position for a section that should not exist. Those are rules 5 and 6.

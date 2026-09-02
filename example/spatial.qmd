@@ -40,7 +40,7 @@ con <- dbConnect(
 per_station <- readRDS("per_station.rds")
 ```
 
-## Deciding which side to do it on
+## Which side to join on
 
 Both sides can do this. Databricks has spatial SQL, and `sf` is right here in the session. The choice is not about capability.
 
@@ -158,7 +158,7 @@ station_catchment <- stations |>
   st_join(catchments, join = st_within)
 ```
 
-## Checking the result is plausible
+## Checking the result
 
 A join that matched nothing and a join that matched everything produce output of the same shape, so the count is the check.
 

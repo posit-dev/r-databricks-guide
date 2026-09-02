@@ -19,7 +19,7 @@ Bringing the data to R is the ordinary case, and it is the right answer more oft
 
 Sending R to the data means running your `terra` code inside a worker on the cluster, where the constraint is not the arithmetic but getting the pixels there. That is where the rest of the page goes.
 
-## Check whether `terra` loads where your code runs, before anything else
+## Check `terra` loads
 
 Two lines, run in the context you are asking about:
 
@@ -40,7 +40,7 @@ A GDAL version number means the system libraries are there and `terra` found the
 
 Run it twice, though: once in your own session and once inside a worker. They are different machines with different libraries, and a `terra` that loads locally tells you nothing at all about the worker. That is the most common failure on this page and the cheapest to rule out, which is why it comes before anything else.
 
-## If you send R to the data
+## Sending R to the data
 
 A disk-backed raster serialises its file path, not its pixels. So when you close over a `SpatRaster` and send the function to a worker, what arrives is a reference to a file that the worker has to be able to open. If it cannot, the pixels are not there.
 

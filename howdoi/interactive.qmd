@@ -85,7 +85,7 @@ stations |>
 
 Different machine, and a different R version from the local session above. Nothing guarantees those two match, which is the practical reason not to depend on a package version, a locale or an option being the same on both sides.
 
-## Which side of the boundary each line of your script is on
+## Which side each line runs on
 
 A line runs in your session unless something in it forces the crossing, and the things that force it are few enough to hold in your head.
 
@@ -102,7 +102,7 @@ That last point catches people out, because it is invisible until it bites. A va
 
 This is the same boundary that [work with a table that will not fit in your session](big-table.qmd) draws around `collect()`, seen from the session's side rather than the data's. That page is where the reasoning about how much crosses belongs.
 
-## Session lifetime, reconnecting, and what you lose when the connection drops
+## When the connection drops
 
 Your local objects survive anything that happens to the connection. Anything holding a handle to remote state does not.
 
@@ -119,7 +119,7 @@ Reconnecting gives you a working connection, not your previous state. `spark_con
 
 That is the argument for keeping the pipeline that builds a reference close to the work that consumes it, and for writing results you care about to a local object with `collect()` at the point you get them rather than leaving them remote.
 
-## When you do need a notebook, and what changes
+## When you do need a notebook
 
 A notebook is required for paths a client connection cannot reach. `sdf_len()` and much of the rest of the `sdf_*` family do not work over this connection: calling it here fails with an `AttributeError` about `defaultMinPartitions` rather than anything saying "not supported". Reach for a table reference instead, which is the idiom this guide uses throughout.
 

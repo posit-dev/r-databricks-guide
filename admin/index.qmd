@@ -5,7 +5,7 @@ subtitle: "Getting a workspace change made when you do not administer the worksp
 
 Some of what stops you is not fixable from your session, and no amount of persistence in R will change it. This page is about recognising those cases quickly and asking for the right thing, so one exchange settles it rather than four.
 
-## How to tell it is not yours to fix
+## Is it yours to fix?
 
 The distinguishing question is whether the change has to happen on every machine, or before your session starts. If it does, it needs an administrator, and trying it yourself costs an afternoon and leaves nothing behind.
 
@@ -17,13 +17,13 @@ Three symptoms always mean this:
 
 The common thread is that all three appear as R errors in your R session, which is why they read as things you should be able to fix.
 
-## Ask for the outcome, not the mechanism
+## Ask for the outcome
 
 The failure mode in these conversations is asking for a specific fix and getting a debate about the fix.
 
 Describe what you need to be able to do, name the constraint you have hit, and let the person who owns the platform choose how to solve it. They may already have a solution you do not know the name of: a cluster policy, an existing library volume, a standard init script they attach on request. Asking for "an init script that installs GDAL" invites a discussion about init scripts. Saying "I need to read polygon data with the R `sf` package, and it will not install because GDAL is missing" invites a solution.
 
-## The three requests worth knowing by name
+## Three requests by name
 
 Most of what a research scientist needs from a Databricks workspace is one of these, and knowing which one you are asking for makes the request short.
 

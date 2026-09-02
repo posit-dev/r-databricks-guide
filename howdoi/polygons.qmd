@@ -139,7 +139,7 @@ Five against half a million: degrees against metres, each computed correctly. On
 
 If you do want a distance across a sphere from lon/lat, ask for it by name: `st_distancesphere()` and `st_distancespheroid()`, as the comparison above shows. Sphere or ellipsoid is the ordinary choice you already make in `sf`.
 
-### Spatial joins are affected too, and that is the one that will catch you
+### Spatial joins
 
 The natural conclusion from the numbers above is that measurements are risky and true-or-false tests are safe. That is wrong, and it is the more expensive half.
 
@@ -149,7 +149,7 @@ Which is exactly where a catchment join lands its difficult records. Catchments 
 
 Project both layers and the disagreement goes away, because `sf` only reaches for spherical geometry when the data is unprojected: on a projected CRS it works on a plane, which is what the server was doing all along.
 
-### `sf_use_s2(FALSE)` and `st_setsrid()` do not fix it
+### What does not fix it
 
 **`sf_use_s2(FALSE)` is a trap**, and it is the first thing an experienced `sf` user reaches for. It does not switch `sf` to a flat model, it switches it to an ellipsoidal one. So the boundary disagreement clears up and it looks as though it worked, while the measurements stay wrong by five orders of magnitude. You have cured the symptom you could have caught and kept the one you could not.
 
@@ -204,7 +204,7 @@ Reading the overflow data here is subject to its own licence, which is CC BY 4.0
 
 The worked example does this same join the other way, in `sf` after collecting both layers, and then checks the two answers against each other. See [The spatial join](../example/spatial.qmd) if you want the comparison rather than the recipe.
 
-## Aggregating server-side when only a scalar needs to cross
+## Aggregating server-side
 
 The shape to look for in your own analysis: the geometry stays where it is, the spatial work happens there, and a small table comes back.
 

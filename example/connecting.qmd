@@ -151,7 +151,7 @@ tibble(
   mutate(rows = map_dbl(table, count_rows))
 ```
 
-## The check that the geometry column is intact
+## Checking the geometry column
 
 Do this now, not after a spatial join returns nothing. It costs one query, and it is the cheapest possible place to catch a failure that otherwise surfaces much later as a wrong answer.
 
@@ -203,7 +203,7 @@ tibble(asked = c(512, 1024, 1025, 2000, 5000)) |>
 
 Read the middle column. A 1,025-byte value comes back as a single byte, and nothing about that is an error: the query succeeded and returned a value of the wrong length. The `brickster` column is what correct looks like.
 
-## Proving the geometry itself is right
+## Proving the geometry
 
 Arriving at full length is necessary but not sufficient. A geometry that parses can still be the wrong geometry, so the useful check is against something recorded independently: the catchment table carries its own area column, computed before any of this transport happened.
 
