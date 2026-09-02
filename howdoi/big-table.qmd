@@ -3,11 +3,13 @@ title: "Work with a table that will not fit in your session"
 subtitle: "Where each step of your pipeline runs, and how much data comes back"
 ---
 
-## One line decides where the work happens
+## Introduction
 
-`collect()` is the line. Everything you write above it is translated into SQL and runs on Databricks; everything below it runs in your R session, on whatever `collect()` returned. Nothing moves until you call it.
+::: {.answer}
+`collect()` is the line. Everything above it is translated into SQL and runs on Databricks; everything below runs in your R session, on whatever `collect()` returned. Nothing moves until you call it.
+:::
 
-That single sentence is the whole page. Everything else is a consequence of it.
+That one sentence is the whole page, and everything else is a consequence of it: how to see where the line falls in your own pipeline, how to keep the work above it, and what to do when a function will not translate.
 
 ```{r}
 #| label: mask

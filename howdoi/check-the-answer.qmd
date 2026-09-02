@@ -3,11 +3,13 @@ title: "Check that you get the same answer wherever it ran"
 subtitle: "Confirming that a computation done on the server and the same one done in R agree, and by how much"
 ---
 
-## The two sides agree, and here is how closely
+## Introduction
 
-Worker-computed polygon area matched the warehouse's own to a relative difference of 3.1e-12. So the answer to "can I trust work that ran somewhere else" is yes. That number is here to settle the question rather than to impress: agreement at the twelfth decimal place is agreement, and nothing downstream of it will notice the difference.
+::: {.answer}
+Two correct machines will not return bit-identical numbers, and that is normal rather than a fault. What you need is a way to tell an ordinary floating-point difference from a real disagreement, and a tolerance you can defend in a paper.
+:::
 
-The honest limit belongs next to it. This is one comparison on one kind of computation. Until the same recipe has been run on a second, structurally different case, this page is teaching a technique on the strength of a single example, and you should read it that way. The recipe below is worth copying; the confidence that it generalises has not been earned yet.
+The recipe below computes both sides, compares them as a relative difference, and records the result alongside the answer. It rests on one worked comparison, so treat it as a technique to copy rather than as a survey of everything that can differ.
 
 ## Why they can disagree at all
 

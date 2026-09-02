@@ -3,9 +3,13 @@ title: "Join and transform polygons"
 subtitle: "Real spatial work when the polygons start out in the table rather than in R"
 ---
 
-## You do not have to bring the polygons back
+## Introduction
 
-Buffers, intersections, transforms, areas and predicates all run on the server, so a spatial question does not oblige you to pull geometry into your session first. Here are four thousand catchments unioned and measured, with one row crossing into R:
+::: {.answer}
+Buffers, intersections, transforms, areas and predicates all run on the server, so a spatial question does not oblige you to pull geometry into your session first.
+:::
+
+This page covers where a spatial pipeline runs, how to project and join, the one modelling difference that makes `sf` and the server disagree, and how to bring geometry back when you do need it. Here are four thousand catchments unioned and measured, with one row crossing into R:
 
 ```{r}
 #| label: mask

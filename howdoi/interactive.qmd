@@ -3,9 +3,11 @@ title: "Write and run R against the cluster, without leaving your editor"
 subtitle: "An interactive R session with cluster compute behind it, rather than a notebook"
 ---
 
-## You do not have to write R inside a Python notebook
+## Introduction
 
-An interactive R session drives cluster compute through a client connection, with no R notebook attached to the cluster at any point. You keep your editor, your project, your `renv` library and your version control, and the cluster becomes something your script talks to rather than somewhere your script lives.
+::: {.answer}
+An interactive R session drives cluster compute through a client connection, with no notebook involved at any point. You keep your editor, your project, your `renv` library and your version control, and the cluster becomes something your script talks to rather than somewhere your script lives.
+:::
 
 This is worth stating first because the documentation route leads to notebooks and nothing signposts the alternative. If you have been assuming that using the cluster means moving your work into the workspace UI, you have been assuming a constraint that is not there.
 

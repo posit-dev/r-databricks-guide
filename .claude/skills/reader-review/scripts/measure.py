@@ -89,7 +89,8 @@ CORRECTIVE_OPENING = re.compile(
 # Scope signals: the opening telling her what the page covers.
 SCOPE_SIGNAL = re.compile(
     r"\b(this page|this chapter|below|what follows|three|two|four|"
-    r"first .{0,30}then|covers|walks through|shows you how)\b",
+    r"first .{0,40}then|then .{0,40}then|covers|walks through|shows you how|"
+    r"comes last|the recipe below|everything else is)\b",
     re.I,
 )
 
@@ -236,13 +237,20 @@ def find_register(prose: list[tuple[int, str]], offset: int) -> list[RegisterHit
 
 
 def opening_paragraphs(prose: list[tuple[int, str]], n: int = 2) -> str:
-    """The first n prose paragraphs after any callout block."""
+    """The first n prose paragraphs, skipping callouts but reading `.answer`.
+
+    A callout at the top of a page is an aside and not the opening. The
+    `.answer` div is the opposite: it carries the page's opening claim, so its
+    text counts and the paragraph after it is the second, not the first.
+    """
     paras: list[str] = []
     buf: list[str] = []
     in_callout = False
     for _, line in prose:
         s = line.strip()
         if s.startswith(":::"):
+            if ".answer" in s:
+                continue          # read its contents as ordinary prose
             in_callout = not in_callout if s != ":::" else False
             continue
         if in_callout or s.startswith("#"):

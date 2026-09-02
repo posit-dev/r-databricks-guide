@@ -3,9 +3,11 @@ title: "Work out what the cluster you have can do"
 subtitle: "Reading the compute you were given, and what you can and cannot change about it"
 ---
 
-## You can start and stop what you have. You cannot change its shape
+## Introduction
 
-You can almost certainly start a stopped cluster, stop a running one, and connect to either. You almost certainly cannot change how many machines it has, how much memory each one gets, or which runtime it boots. Those were decided when someone provisioned it.
+::: {.answer}
+You can almost certainly start, stop and connect to the compute you have. You almost certainly cannot change how many machines it has, how much memory each gets, or which runtime it boots: those were decided when someone provisioned it.
+:::
 
 So the useful skill is not choosing a cluster. It is reading the one you have, and designing the work to fit it. Everything below is aimed at that, and any advice amounting to "use a bigger cluster" is beside the point.
 

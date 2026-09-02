@@ -3,11 +3,13 @@ title: "Connect your R session to the data"
 subtitle: "Which connection to open, and why the choice matters before you write any code"
 ---
 
-## Use `brickster::DatabricksSQL()` if geometry is involved. Otherwise either path works
+## Introduction
 
-If your query touches a `BINARY` column, and geometry is stored as `BINARY`, open the connection with `brickster::DatabricksSQL()`. If it does not, `odbc::databricks()` is the default and is fine.
+::: {.answer}
+If your query touches a `BINARY` column, and geometry is stored as `BINARY`, open the connection with `brickster::DatabricksSQL()`. Otherwise `odbc::databricks()` is the default and is fine.
+:::
 
-That is the whole decision. It is not a preference between two working options: the ODBC path cannot carry a `BINARY` value intact, so the moment geometry is in play the choice is made for you.
+That is the whole decision, and it is not a preference between two working options: the ODBC path cannot carry a `BINARY` value intact, so the moment geometry is in play the choice is made for you.
 
 ```{r}
 #| label: mask

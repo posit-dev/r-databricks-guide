@@ -7,9 +7,9 @@ You write R. Your data is in Databricks. Almost everything published about Spark
 
 This guide is for you, and for nobody else. It assumes you read R, the tidyverse, `sf` and `tidymodels` fluently, and it spends its whole explaining budget on the other thing: where your code runs, what has to move before it can run there, and what it costs you.
 
-## You were working on your laptop, and now you are working on Databricks
+## Why this is harder
 
-And it is harder. That is not your imagination, and it is worth saying before anything else.
+You were working on your laptop, and now you are working on Databricks. It is harder, that is not your imagination, and it is worth saying before anything else.
 
 The reason the choice may not be yours is usually one of three:
 

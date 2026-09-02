@@ -3,13 +3,15 @@ title: "Work with rasters, using `terra`"
 subtitle: "Why gridded data behaves differently from polygons here, and what your two options are"
 ---
 
-## `terra` has no server-side equivalent
+## Introduction
 
-There is no server-side path for gridded data. The native spatial functions on the warehouse are `ST_` functions, and every one of them takes a geometry: a point, a line, a polygon. None of them takes a grid, a band or a cell, so there is nothing for a raster operation to be pushed into.
+::: {.answer}
+There is no server-side path for gridded data. The platform's spatial functions all take a vector geometry, a point, line or polygon, and none takes a grid, a band or a cell, so a raster operation has nothing to be pushed into.
+:::
 
-If you arrived here from [Join and transform polygons](polygons.qmd), the answer there was that the spatial work can stay on the server and only a small result needs to cross. That answer does not generalise, and it is worth being clear about why. The `ST_` functions cover vector geometry, so a polygon intersection or an area has somewhere to run. A raster has no such counterpart, and it is not a gap that someone is about to fill: it is what the function family is for. Assuming otherwise costs you an afternoon of looking for the function that does not exist.
+That is what the `ST_` family is for, rather than a gap someone is about to fill, so it is worth knowing before you spend an afternoon looking for the function that does not exist. It also means the advice in [Join and transform polygons](polygons.qmd), where spatial work stays on the server and only a small result crosses, does not carry over here.
 
-## So you have two options
+## Your two options
 
 Bring the data to R, or send R to the data. There is no third option, so this is a smaller decision than it looks, and most of this page is about making the second one work rather than about choosing between them.
 

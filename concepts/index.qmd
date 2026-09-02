@@ -5,11 +5,11 @@ subtitle: "The one shift behind almost every surprise on this site"
 
 Read this once and the rest of the site gets shorter. Nearly every trap documented here is the same assumption failing, and it is an assumption worth naming because on your laptop it was true.
 
-## What was true, and has stopped being true
+## What has changed
 
 On your own machine, "where does this run" is not a question anyone asks, because there is nothing to ask about. One machine, one R session, one filesystem. A package you installed is installed. An object in your environment is there. A file path points at a file.
 
-None of that needed thinking about, and none of it was wrong. Four of those assumptions now break, and the order matters, because each one depends on the one before.
+None of that needed thinking about, and none of it was wrong. Four of those assumptions now break, and the order matters, because each one depends on the one before. A fifth section follows them, on running R where the data is, which is a mechanism rather than an assumption.
 
 ## There is more than one machine
 
