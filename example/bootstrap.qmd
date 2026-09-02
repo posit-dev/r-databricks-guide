@@ -5,12 +5,6 @@ execute:
   freeze: true
 ---
 
-::: {.callout-note appearance="simple"}
-
-**Draft.** The code runs and the argument holds; the prose has not been copy-edited.
-
-:::
-
 The second simulation, and the one where the previous page's answer stops working. The difference is one property, and everything else follows from it.
 
 ```{r}

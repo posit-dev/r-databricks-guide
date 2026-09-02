@@ -5,12 +5,6 @@ execute:
   freeze: true
 ---
 
-::: {.callout-note appearance="simple"}
-
-**Draft.** The code runs and the argument holds; the prose has not been copy-edited.
-
-:::
-
 The station statistics from the last page have no geography on them. This page gives them one, by putting each station and each storm overflow inside a catchment, and it is the first point where the two connection paths stop being interchangeable.
 
 ```{r}

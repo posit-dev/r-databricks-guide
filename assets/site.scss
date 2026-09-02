@@ -81,3 +81,30 @@ code:not(.sourceCode) {
 // ground, a WCAG AA failure. Bootstrap's own .text-muted carries !important,
 // so this needs it too or the rule is dead CSS. Measured 7.02:1.
 .text-muted { color: rgba($body-color, 0.75) !important; }
+
+// The page's answer, carried under `## Introduction`. A task page used to open
+// with its conclusion as the H2 itself, which read well but put a sentence
+// where the sidebar wanted a label. The answer keeps its prominence here and
+// the heading goes back to being scannable.
+//
+// Deliberately not a callout. Quarto's callouts carry a semantic label (Note,
+// Important) and an icon, and this is the page's thesis rather than an aside
+// alongside it. The site uses callout-note for real asides, so a distinct
+// treatment keeps the two from reading as the same thing.
+//
+// No fill, deliberately. A tinted panel on this paper reads as a code block,
+// which is the one thing on the page it must not be mistaken for. The rule and
+// the larger type carry it instead.
+//
+// Keep the text to one or two sentences. If it will not fit, the page has not
+// settled what its answer is, which is a writing problem rather than a CSS one.
+.answer {
+  border-left: 3px solid $link-color;
+  padding: 0.1rem 0 0.1rem 1.1rem;
+  margin: 1.4rem 0 1.8rem;
+  font-size: 1.14em;
+  line-height: 1.5;
+  color: mix($body-color, $link-color, 88%);
+
+  > p:last-child { margin-bottom: 0; }
+}

@@ -58,3 +58,7 @@ config.yml
 # table, and no page reads it back, so it is a byproduct of the render rather
 # than a stage-to-stage artefact.
 flow_variability_results.rds
+
+# Python bytecode from scripts/ and .claude/skills/
+__pycache__/
+*.pyc

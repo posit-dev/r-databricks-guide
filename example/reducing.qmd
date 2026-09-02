@@ -5,12 +5,6 @@ execute:
   freeze: true
 ---
 
-::: {.callout-note appearance="simple"}
-
-**Draft.** The code runs and the argument holds; the prose has not been copy-edited.
-
-:::
-
 Thirty-two million rows go in and about a thousand come back. The whole of this page is about where that reduction happens, because it decides whether the analysis is possible at all.
 
 ```{r}

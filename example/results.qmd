@@ -5,12 +5,6 @@ execute:
   freeze: true
 ---
 
-::: {.callout-note appearance="simple"}
-
-**Draft.** The code runs and the argument holds; the prose has not been copy-edited.
-
-:::
-
 By this stage nothing is special. The data is in the session, Databricks is no longer involved, and what follows is the R you would write for any other project.
 
 ```{r}

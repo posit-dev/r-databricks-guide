@@ -3,11 +3,13 @@ title: "Read my files from a volume"
 subtitle: "Getting a CSV, a workbook or a shapefile out of Unity Catalog storage and into your session"
 ---
 
-## `/Volumes/...` is not a path on your machine
+## Introduction
 
-If your data is a file that somebody else put in a volume, this is the page you need first, and this is the sentence that saves you the afternoon: **that `/Volumes/...` path is a filesystem path inside a Databricks cluster, and nowhere else.**
+::: {.answer}
+That `/Volumes/...` path is a filesystem path inside a Databricks cluster, and nowhere else. From your own R session it does not exist, so you fetch the file first and then open it the way you always would.
+:::
 
-From your own R session it does not exist. So the obvious first move fails:
+If your data is a file that somebody else put in a volume, this is the page you need first. The obvious first move fails:
 
 ```{r}
 #| label: mask
@@ -46,7 +48,7 @@ Nothing is misconfigured and you have not mistyped the path. The path is real, t
 
 Everything below follows from that one fact. The file has to travel to you before R can open it.
 
-## Fetch the file, then open it the way you always would
+## Fetching one file
 
 `brickster::db_volume_read()` brings a file down to a local path of your choosing. From there nothing is Databricks-specific: you open it with whatever you already use.
 
@@ -98,11 +100,9 @@ db_volume_list(glue("{volume_root}/sample"))$contents |>
 
 Do not reach for `db_volume_file_exists()` to guard one of these calls. It is documented as returning `TRUE` or `FALSE`, and on a path that does not exist it throws `HTTP 404 Not Found` instead, so it fails on exactly the branch you wrote it to test. Listing the parent directory, as above, answers the question without the surprise.
 
-## A shapefile is four files, so fetch the directory
+## Shapefiles
 
-This is the sharpest trap on the page, because one half of it is silent.
-
-A shapefile is not a file. It is at least four, sitting beside each other: `.shp` holds the geometry, `.shx` the index, `.dbf` the attributes, and `.prj` the coordinate reference system. Fetch the directory rather than the parts, with `db_volume_download_dir()`:
+This is the sharpest trap on the page, because one half of it is silent. A shapefile is not a file. It is at least four, sitting beside each other: `.shp` holds the geometry, `.shx` the index, `.dbf` the attributes, and `.prj` the coordinate reference system. Fetch the directory rather than the parts, with `db_volume_download_dir()`:
 
 ```{r}
 #| label: shapefile-fetch
@@ -158,7 +158,7 @@ Same feature count, no error, no warning, and `st_crs()` is `NA`. If you are wor
 
 Worth knowing for your own outputs: a GeoPackage is a single file, so the entire class of problem disappears. If you control the format, write `.gpkg` rather than `.shp` and the four-part bookkeeping goes away.
 
-## When to leave the file on the server instead
+## Leaving it on the server
 
 Everything above brings the whole file to you. That is right until the file is large and you only want part of it, at which point you are downloading gigabytes to throw most of them away.
 

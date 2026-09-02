@@ -5,12 +5,6 @@ execute:
   freeze: true
 ---
 
-::: {.callout-note appearance="simple"}
-
-**Draft.** The code runs and the argument holds; the prose has not been copy-edited.
-
-:::
-
 Two connections, not one, and the reason is a bug rather than a preference. This page opens both, finds the tables, and runs the one check that has to happen before anything else: that geometry survives the trip into your session.
 
 ```{r}

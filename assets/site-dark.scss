@@ -56,3 +56,20 @@ code:not(.sourceCode) {
 // ground, a WCAG AA failure. Bootstrap's own .text-muted carries !important,
 // so this needs it too or the rule is dead CSS. Measured 7.61:1.
 .text-muted { color: rgba($body-color, 0.75) !important; }
+
+// The page's answer. See the long note in site.scss for why this is a div
+// rather than a callout, and for the one-or-two-sentence rule.
+//
+// The tint runs warmer here than in light mode. A blue wash on this ground
+// reads as a code block, which the box is not, so the fill leans on the body
+// colour and the accent is carried by the rule alone.
+.answer {
+  border-left: 3px solid $link-color;
+  padding: 0.1rem 0 0.1rem 1.1rem;
+  margin: 1.4rem 0 1.8rem;
+  font-size: 1.14em;
+  line-height: 1.5;
+  color: $posit-light-blue-2;   // 7.96:1 on $body-bg, as the headings
+
+  > p:last-child { margin-bottom: 0; }
+}

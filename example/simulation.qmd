@@ -5,12 +5,6 @@ execute:
   freeze: true
 ---
 
-::: {.callout-note appearance="simple"}
-
-**Draft.** The code runs and the argument holds; the prose has not been copy-edited.
-
-:::
-
 The first simulation in this example, and the one that does not need a cluster. It is the ordinary shape: the data shrank server-side, what came back is a summary, and the expensive part is repeating a small computation many times over that summary.
 
 ```{r}

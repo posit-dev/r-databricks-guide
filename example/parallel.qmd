@@ -5,12 +5,6 @@ execute:
   freeze: true
 ---
 
-::: {.callout-note appearance="simple"}
-
-**Draft.** The code runs and the argument holds; the prose has not been copy-edited.
-
-:::
-
 The three stages before this one were about moving data. From here on the data has stopped being the problem and the repeats have started being the problem. This page is the first step and deliberately the least ambitious one: the cores in the session you are already sitting in.
 
 It is a stage of its own because the choice of backend is made once and everything after it inherits the answer. Folded into the simulation, it would look like a detail of that simulation, and it is not.
