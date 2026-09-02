@@ -27,7 +27,7 @@ Read this file, then go to whichever of these your task touches. Everything else
 Four rules that are not stylistic, and that cost real time when missed:
 
 1. **A page's output is executed, never typed.** See "Never paste code output".
-2. **`freeze: true` means never re-execute.** Editing an executable page and pushing publishes the *old* output at exit 0. Use `scripts/rerender.sh`, not `quarto render <page>`.
+2. **Prose edits are cheap; code edits need `rerender.sh`.** `freeze: true` never re-executes, which is what makes copy-editing free: `quarto render <page>` publishes the new prose with the existing output, no credentials. Changing *code* is the case that needs `scripts/rerender.sh`.
 3. **Never stop a cluster** unless asked. Start freely; `scripts/start-cluster.R` is idempotent.
 4. **Prefer `dplyr` to SQL strings.** Neither the spatial functions nor the `odbc` `BINARY` bug is a reason to reach for `dbGetQuery()`.
 
@@ -97,7 +97,7 @@ scripts/stage-sample-files.R         # restage the files howdoi/volume-files.qmd
 
 **Read the markdown for content, the HTML only for rendering.** `page-md.sh` prints what a page actually produced, from the freeze cache: numbers, output, a leaked string. Reaching for `_site/*.html` to check a number means grepping past the whole template for something that was sitting in plain text all along. Keep the HTML for things pandoc decides, such as whether a cross-reference resolved or a callout rendered.
 
-`rerender.sh` is the one to reach for after editing anything under `example/`: `quarto render <page>` alone will **not** refresh a frozen page, because freeze means never re-execute, so the cache has to be dropped first and that is what the script does. `rebuild-site.sh` is the whole-site version, for testing that the site still builds from nothing.
+`rerender.sh` is for a **code** change: it drops the cache so the chunk runs again, which is the only way to refresh output under `freeze: true`. For a prose change, plain `quarto render <page>` is correct and much cheaper, since it refreshes the page and the cache's stored source without executing anything. `rebuild-site.sh` is the whole-site version, for testing that the site still builds from nothing.
 
 One page has a data dependency outside the repository. `howdoi/volume-files.qmd` executes against a CSV and a four-part shapefile under `raw/sample/` in the volume, because it demonstrates reading files out of one and pasted output is forbidden. If those files go, the page cannot re-render. `scripts/stage-sample-files.R` rebuilds them from `hydrology_stations`, is idempotent, and never creates a volume, since `CREATE VOLUME` is the one thing many teams do not have.
 
@@ -107,11 +107,19 @@ Both refuse to run against a dirty tree. They delete tracked files under `_freez
 
 ### Editing `example/` means re-rendering it
 
-The site publishes from a committed `_freeze/` cache, and every executable page sets `freeze: true`. That means **never re-execute**, not "re-execute when the source changes". So editing one of those pages and pushing publishes the *previous* output with the edit missing: no error, nothing in the render log, exit 0. Established by test on 2026-08-24, not inferred.
+The site publishes from a committed `_freeze/` cache, and every executable page sets `freeze: true`, which means **never re-execute**. That is a feature, and it is what the setting is for: it lets you copy-edit prose without paying for a credentialed run.
 
-The freeze hash is a plain md5 of the `.qmd`, so any edit invalidates it, prose included. After changing anything under `example/`, re-render that page with credentials and commit `_freeze/` with the edit. `scripts/check-freeze.sh` catches it either way, in the pre-push hook and again in CI, but the fix always requires a credentialed local render because CI has no R.
+**So the two cases are different, and only one is expensive.**
 
-The hash is necessary and not sufficient, because a project-level `quarto render` refreshes it without re-executing: new source, new hash, old output. `check-freeze.sh` therefore also runs `scripts/check-freeze-code.py`, which compares the code echoed into the cached output against the code in the source. That is why re-rendering goes through `scripts/rerender.sh`, which drops the cache first. See `process/PROBLEM-freeze-cache-staleness.md`.
+*Editing prose.* Run `quarto render <page>`. No credentials, nothing executes, the new prose reaches the page and the existing output stays. Commit the `.qmd` and the refreshed `_freeze/` together. Verified by test on 2026-09-02: a prose-only edit to `example/reducing.qmd` rendered at exit 0 with no execution, the edit reached `_site/`, and `execute-results` was untouched.
+
+*Editing code.* Use `scripts/rerender.sh`, which drops the cache so the chunk actually runs. `quarto render` alone will publish the old output beneath your new code, silently.
+
+The trap is **editing and not rendering at all**. Then the committed cache still carries the previous prose, and pushing publishes that. `scripts/check-freeze.sh` catches it, because the hash covers the whole file.
+
+The freeze hash is a plain md5 of the `.qmd`, so any edit invalidates it, prose included. That is why even a copy edit has to be rendered and its `_freeze/` committed: not to re-run anything, but so the stored source matches. `scripts/check-freeze.sh` enforces it in the pre-push hook and again in CI.
+
+The hash is necessary and not sufficient, because it cannot tell a prose edit from a code edit: `quarto render` refreshes it either way, and for a code edit that leaves new source, new hash, old output. `check-freeze.sh` therefore also runs `scripts/check-freeze-code.py`, which compares the code echoed into the cached output against the code in the source. **That second check is the one that distinguishes the two cases**, and it is why a prose edit needs no credentials while a code edit does. See `process/PROBLEM-freeze-cache-staleness.md`.
 
 Corollary worth knowing before reaching for it: `cache: true` does nothing for this. Under `freeze: true` a prose edit re-executes nothing locally either, so there is no loop for a chunk cache to speed up.
 

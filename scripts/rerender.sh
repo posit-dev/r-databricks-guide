@@ -4,15 +4,17 @@
 #   scripts/rerender.sh example/spatial.qmd [more.qmd ...]
 #   scripts/rerender.sh --stale              # every page whose cache is stale
 #
-# Why this exists. Every executable page sets `freeze: true`, which means
-# *never re-execute*, not "re-execute when the source changes". So editing a
-# page and pushing publishes the previous run's output with the edit missing:
-# no error, nothing in the render log, exit 0.
+# Why this exists, and when NOT to use it. Every executable page sets
+# `freeze: true`, which means never re-execute. For a **prose** edit that is
+# exactly what you want, and plain `quarto render <page>` is the right command:
+# it publishes the new prose with the existing output, needs no credentials,
+# and costs seconds.
 #
-# `quarto render <page>` alone does not fix that, because freeze still refuses
-# to execute. The cache has to be dropped first. That is the whole job here,
-# and doing it by hand means remembering which directory under _freeze/ maps
-# to which source file, and remembering to commit the result.
+# This script is for a **code** edit, where the output on the page has to come
+# from running the new code. Freeze will not do that on its own, so the cache
+# has to be dropped first. That is the whole job here, and doing it by hand
+# means remembering which directory under _freeze/ maps to which source file,
+# and remembering to commit the result.
 #
 # This deletes tracked files under _freeze/, which only a credentialed render
 # can rebuild, so it refuses to run against a dirty _freeze/ rather than

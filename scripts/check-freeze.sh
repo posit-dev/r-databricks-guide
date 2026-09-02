@@ -75,8 +75,10 @@ fi
 if [ "$fail" -eq 0 ]; then
   printf '\nFreeze cache is current.\n'
 else
-  printf '\nRe-render the affected pages locally, with credentials, and commit\n'
-  printf '_freeze/ alongside the edit. CI cannot refill the cache itself.\n'
+  printf '\nRe-render the affected pages locally and commit _freeze/ with the edit.\n'
+  printf 'CI cannot refill the cache itself.\n\n'
+  printf '  prose changed:  quarto render <page>       (no credentials, nothing runs)\n'
+  printf '  code changed:   scripts/rerender.sh <page> (drops the cache so it runs)\n'
 fi
 
 exit "$fail"
