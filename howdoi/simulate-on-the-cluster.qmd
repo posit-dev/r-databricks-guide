@@ -134,6 +134,8 @@ sim_result |> head(3)
 
 That is the whole call. The first argument is the table reference, the second is the function, and the result comes back with `collect()` like any other query.
 
+Compare those numbers with the serial ones on [Simulate on the cores you have](simulate-locally.qmd): they are the same, station by station, because the seed travels in the data rather than depending on where the work ran. That agreement is the check worth making when you move your own simulation across, and it is why the seed goes in a column.
+
 ## Naming the output columns
 
 `spark_apply()` has to declare the shape of what comes back before it runs, and by default it infers it. Where the inference is wrong, or where you want the types fixed, `columns` states it.
@@ -164,25 +166,24 @@ Leaving `columns` out works from both paths, which is why the call above omits i
 
 This is the dial that replaces `workers =`, and it is the one most easily missed, because a job with too few partitions does not fail. It runs, correctly, slowly, using a fraction of the machine, and nothing says so.
 
-One R process per partition, one core per partition. So the partition count is how many of your repeats run at once, and a table copied in without thought may arrive as a single partition.
+One R process per partition, one core per partition. So the partition count is how many of your units run at once, and a table copied in without thought may arrive as a single partition.
 
-```{r}
-#| label: partitions
-sdf_num_partitions(units_remote)
-```
-
-Repartition when that number is smaller than the parallelism you want:
+Set it when the table is created:
 
 ```{r}
 #| label: repartition
-units_spread <- units_remote |>
-  sdf_repartition(partitions = 8)
-
-sdf_num_partitions(units_spread)
+units_spread <- copy_to(
+  sc,
+  sim_units,
+  "sim_units_spread",
+  overwrite = TRUE,
+  repartition = 8
+)
 ```
 
-Asking for far more partitions than there are cores does not buy more parallelism, and each one carries its own startup, so the useful range is the cores you actually have. [Work out what my cluster can do](compute.qmd) is how to find that number.
+Ask for roughly the cores you can actually reach, which is what [Work out what my cluster can do](compute.qmd) reports. Far more partitions than cores buys no more parallelism and each one carries its own startup.
 
+Counting the partitions back is harder than it looks from a client connection. `sdf_repartition()` and `sdf_num_partitions()` both belong to the `sdf_*` family that needs a `SparkSession`, which Spark Connect does not provide: the first errors outright, and the second returns an unevaluated column object rather than a number, so it looks like it worked and tells you nothing. Count the machines and processes in the returned data instead, which is what the check below does, and which is honest about what actually ran.
 ## Packages on the far side
 
 A forked worker on your own machine inherits your loaded packages. A cluster worker does not: it is a different R process on a different machine, so anything your function uses has to be loaded *inside the function body*.
