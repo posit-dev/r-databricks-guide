@@ -29,7 +29,7 @@ For your administrator, [Databricks configuration for Workbench and Connect](htt
 
 ## brickster
 
-[`databrickslabs.github.io/brickster`](https://databrickslabs.github.io/brickster/) documents the package's API surface well. [Connect to a Databricks Workspace](https://databrickslabs.github.io/brickster/articles/setup-auth.html) is worth reading once, and states that the package picks up Workbench credentials on its own. [Working with Unity Catalog Volumes](https://databrickslabs.github.io/brickster/articles/working-with-volumes.html) is the reference behind [Sending things to where your code runs](sending-things.qmd).
+On CRAN, current, written by Databricks employees, and the package this guide reaches for wherever geometry is involved. [`databrickslabs.github.io/brickster`](https://databrickslabs.github.io/brickster/) documents its API surface well. [Connect to a Databricks Workspace](https://databrickslabs.github.io/brickster/articles/setup-auth.html) is worth reading once, and states that the package picks up Workbench credentials on its own. [Working with Unity Catalog Volumes](https://databrickslabs.github.io/brickster/articles/working-with-volumes.html) is the reference behind [Sending things to where your code runs](sending-things.qmd).
 
 What it does not cover is data types, anywhere, in either direction. That absence is why several pages here exist: that `BINARY` arrives intact over this path, and that writing an `sf` object puts your geometry in a string column, are both findings this site had to establish for itself.
 
@@ -64,14 +64,6 @@ None of them can tell you why something broke. sparklyr's troubleshooting page n
 That is what [When it breaks](when-it-breaks.qmd) is for, and it is organised by what you saw rather than by what caused it.
 
 None of them covers geospatial work either. sparklyr has no spatial guide, the community extensions that once filled the gap predate the platform's own spatial functions, and brickster's documentation has no spatial case in either direction. [Join and transform polygons](../howdoi/polygons.qmd) and [Which spatial functions you have](spatial-functions.qmd) have no upstream counterpart to defer to.
-
-## Are these packages safe to depend on?
-
-A fair question to ask about `brickster` in particular, since Databricks Labs means Databricks does not offer commercial support for it.
-
-Both packages are on CRAN, both are current, and `brickster`'s most recent release is more recent than `sparklyr`'s. It is written by Databricks employees, the copyright is Databricks', and it clears CRAN's checks on every release like anything else you install. What it does not come with is a support contract, and neither does `sparklyr`, `odbc`, or `sf`. What both do have is a public issue tracker and maintainers who fix things.
-
-Worth noting which way the risk actually points here. The open bugs this guide routes you around, `r-dbi/odbc#1024` and `sparklyr/sparklyr#3529`, are both in the Posit-maintained packages, not in `brickster`.
 
 ## Next
 

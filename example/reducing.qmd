@@ -200,7 +200,7 @@ cli_alert_info(
 
 Thirty-two and a half million rows became about a thousand, and a few hundred kilobytes. Everything after this page is ordinary R on an ordinary data frame.
 
-The coefficient of variation is the number the rest of the example uses. A station with a CV near zero has a steady flow; a high CV means a river that is mostly low and occasionally in flood.
+The coefficient of variation is the number the rest of the example uses.
 
 ```{r}
 #| label: cv

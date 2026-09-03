@@ -200,9 +200,11 @@ Sometimes the honest answer is that your laptop is the right machine. If the dat
 
 ## What changes on the cluster
 
-Only the signature, and it is worth knowing before you decide.
+Mostly the signature, and it is worth knowing before you decide.
 
-`spark_apply()` hands your function a data frame holding many rows and expects a data frame back, so `simulate_station()` above becomes the body of a loop rather than the thing that is called. The simulation inside it does not change. What also changes is that a forked worker inherits your loaded packages and a cluster worker does not, and that the partition count replaces `workers =` as the dial.
+`spark_apply()` hands your function a data frame holding many rows and expects a data frame back, so `simulate_station()` above becomes the body of a loop rather than the thing that is called. The simulation inside it does not change.
+
+Three smaller things do. A forked worker inherits your loaded packages and a cluster worker does not. `furrr` is absent from the cluster runtime, so the far side uses base `parallel` instead. And the partition count replaces `workers =` as the dial.
 
 [Run the same simulation on cluster compute](simulate-on-the-cluster.qmd) does that reshaping on this page's own simulation, and confirms the work left your session.
 

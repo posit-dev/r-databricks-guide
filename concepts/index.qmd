@@ -21,7 +21,7 @@ Your cluster may have exactly one machine, in which case the driver is also the 
 
 Everything below is a consequence of this section.
 
-## Your session is a client
+## Where each line runs
 
 This is the distinction that catches people. Connecting to Databricks does not move your R session onto Databricks. Your session stays exactly where it is and sends instructions.
 

@@ -119,7 +119,13 @@ simulate_partition <- function(df) {
 }
 ```
 
-Two details in that function are not incidental. It returns a `data.frame` rather than a tibble, because what crosses back is a plain table and a tibble buys nothing on the far side. And the seed is derived from a column of the data rather than from a loop counter, because a partition does not know its own position: seeding on `1:nrow(df)` would give every partition the same streams.
+Three details in that function are not incidental.
+
+It uses base `lapply()` and `vapply()` rather than `purrr` or `furrr`. That is not style: `future` and `furrr` are not in the cluster runtime, so a worker function that reaches for them has nothing to load. Base `parallel` is present everywhere, including inside a worker, which is why it is the backend to reach for on the far side even though `furrr` is the nicer one in your own session.
+
+It returns a `data.frame` rather than a tibble, because what crosses back is a plain table and a tibble buys nothing on the far side.
+
+And the seed is derived from a column of the data rather than from a loop counter, because a partition does not know its own position: seeding on `1:nrow(df)` would give every partition the same streams.
 
 ## Making the call
 

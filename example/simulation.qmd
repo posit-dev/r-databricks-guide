@@ -30,7 +30,7 @@ The question is how often a station's daily flow drops below a low-flow threshol
 
 The threshold is a property of the station: the tenth percentile of its own fitted flow distribution, so it is a low flow *for that river* rather than a number carried over from a larger one. That much a single fit gives you. What a single fit does not give you is how much to trust it, because the mean and standard deviation behind it were themselves estimated from a finite record, and a station with three years of readings pins them down less well than one with ten.
 
-So the uncertainty that matters here is uncertainty in the fitted parameters. Each draw perturbs the fitted mean and standard deviation by their own sampling error, then asks what fraction of a year would fall below the threshold under those perturbed parameters. A thousand such draws give a thousand answers, and their spread is the interval. Stations with a longer record get a tighter one, which is the whole point.
+So the uncertainty that matters here is uncertainty in the fitted parameters. Each draw perturbs the fitted mean and standard deviation by their own sampling error, then asks what fraction of a year would fall below the threshold under those perturbed parameters. The interval therefore narrows with the length of the record, which is what the stage is built to show.
 
 Two honest caveats. The sampling error used below is the textbook approximation for a normal fit, applied to a lognormal fitted from a mean and a standard deviation rather than from the readings themselves, so it is rough. And this is a demonstration of mechanism, not a hydrological finding: the distributional choice is convenient rather than defended.
 
