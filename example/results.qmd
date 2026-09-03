@@ -60,7 +60,7 @@ cli_alert_info(
 
 Stated plainly: across these catchments the association between overflow density and flow variability is weak, and the coefficient is small relative to the spread in the data.
 
-**This is not a finding about rivers.** The grade column is a substitute for one that turned out to be unusable, the catchments are those that happen to contain a gauging station, and no confounder is controlled for. The number exists to show that the machinery produced a number. [The data and its licences](../ref/data.qmd) says why the whole example is a vehicle.
+None of this is a finding about rivers. The grade column is a substitute for one that turned out to be unusable, the catchments are those that happen to contain a gauging station, and no confounder is controlled for. The number exists to show that the machinery produced a number. [The data and its licences](../ref/data.qmd) says why the whole example is a vehicle.
 
 ## The figure
 

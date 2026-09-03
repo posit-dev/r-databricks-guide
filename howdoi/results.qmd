@@ -3,13 +3,15 @@ title: "Get results out, and get the same answer next year"
 subtitle: "Writing results back, exporting for the paper, and keeping the run reproducible"
 ---
 
-Getting a result out is the easy half. The hard half is that the run which produced it depended on three R libraries rather than one, and only the one you control is recorded by anything you commit.
+## Introduction
 
 ::: {.answer}
 Write file-shaped results to a volume and queryable results to a table. Then write down what a lockfile cannot reach: the cluster runtime version and the package versions from the context that did the work.
 :::
 
-So this page covers the write-back decision, figures for the paper, the three libraries a result depends on, what `renv` does and does not pin, what changes when the run is scheduled rather than interactive, and the two data licences you have to credit separately.
+Getting a result out is the easy half. The hard half is that the run which produced it depended on three R libraries rather than one, and only the one you control is recorded by anything you commit.
+
+This page covers the write-back decision, figures for the paper, the three libraries a result depends on, what `renv` does and does not pin, what changes when the run is scheduled rather than interactive, and the two data licences you have to credit separately.
 
 ## Writing results back
 

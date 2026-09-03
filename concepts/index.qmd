@@ -13,13 +13,11 @@ None of that needed thinking about, and none of it was wrong. Four of those assu
 
 ## More than one machine
 
-The first and the largest. Your R session is on one machine, the data is on another, and there may be several more behind it.
+Your R session is on one machine, the data is on another, and there may be several more behind it. It is the largest of the four, and everything below is a consequence of it.
 
 The vocabulary is worth having, once, because you will meet it in error messages and vendor documentation. The machine that coordinates is the **driver**. Machines that do work in parallel are **workers** or **executors**, used more or less interchangeably.
 
 Your cluster may have exactly one machine, in which case the driver is also the only place work can happen. That is a common and perfectly ordinary arrangement rather than a broken one, and it changes what is worth attempting: [Work out what the cluster you have can do](../howdoi/compute.qmd) tells you which you have, and it is the first thing to find out.
-
-Everything below is a consequence of this section.
 
 ## Where each line runs
 
@@ -39,11 +37,9 @@ Getting a specific object to the far side is a practical problem with a practica
 
 ## One library per context
 
-The last one, and the one that produces the most confusing symptoms.
-
 "Installed" is not a property of the cluster. It is a property of a particular R context, and there are several: your session, the cluster's driver, and each worker. A package that loads in your session says nothing about whether it loads in a worker. An install may not survive to the next session at all.
 
-This is why an upgrade can appear not to have taken. It did take, and then the library went away, so running it again produces the same result. [Packages](../ref/packages.qmd) exists as a separate page for this reason, and has the check to run in each context.
+This is the assumption that produces the most confusing symptoms. It is why an upgrade can appear not to have taken. It did take, and then the library went away, so running it again produces the same result. [Packages](../ref/packages.qmd) exists as a separate page for this reason, and has the check to run in each context.
 
 ## Running R where the data is
 

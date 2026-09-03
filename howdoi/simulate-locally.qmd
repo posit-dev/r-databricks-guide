@@ -24,7 +24,7 @@ library(parallel)
 
 ## Is your problem this shape?
 
-One independent unit per site, per polygon, per resample or per replicate.
+The shape is one independent unit per site, per polygon, per resample or per replicate.
 
 The test: if replicate 200 does not need anything replicate 199 produced, the work is this shape, and everything below applies. Almost all simulation, bootstrapping and resampling is. If your replicates do depend on each other, in a Markov chain for instance, none of this applies and the page stops being useful to you.
 
@@ -34,7 +34,7 @@ Recognising the shape matters more than matching your problem to an example. You
 
 ## The simulation this page runs
 
-A concrete one, because the shape is easier to see with a reason attached than without.
+The examples below run one concrete simulation, because the shape is easier to see with a reason attached than without.
 
 The question is how many days a year a river's flow sits below a low-flow threshold, and how uncertain that figure is given a finite record. The threshold is the station's own tenth percentile, so it is a low flow for that river rather than a number carried in from a bigger one. A single fit gives the central figure; what it does not give is how much to trust it, because the mean and standard deviation behind it were themselves estimated from a limited record.
 

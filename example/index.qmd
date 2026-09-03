@@ -55,12 +55,6 @@ If the second one fails, the first three stages still work and the spatial join 
 
 Seven, each one a page.
 
-The first three get the data to a place where ordinary R works on it: connect and find the tables, reduce the 32-million-row table where it lives, then join the polygons to the stations. By the end of stage three there is a tidy data frame of catchments, and nothing exotic has happened.
-
-Then the analysis stops being a query and starts being a computation, which is the hinge of the whole example. The last four stages are about the repeats, and they escalate one step at a time, each earning the next by having been insufficient: the cores already on your machine, then a simulation that fits in a summary, then one that has to carry the geometry with it, then the record of what was done.
-
-The escalation is the point. Each step is the smallest thing that works, and the example stops early wherever stopping early is right, which is more often than you might expect.
-
 1. [Getting connected and finding the tables](connecting.qmd)
 2. [Exploring and reducing the big table](reducing.qmd)
 3. [The spatial join](spatial.qmd)
@@ -68,6 +62,12 @@ The escalation is the point. Each step is the smallest thing that works, and the
 5. [Simulating from a summary](simulation.qmd)
 6. [When the simulation carries the geometry](bootstrap.qmd)
 7. [Results, figures, and the record](results.qmd)
+
+The first three get the data to a place where ordinary R works on it. By the end of stage three there is a tidy data frame of catchments, and nothing exotic has happened.
+
+Then the analysis stops being a query and starts being a computation, which is the hinge of the whole example. The last four are about the repeats, and they escalate one step at a time, each earning the next by having been insufficient.
+
+The escalation is the point. Each step is the smallest thing that works, and the example stops early wherever stopping early is right, which is more often than you might expect.
 
 If you want to load this data into your own catalog rather than read the example, the [appendix on loading the data yourself](ingest.qmd) records how these tables were built. Most readers should skip it.
 

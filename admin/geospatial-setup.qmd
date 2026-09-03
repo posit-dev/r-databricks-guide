@@ -70,6 +70,6 @@ Tell the person who sent you here that the volume exists and what its path is. F
 
 ## Why installs vanish
 
-Which is why the volume above is the durable fix and an install is not.
+Every R context gets its own library, and it does not survive the context, which is why the volume above is the durable fix and an install is not.
 
 An install goes away. Users read that as the upgrade having failed, run it again, get the same result, and eventually ask you. The library on a volume is the thing that stops the cycle.

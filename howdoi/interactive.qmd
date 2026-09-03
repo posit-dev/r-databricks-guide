@@ -13,9 +13,11 @@ This is worth stating first because the documentation route leads to notebooks a
 
 ## The setup
 
-Three things, and telling them apart is most of what makes this workable.
+Three things, and telling them apart is most of what makes this workable:
 
-Your R session is yours. It runs where you started it, holds your objects, and loads packages from your own library. The connection object is a handle in that session. The remote compute is a different machine entirely, with its own R installation and its own library.
+- **Your R session** runs where you started it, holds your objects, and loads packages from your own library
+- **The connection object** is a handle in that session
+- **The remote compute** is a different machine entirely, with its own R installation and its own library
 
 ```{r}
 #| label: mask

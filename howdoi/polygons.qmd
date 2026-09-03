@@ -65,9 +65,9 @@ catchments |>
 
 Two things in that chunk are worth naming before you write your own.
 
-**Those `st_` calls are Databricks functions, not `sf` ones**, even where the name is identical. `dbplyr` does not recognise them, so it passes the name through to the server as text and never evaluates it in R. `st_area(g)` above `collect()` is the server's function; the same expression below `collect()` is `sf`'s. Attaching `sf` makes no difference either way. So `collect()` is not a stylistic choice in a spatial pipeline, it is the line that decides which implementation answers, and `show_query()` will tell you which side you are on: whatever it prints is the server's.
+Those `st_` calls are Databricks functions rather than `sf` ones, even where the name is identical. `dbplyr` does not recognise them, so it passes the name through to the server as text and never evaluates it in R. `st_area(g)` above `collect()` is the server's function; the same expression below `collect()` is `sf`'s. Attaching `sf` makes no difference either way. So `collect()` is not a stylistic choice in a spatial pipeline, it is the line that decides which implementation answers, and `show_query()` will tell you which side you are on: whatever it prints is the server's.
 
-**The two sides do not always agree, and one difference is silent.** A name the server does not have fails loudly with `UNRESOLVED_ROUTINE`, which is the easy case. The one to plan around is a name that exists on both sides and means something different, and there is a single rule that avoids it: **work in a projected CRS**, which is the next section.
+The two sides do not always agree, and one difference is silent. A name the server does not have fails loudly with `UNRESOLVED_ROUTINE`, which is the easy case. The one to plan around is a name that exists on both sides and means something different, and there is a single rule that avoids it: **work in a projected CRS**, which is the next section.
 
 Two smaller things will interrupt you while porting an expression rather than mislead you. Return shapes differ: `st_contains()` gives one boolean per row against `sf`'s sparse index list, `st_distance()` a scalar per row against a matrix, and `st_buffer()` rejects `nQuadSegs`. And `st_makevalid()` has no server-side equivalent at all, which matters because repairing an invalid geometry is a routine step in `sf`: the server will tell you a polygon is invalid and will not fix it, so repair before loading or collect and repair in R. [Which spatial functions you have](../ref/spatial-functions.qmd) has the rest, including which functions your own compute is missing.
 
@@ -109,7 +109,7 @@ Those areas happen to be right, because the stored coordinates are already metre
 
 So wrap `st_geomfromwkb()` in `st_setsrid()` every time, in the `mutate()` that first decodes the bytes, and never let an un-labelled geometry reach the verbs downstream of it.
 
-**Then project.** On EPSG:27700 or any other metric projection, `sf` and Databricks agree. On longitude and latitude they do not, and nothing tells you. This data already satisfies that, which is why the areas above can be trusted; if your own layers are in lon/lat, `st_transform()` them first.
+Then project. On EPSG:27700 or any other metric projection, `sf` and Databricks agree. On longitude and latitude they do not, and nothing tells you. This data already satisfies that, which is why the areas above can be trusted; if your own layers are in lon/lat, `st_transform()` them first.
 
 You already know that a distance across a sphere is not a distance across a flat map. The trap is that `sf` and Databricks pick opposite defaults, and the same line of code silently gets whichever default belongs to the side it ran on. `sf` treats lon/lat as points on a sphere and gives you metres. The server discards the coordinate system and does flat arithmetic on the raw numbers, so on lon/lat it hands you degrees. Both are correct answers to different questions.
 
@@ -151,9 +151,11 @@ Project both layers and the disagreement goes away, because `sf` only reaches fo
 
 ### What does not fix it
 
-**`sf_use_s2(FALSE)` is a trap**, and it is the first thing an experienced `sf` user reaches for. It does not switch `sf` to a flat model, it switches it to an ellipsoidal one. So the boundary disagreement clears up and it looks as though it worked, while the measurements stay wrong by five orders of magnitude. You have cured the symptom you could have caught and kept the one you could not.
+Two things look like fixes and are not.
 
-**Tagging the SRID is not the same as respecting it.** Keep wrapping `st_geomfromwkb()` in `st_setsrid()`, but `st_distance()` ignores the SRID you attached. A column that carries a CRS has not been measured in it.
+`sf_use_s2(FALSE)` is the first thing an experienced `sf` user reaches for, and it is a trap. It does not switch `sf` to a flat model, it switches it to an ellipsoidal one. So the boundary disagreement clears up and it looks as though it worked, while the measurements stay wrong by five orders of magnitude. You have cured the symptom you could have caught and kept the one you could not.
+
+Tagging the SRID is not the same as respecting it. Keep wrapping `st_geomfromwkb()` in `st_setsrid()`, but `st_distance()` ignores the SRID you attached. A column that carries a CRS has not been measured in it.
 
 Nothing will warn you about either, because whether a call is right depends on the CRS of the data and the SQL is written before anything asks the server what it is holding.
 
@@ -181,7 +183,7 @@ tbl(con, in_catalog(catalog, schema, "storm_overflows")) |>
 
 That transform is doing two jobs, and the second is the one to notice: it moves the overflows out of longitude and latitude before any predicate touches them, which is what makes the count below agree with the answer `sf` would give. It is not tidiness, it is the correctness step from the section above.
 
-**A spatial predicate cannot be a `join_by()` condition**, which is the mechanical blocker you will hit first. `join_by()` accepts only equality and a few range helpers. Pair the two tables with `cross_join()` and filter on the predicate instead. That reads as though every catchment is about to be compared with every overflow, and the planner does not execute it that way: the filter becomes the join condition, exactly as it would have been in SQL.
+A spatial predicate cannot be a `join_by()` condition, which is the mechanical blocker you will hit first. `join_by()` accepts only equality and a few range helpers. Pair the two tables with `cross_join()` and filter on the predicate instead. That reads as though every catchment is about to be compared with every overflow, and the planner does not execute it that way: the filter becomes the join condition, exactly as it would have been in SQL.
 
 ```{r}
 #| label: join

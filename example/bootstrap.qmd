@@ -175,7 +175,7 @@ A geometry that merely parses is not evidence. A geometry whose area matches an 
 
 ## The unit of work
 
-One resample, returning one row. The same property as the previous page: nothing in it knows where it will run.
+The unit is one resample, returning one row. The same property as the previous page: nothing in it knows where it will run.
 
 ```{r}
 #| label: unit
@@ -281,7 +281,7 @@ cli_alert_info(
 
 This establishes that the design is correct and gives a baseline the distributed version has to agree with. For many readers it is also the end of the story.
 
-**If the local run finishes, stop.** What follows describes what it took to run this at a size where local stopped being enough, and it is not a recommendation to skip ahead.
+If the local run finishes, stop reading here. What follows describes what it took to run this at a size where local stopped being enough, and it is not a recommendation to skip ahead.
 
 ## When local stops being enough
 
@@ -326,7 +326,7 @@ if (!on_cluster) {
 
 What changes is less than you might expect, and what does change has a failure mode that does not announce itself.
 
-**The geometry has to get there, and the closure will not take it.** This is the part most examples get wrong. On this backend, `spark_apply()` does not capture the calling environment: a variable referenced inside the function is simply not found on the worker, and `context =` is rejected outside the `group_by` path. Worse, a name that happens to match something in a worker package resolves to *that* instead, so naming the object `poly` gets you `stats::poly` and an error about closures rather than an honest "not found".
+The geometry has to get there and the closure will not take it, which is the part most examples get wrong. On this backend, `spark_apply()` does not capture the calling environment: a variable referenced inside the function is simply not found on the worker, and `context =` is rejected outside the `group_by` path. Worse, a name that happens to match something in a worker package resolves to *that* instead, so naming the object `poly` gets you `stats::poly` and an error about closures rather than an honest "not found".
 
 The route that works is to make the geometry part of the data. Encode it, put it in the Spark table, and decode it on the far side.
 
@@ -367,11 +367,13 @@ polygons_remote <- copy_to(
 )
 ```
 
-**`sf` has to load in the worker.** It is not on a stock cluster image. Where it is available, an administrator installed it on every node, and an ad-hoc install in a notebook does not achieve that because it touches one machine. [Packages](../ref/packages.qmd) and [Setting up a cluster for geospatial R](../admin/geospatial-setup.qmd) are the two ends of that conversation.
+Three things about the worker decide whether this runs at all.
 
-**The backend inside the worker is `parallel`, not `furrr`.** Settled in stage four, and this is where it matters.
+`sf` has to load there, and it is not on a stock cluster image. Where it is available, an administrator installed it on every node, and an ad-hoc install in a notebook does not achieve that because it touches one machine. [Packages](../ref/packages.qmd) and [Setting up a cluster for geospatial R](../admin/geospatial-setup.qmd) are the two ends of that conversation.
 
-**How many partitions you ask for is how much of the machine you get.** One R process per task and one core per task, so the partition count is the dial. An under-partitioned job leaves cores idle and looks entirely healthy doing it.
+The backend inside the worker is `parallel`, not `furrr`, which stage four settled and this is where it matters.
+
+How many partitions you ask for is how much of the machine you get. One R process per task and one core per task, so the partition count is the dial. An under-partitioned job leaves cores idle and looks entirely healthy doing it.
 
 ```{r}
 #| label: distributed
@@ -409,7 +411,7 @@ distributed |>
 
 ## Check the work left
 
-The section the whole page turns on, and the one most examples omit.
+This is the check the whole page turns on, and the one most examples omit.
 
 A single-node cluster passes every other test. The work runs, the answer is right, several processes appear, and nothing distinguishes it from genuine distribution. The check that separates the two is to compare the machine names the workers report against the driver's own, and **to count machines rather than processes**, because two machines can report the same process id.
 

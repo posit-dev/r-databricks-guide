@@ -83,7 +83,7 @@ This is a fact about the runtime as it stands, not a permanent property. An admi
 
 ## Forking with `mclapply()`
 
-The version this example carries forward.
+This is the version the example carries forward.
 
 ```{r}
 #| label: cores

@@ -39,7 +39,7 @@ Two more gaps worth knowing before you follow a page. The [cluster management](h
 
 [`spark.posit.co`](https://spark.posit.co/) is the largest of the three and the one most likely to mislead you, for a structural reason worth understanding before you use it.
 
-**None of the seventeen pages under `guides/` mentions Databricks or Spark Connect.** Every example connects to a local Spark, or to YARN, or to a standalone cluster. Everything specific to your platform sits on a single page outside that section, [Databricks Connect](https://spark.posit.co/deployment/databricks-connect.html), and the guides do not link to it. So the search result you land on is usually written for compute you do not have, and does not say so.
+None of the seventeen pages under `guides/` mentions Databricks or Spark Connect. Every example connects to a local Spark, or to YARN, or to a standalone cluster. Everything specific to your platform sits on a single page outside that section, [Databricks Connect](https://spark.posit.co/deployment/databricks-connect.html), and the guides do not link to it. So the search result you land on is usually written for compute you do not have, and does not say so.
 
 Read the Databricks Connect page first. It tells you what survives the connection and what does not, including that most `sdf_*` functions are unavailable, and that on serverless compute `spark_apply()` does not work at all because there is no R there.
 

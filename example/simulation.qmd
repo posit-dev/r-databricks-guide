@@ -128,7 +128,7 @@ Each draw asks what share of a year falls below the threshold under one perturbe
 
 ## Serially first
 
-The version that is slow and obviously correct, kept because everything after it has to agree with it. This is the version to debug, not a stepping stone to be discarded.
+Start with the version that is slow and obviously correct, because everything after it has to agree with it. This is the version to debug, not a stepping stone to be discarded.
 
 ```{r}
 #| label: serial
