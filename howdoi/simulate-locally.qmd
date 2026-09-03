@@ -111,24 +111,31 @@ One line changes:
 ```{r}
 #| label: parallel
 #| message: false
+#| warning: false
 library(future)
 library(furrr)
 
 plan(multicore, workers = 2)
 
-results <- stations |>
+results_parallel <- stations |>
   split(seq_len(nrow(stations))) |>
-  future_map(simulate_station, .options = furrr_options(seed = TRUE)) |>
+  future_map(simulate_station, .options = furrr_options(seed = NULL)) |>
   list_rbind()
 
-head(results, 3)
+identical(results, results_parallel)
 ```
 
 That is the whole argument for trying your own cores first: `map()` becomes `future_map()`, you add a plan, and nothing else about the code moves. Given how little it costs to try, try it before you consider anything involving the cluster.
 
+The comparison above is the point of running it. Same answer, exactly, which is what tells you the parallel version is doing the serial version's work and not something subtly different.
+
 What it buys you depends on how many cores you actually have, which is [Choosing a worker count](#choosing-a-worker-count) below, and on how much work each unit does. This page states no timing, because the machine that builds it has one core and any number from it would describe this container rather than your session. Time your own serial run and multiply: that arithmetic is worth more than a figure from someone else's machine.
 
-`furrr_options(seed = TRUE)` is not optional decoration. Without it the workers do not get independent, reproducible streams, and `furrr` will warn you about exactly that.
+Seeding needs a decision, and which way you go depends on where the seed lives.
+
+`simulate_station()` seeds itself from a column of its own input, so every station's draws are determined by the station rather than by the order the work happens to run in. That is why `seed = NULL` is right here and why the two runs match exactly: nothing in the parallel machinery is allowed to touch the streams.
+
+If instead your function does *not* seed itself, you need `furrr_options(seed = TRUE)`, which gives each worker an independent, reproducible stream. Without it the workers can draw the same numbers, and `furrr` warns you about exactly that. What you must not do is both: `seed = TRUE` overrides a seed set inside the function, and then the serial and parallel runs disagree for a reason that looks like a bug in your simulation.
 
 ## Memory when forking
 
