@@ -59,7 +59,7 @@ The parts of this differ in how well established they are, so:
 - **Naming the output columns depends on where you are.** A Spark type string from a client connection, a plain character vector on the cluster's own R session. Neither form is rejected by the other path and the error never names the argument, so it surfaces as a missing column and looks like a fault in your function. Omitting `columns` works on both.
 - **The grouped path does not run** on a current runtime: `spark_apply(group_by = ...)` fails on `rpy2` 3.6.x. Use the partition-based form and do the grouping inside your function.
 
-Where it is worth reaching for, and where it is not, belongs on the task pages that use it. [Run a Monte Carlo simulation](../howdoi/monte-carlo.qmd) is the fullest treatment.
+Where it is worth reaching for, and where it is not, belongs on the task pages that use it. [Run the same simulation on cluster compute](../howdoi/simulate-on-the-cluster.qmd) is the fullest treatment.
 
 ## What this buys you
 

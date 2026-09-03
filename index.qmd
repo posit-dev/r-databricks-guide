@@ -90,7 +90,7 @@ exceedances <- sites |>
   map(simulate_years)        # in R, expensive
 ```
 
-Here the crossing is free and the cost is in the last line, repeated. So the question is not how much data moves. It is how many repeats run at once, and whether R is present where they run. That is [Run a Monte Carlo simulation](howdoi/monte-carlo.qmd).
+Here the crossing is free and the cost is in the last line, repeated. So the question is not how much data moves. It is how many repeats run at once, and whether R is present where they run. That is [Simulate on the cores you have](howdoi/simulate-locally.qmd).
 
 The third shape is gridded data, and it has no server-side path at all: Databricks' spatial functions work on vectors, and there is no equivalent for a raster cell. So the only question there is which side of the boundary the pixels sit on. See [Work with rasters, using `terra`](howdoi/terra.qmd).
 
@@ -106,7 +106,7 @@ If you arrived with a specific problem, go straight to it. These are the **Guide
 - [Work with a table that will not fit in your session](howdoi/big-table.qmd). Where each step of your pipeline runs, and how much data comes back.
 - [Join and transform polygons](howdoi/polygons.qmd). Real spatial work when the polygons start out in the table rather than in R.
 - [Work with rasters, using `terra`](howdoi/terra.qmd). Why gridded data behaves differently from polygons here, and what your two options are.
-- [Run a Monte Carlo simulation](howdoi/monte-carlo.qmd). Simulating, bootstrapping, resampling or fitting many times over, and where the repeats happen.
+- [Simulate on the cores you have](howdoi/simulate-locally.qmd). Simulating, bootstrapping, resampling or fitting many times over, and where the repeats happen.
 - [Check that you get the same answer wherever it ran](howdoi/check-the-answer.qmd). Confirming that a computation done on the server and the same one done in R agree, and by how much.
 - [Work out what the cluster you have can do](howdoi/compute.qmd). Reading the compute you were given, and what you can and cannot change about it.
 - [Get results out, and get the same answer next year](howdoi/results.qmd). Writing results back, exporting for the paper, and keeping the run reproducible.

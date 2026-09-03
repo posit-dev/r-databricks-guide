@@ -1,0 +1,268 @@
+---
+title: "Run the same simulation on cluster compute"
+subtitle: "Sending an R function to the cluster with `spark_apply()`, and confirming it ran there"
+execute:
+  freeze: true
+---
+
+## Introduction
+
+::: {.answer}
+`spark_apply()` sends an R function to the cluster and returns a data frame. Your function receives a *partition* of a table, not a single index, and it must return a data frame. Reshaping the function to that contract is the whole of the work; the partition count is what decides how much of the machine you get.
+:::
+
+Your repeats already run on your own cores, and the arithmetic on [Simulate on the cores you have](simulate-locally.qmd) has told you they will not finish in the time you have. This page moves the same simulation onto cluster compute without changing what a unit of work is.
+
+So it covers the call and its arguments, the contract your function has to meet, naming the output columns, how partitions decide parallelism, getting a package loaded on the far side, the variable that silently is not there, and how to confirm the work really left your session.
+
+```{r}
+#| label: mask
+#| include: false
+# This site is public, so no printed output may carry the catalog or the
+# cluster this page runs against. Only what is shown is masked. See R/setup.R.
+source(here::here("R/setup.R"))
+wq_mask_output()
+```
+
+```{r}
+#| label: setup
+#| message: false
+library(sparklyr)
+library(dplyr)
+library(dbplyr)
+library(tibble)
+library(glue)
+library(cli)
+```
+
+## What has to change, and what does not
+
+One thing changes and one thing does not, and holding them apart is what makes the move short.
+
+The simulation itself does not change. The per-station calculation, the draws, the seed, the summary it returns: all of that is the same code you debugged serially. Nothing in it knows or cares where it runs.
+
+What changes is the *signature*. Locally you wrote a function of one station, and `map()` handed it one row at a time. `spark_apply()` does not work that way: it hands your function a data frame holding many rows, and expects a data frame back. So the local function becomes the body of a loop, and the new function is the loop.
+
+## The connection
+
+A client connection, the same one used everywhere else on this site.
+
+```{r}
+#| label: connect
+sc <- spark_connect(
+  method = "databricks_connect",
+  cluster_id = Sys.getenv("DATABRICKS_CLUSTER_ID")
+)
+```
+
+## A table to partition over
+
+`spark_apply()` works on a table reference, so the units of work have to be *in* a table rather than in a local vector. That is the one structural difference from the local version, where `1:400` was enough.
+
+Here the units are stations, and the fitted parameters each one needs travel with it.
+
+```{r}
+#| label: units
+set.seed(1)
+
+n_stations <- 400
+
+sim_units <- tibble(
+  station_id = sprintf("S%04d", seq_len(n_stations)),
+  n_days = sample(1000:3650, n_stations, replace = TRUE),
+  meanlog = rnorm(n_stations, 0.5, 0.4),
+  sdlog = runif(n_stations, 0.6, 1.1)
+)
+
+units_remote <- copy_to(sc, sim_units, "sim_units", overwrite = TRUE)
+
+units_remote |> head(3)
+```
+
+`copy_to()` is right here because the table is small and this page is about the mechanism. If your parameters are already in a table, use `tbl()` and skip this step: sending a table to the cluster so that the cluster can send it back to R is a cost with no purpose.
+
+## The worker function
+
+The contract, stated once, because every failure below is a violation of it.
+
+**Your function receives a data frame and must return a data frame.** It is called once per partition, with the rows of that partition. What it returns is stacked with the returns from every other partition to make the result.
+
+```{r}
+#| label: worker
+simulate_partition <- function(df) {
+  # One partition's worth of stations. The inner calculation is
+  # the same one that ran locally, per row.
+  out <- lapply(seq_len(nrow(df)), function(i) {
+    row <- df[i, ]
+
+    set.seed(row$n_days)
+
+    se_meanlog <- row$sdlog / sqrt(row$n_days)
+    se_sdlog <- row$sdlog / sqrt(2 * (row$n_days - 1))
+
+    draws <- vapply(seq_len(1000), function(k) {
+      m <- rnorm(1, row$meanlog, se_meanlog)
+      s <- rnorm(1, row$sdlog, se_sdlog)
+      threshold <- qlnorm(0.1, row$meanlog, row$sdlog)
+      plnorm(threshold, m, s)
+    }, numeric(1))
+
+    data.frame(
+      station_id = row$station_id,
+      days_below = 365 * mean(draws),
+      lower = 365 * quantile(draws, 0.025, names = FALSE),
+      upper = 365 * quantile(draws, 0.975, names = FALSE)
+    )
+  })
+
+  do.call(rbind, out)
+}
+```
+
+Two details in that function are not incidental. It returns a `data.frame` rather than a tibble, because what crosses back is a plain table and a tibble buys nothing on the far side. And the seed is derived from a column of the data rather than from a loop counter, because a partition does not know its own position: seeding on `1:nrow(df)` would give every partition the same streams.
+
+## Making the call
+
+```{r}
+#| label: apply
+sim_result <- units_remote |>
+  spark_apply(simulate_partition) |>
+  collect()
+
+sim_result |> head(3)
+```
+
+That is the whole call. The first argument is the table reference, the second is the function, and the result comes back with `collect()` like any other query.
+
+## Naming the output columns
+
+`spark_apply()` has to declare the shape of what comes back before it runs, and by default it infers it. Where the inference is wrong, or where you want the types fixed, `columns` states it.
+
+The argument takes two different forms depending on where your R is running, and this is the trap worth knowing before you meet it. From a client connection like this one it takes a Spark type string. On the cluster's own R session it takes a plain character vector.
+
+```{r}
+#| label: columns
+sim_typed <- units_remote |>
+  head(20) |>
+  spark_apply(
+    simulate_partition,
+    columns = paste(
+      "station_id string, days_below double,",
+      "lower double, upper double"
+    )
+  ) |>
+  collect()
+
+sim_typed |> head(3)
+```
+
+Passing the wrong form is not rejected with a message that names the argument. It surfaces as a complaint about a column, which reads as though your worker function returned the wrong thing, and that sends you to debug the function rather than the call. [Work in my editor, not a notebook](interactive.qmd) shows both forms and the error each produces.
+
+Leaving `columns` out works from both paths, which is why the call above omits it.
+
+## Partitions decide how much runs at once
+
+This is the dial that replaces `workers =`, and it is the one most easily missed, because a job with too few partitions does not fail. It runs, correctly, slowly, using a fraction of the machine, and nothing says so.
+
+One R process per partition, one core per partition. So the partition count is how many of your repeats run at once, and a table copied in without thought may arrive as a single partition.
+
+```{r}
+#| label: partitions
+sdf_num_partitions(units_remote)
+```
+
+Repartition when that number is smaller than the parallelism you want:
+
+```{r}
+#| label: repartition
+units_spread <- units_remote |>
+  sdf_repartition(partitions = 8)
+
+sdf_num_partitions(units_spread)
+```
+
+Asking for far more partitions than there are cores does not buy more parallelism, and each one carries its own startup, so the useful range is the cores you actually have. [Work out what my cluster can do](compute.qmd) is how to find that number.
+
+## Packages on the far side
+
+A forked worker on your own machine inherits your loaded packages. A cluster worker does not: it is a different R process on a different machine, so anything your function uses has to be loaded *inside the function body*.
+
+```r
+simulate_partition <- function(df) {
+  library(sf)
+  # ...
+}
+```
+
+The package also has to be installed there, which is not something you can fix from your session. [Packages](../ref/packages.qmd) is the check and the conversation to have if it is missing.
+
+## The variable that is not there
+
+The most common failure, and it does not look like what it is.
+
+Your function is serialised and sent without the environment around it, so a variable defined in your session is simply absent on the far side. The error names the missing object, which reads as though the function is broken rather than as though something did not travel.
+
+```{r}
+#| label: closure
+#| error: true
+threshold_quantile <- 0.1
+
+bad_worker <- function(df) {
+  data.frame(q = threshold_quantile)
+}
+
+units_remote |>
+  head(4) |>
+  spark_apply(bad_worker) |>
+  collect()
+```
+
+The fix is to put what the function needs inside it, or to carry it in the table as a column. [Sending things to where your code runs](../ref/sending-things.qmd) covers the general case.
+
+## Confirming it ran on the cluster
+
+Worth doing once, because everything above is indistinguishable from a local run if you only look at the numbers.
+
+Have the worker return the name of the machine it ran on, and compare it with your own.
+
+```{r}
+#| label: where
+where_ran <- units_remote |>
+  head(8) |>
+  spark_apply(function(df) {
+    data.frame(node = Sys.info()[["nodename"]])
+  }) |>
+  collect()
+
+tibble(
+  ran_on_my_session = Sys.info()[["nodename"]] %in% where_ran$node,
+  distinct_machines = dplyr::n_distinct(where_ran$node)
+)
+```
+
+`ran_on_my_session` is `FALSE`, which is the thing to establish: the function executed somewhere other than the R session you typed it into. That is the client and server boundary from [Get started](../concepts/index.qmd) made concrete, and it holds however many machines the cluster has.
+
+## Whether it spread across machines
+
+Not answered here, and worth being straight about.
+
+`distinct_machines` above counts the machines this page's own run touched. On a single-node cluster it is one, because there is nowhere else for the work to go: the R processes are all on the same machine, and distribution has bought serialisation cost and nothing else. On a cluster with workers the same check returns more than one.
+
+Count machines rather than processes when you run this yourself. Two processes can report the same machine, so a process count cannot tell a single-node cluster from a distributed one.
+
+What this page does not establish is how the work behaves as machines are added. [When the simulation carries the geometry](../example/bootstrap.qmd) runs the same check on a two-worker cluster and finds the work on both, which answers whether it distributes at all and nothing about how it scales.
+
+## What not to reach for
+
+`group_by` looks like the way to say that a station is the unit of work. It is not.
+
+It collapses the job into a single R process, runs slower for an identical answer, and on a current runtime it does not run at all. Partition instead, and let each worker loop over the rows in its slice, which is what the function above does.
+
+```{r}
+#| label: disconnect
+spark_disconnect(sc)
+```
+
+## Next
+
+If something broke, [When it breaks](../ref/when-it-breaks.qmd) is organised by what you saw. For the same shape with geometry inside every repeat, [When the simulation carries the geometry](../example/bootstrap.qmd).

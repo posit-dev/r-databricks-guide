@@ -427,7 +427,7 @@ tibble(
 
 Two worker machines, neither of them the driver, with `sf` loaded and doing real work on real polygons. That answers whether it distributes at all, and nothing more: two workers is the entire basis of the claim, so take nothing from it about how the work scales.
 
-## What it cost
+## When distribution earns its cost
 
 Distribution is not free. On a single node it is a straight loss, because serialisation is paid for nothing. It earns its cost when there are other machines and enough work to fill them.
 

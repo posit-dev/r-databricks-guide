@@ -3,6 +3,14 @@ title: "Get results out, and get the same answer next year"
 subtitle: "Writing results back, exporting for the paper, and keeping the run reproducible"
 ---
 
+Getting a result out is the easy half. The hard half is that the run which produced it depended on three R libraries rather than one, and only the one you control is recorded by anything you commit.
+
+::: {.answer}
+Write file-shaped results to a volume and queryable results to a table. Then write down what a lockfile cannot reach: the cluster runtime version and the package versions from the context that did the work.
+:::
+
+So this page covers the write-back decision, figures for the paper, the three libraries a result depends on, what `renv` does and does not pin, what changes when the run is scheduled rather than interactive, and the two data licences you have to credit separately.
+
 ## Writing results back
 
 A volume takes anything file-shaped; a table is for what will be queried again. That is the whole choice, and it is usually made for you by what happens next. If a colleague or a dashboard will query the result, write a table. If the result is an `.rds`, a figure, a shapefile or a model object, write it to a Unity Catalog volume and stop thinking about it.

@@ -9,7 +9,7 @@ subtitle: "Checking, and fixing, which packages exist where your code runs"
 "Installed" is a property of one R context, not of the cluster. Your session, the driver and each worker have their own library, so a package that loads in one says nothing about the others.
 :::
 
-That is why an install can appear not to have taken, and why the check below is worth running in each context rather than once. Start with the check, then the three contexts, then what to do when a package is missing from one.
+That is why an install can appear not to have taken, and why the check below is worth running in each context rather than once. Start with the check, in your session and then in a worker, and then what to do when a package is missing from one.
 
 ## The check
 
@@ -64,6 +64,8 @@ tbl(sc, in_catalog(
 
 If they all come back `TRUE`, stop reading. The rest of this page is for the case where they do not.
 
+Two checks, for the three contexts in the callout above, and the asymmetry is worth knowing. Your session and a worker are both places you can run R and ask directly. The driver is not, from a client connection: your session is the client, and the R that runs on the cluster runs inside the workers that `spark_apply()` starts. So the driver shows up here at install time rather than at check time, which is the trap in [What to send your admin](#what-to-send-your-admin) below: an install someone runs by hand touches the driver, and a worker never sees it.
+
 ## If it does not load
 
 This is a workspace configuration matter, not something to fix from your session, and that is the fact worth having before you spend an afternoon on it.
@@ -87,7 +89,7 @@ This is the good case, and it is worth being able to recognise it. Someone has a
 .libPaths(c("/Volumes/your_catalog/your_schema/r_library", .libPaths()))
 ```
 
-The tree is reusable by any later cluster with the same R version and image, which is what makes it durable where an install is not. It works inside a worker too, which is what makes the geospatial parts of [Run a Monte Carlo simulation](../howdoi/monte-carlo.qmd) available to you at all.
+The tree is reusable by any later cluster with the same R version and image, which is what makes it durable where an install is not. It works inside a worker too, which is what makes the geospatial parts of [Run the same simulation on cluster compute](../howdoi/simulate-on-the-cluster.qmd) available to you at all.
 
 Ask whether one exists before assuming it does not. It is a common enough arrangement that the answer is often yes.
 

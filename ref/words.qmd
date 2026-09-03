@@ -18,7 +18,7 @@ These need no explaining, only mapping. In several cases the useful answer is th
 | polygon, raster | geometry, no equivalent | Vector geometry has server-side functions. Raster has none, so `terra` work happens in R. |
 | replicate, resample, bootstrap | no equivalent | The platform has no vocabulary for repeats. Searching for one wastes an afternoon: what you want is a page about partitions. |
 | fit, tune | no equivalent for your case | Their machine learning vocabulary describes Spark MLlib, not `tidymodels`. It will not help you. |
-| `purrr::map()` | no equivalent | The nearest thing is `spark_apply()`, which is a different shape and carries a serialisation cost. See [Run a Monte Carlo simulation](../howdoi/monte-carlo.qmd). |
+| `purrr::map()` | no equivalent | The nearest thing is `spark_apply()`, which is a different shape and carries a serialisation cost. See [Run the same simulation on cluster compute](../howdoi/simulate-on-the-cluster.qmd). |
 | `furrr`, `future` | no equivalent, and absent | Not installed on the runtime. Base `parallel` is. |
 | my laptop | no equivalent, and the point | Nothing on the platform corresponds to "the machine I am sitting at". That distinction is the whole of [What changes when the data is not on your laptop](../concepts/index.qmd). |
 
@@ -94,7 +94,7 @@ Anything a run produces that gets stored: a model, a file, a plot. You will meet
 
 These cost more search time than unfamiliar words do, because you read them confidently and wrongly.
 
-**Worker.** A worker machine in a cluster, or a forked R process inside one machine. Most parallel-R writing means the second; most Databricks writing means the first. Without that distinction [Run a Monte Carlo simulation](../howdoi/monte-carlo.qmd) cannot be read correctly, because the whole page turns on which one you are adding.
+**Worker.** A worker machine in a cluster, or a forked R process inside one machine. Most parallel-R writing means the second; most Databricks writing means the first. That distinction is what separates [Simulate on the cores you have](../howdoi/simulate-locally.qmd) from [Run the same simulation on cluster compute](../howdoi/simulate-on-the-cluster.qmd): the first adds forked processes, the second adds machines.
 
 **Cluster.** A set of machines in Databricks, or in your own vocabulary the output of a clustering algorithm. Rarely confusing in context, but it makes searching for either one noisy.
 

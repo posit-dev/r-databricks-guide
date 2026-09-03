@@ -192,7 +192,7 @@ Only R has the function, and you need one row out per row in. There is no comfor
 
 If your R function is genuinely irreducible and has to see every row, the honest options are to collect what you can, to narrow the input until it fits, or to send the function to the data. None of those is free.
 
-Where this case usually turns out to be tractable is when the expensive part is not the crossing but the *repetition*: a small result crossed once, then simulated or resampled thousands of times. That has a good answer, and it is on [Run a Monte Carlo simulation](monte-carlo.qmd).
+Where this case usually turns out to be tractable is when the expensive part is not the crossing but the *repetition*: a small result crossed once, then simulated or resampled thousands of times. That has a good answer, and it is on [Simulate on the cores you have](simulate-locally.qmd).
 
 ## When `dbplyr` cannot translate
 
@@ -285,4 +285,4 @@ The reason to name the gap rather than gesture at it is that you can then check 
 
 ## Next
 
-If the repeats are the expensive part, see [Run a Monte Carlo simulation](monte-carlo.qmd).
+If the repeats are the expensive part, see [Simulate on the cores you have](simulate-locally.qmd).

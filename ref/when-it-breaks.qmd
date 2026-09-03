@@ -64,7 +64,7 @@ If you specifically need notebook R, that is a cluster configuration change and 
 
 On a single-node cluster `spark_apply()` was measured at roughly twice the time of forked parallel workers.
 
-Check how many machines you have with [Work out what the cluster you have can do](../howdoi/compute.qmd). If `num_workers` is `0`, use the cores on the one machine you have rather than distributing. [Run a Monte Carlo simulation](../howdoi/monte-carlo.qmd) covers the choice.
+Check how many machines you have with [Work out what the cluster you have can do](../howdoi/compute.qmd). If `num_workers` is `0`, use the cores on the one machine you have rather than distributing, which is [Simulate on the cores you have](../howdoi/simulate-locally.qmd).
 
 ## Next
 

@@ -5,7 +5,7 @@ execute:
   freeze: true
 ---
 
-Two connections, not one, and the reason is a bug rather than a preference. This page opens both, finds the tables, and runs the one check that has to happen before anything else: that geometry survives the trip into your session.
+This page goes from an empty R session to a table you can query. It opens a connection, finds the tables, and runs the one check that has to happen before anything else: that geometry survives the trip into your session.
 
 ```{r}
 #| label: mask

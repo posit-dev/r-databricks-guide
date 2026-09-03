@@ -83,14 +83,18 @@ howdoi/interactive.qmd:
     - 'an interactive R session can drive cluster compute through a client connection, without an R notebook attached to the cluster'
     - '`spark_apply(columns =)` takes a Spark type string from a client connection and a character vector on the cluster''s own R session, and the wrong form fails without naming the argument'
 
-howdoi/monte-carlo.qmd:
+howdoi/simulate-locally.qmd:
   claims:
     - 'a 32.5 million row table shrinks server-side to a small result before the expensive work starts'
     - 'forked parallel workers reduced peak R memory rather than increasing it'
+
+howdoi/simulate-on-the-cluster.qmd:
+  claims:
     - '`spark_apply()` was slower than forked workers on a single node'
     - '`spark_apply()` has been observed distributing tasks across two worker machines, neither of them the driver'
     - '`spark_apply(group_by =)` fails on `rpy2` 3.6.x, and where it ran was slower than the default partitioning'
     - '`spark_apply(columns =)` takes a Spark type string from a client connection and a character vector on the cluster''s own R session, and the wrong form fails without naming the argument'
+    - 'a variable defined in the calling session is not in scope inside a `spark_apply()` worker, because the function is serialised without its environment'
 
 howdoi/polygons.qmd:
   claims:

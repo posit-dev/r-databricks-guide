@@ -47,7 +47,7 @@ tibble(
 
 `num_workers = 0` means one machine. Not a small cluster, not a cluster with the workers switched off: one machine, running the driver, with nothing to distribute to. Whatever the workspace interface implies by showing it in a list of clusters, this is the number that settles it.
 
-That single fact decides whether anything on [run a Monte Carlo simulation](monte-carlo.qmd) about distributing work applies to you at all. On a single-node cluster, distribution has nowhere to go, and reaching for it costs the serialisation without buying the parallelism.
+That single fact decides whether anything on [run the same simulation on cluster compute](simulate-on-the-cluster.qmd) about distributing work applies to you at all. On a single-node cluster, distribution has nowhere to go, and reaching for it costs the serialisation without buying the parallelism.
 
 One catch worth knowing before you trust the number. On a cluster configured to autoscale, `num_workers` is not `0`, it is absent entirely, because the count is a range rather than a value:
 

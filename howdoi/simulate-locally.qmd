@@ -1,6 +1,6 @@
 ---
-title: "Run a Monte Carlo simulation"
-subtitle: "Simulating, bootstrapping, resampling or fitting many times over: once per site, per polygon, per resample or per replicate"
+title: "Simulate on the cores you have"
+subtitle: "Simulating, bootstrapping, resampling or fitting many times over, on the cores in your own session"
 ---
 
 ## Introduction
@@ -11,13 +11,12 @@ Your replicates are independent, so the question is not how much data moves but 
 
 The expensive part of this work is not getting the data out. A large table shrinks server-side to a small result, which crosses cheaply, and only then does the real cost start: you do something to that result ten thousand times.
 
-This page runs the repeats serially first, then across your own cores, then asks whether the cluster is worth it, which is often not. `spark_apply()` comes last, for the case where it is.
+This page runs the repeats serially first, then across the cores in your own session, and ends at the arithmetic that tells you whether you need anything more. Most of the time you do not. Where you do, [Run the same simulation on cluster compute](simulate-on-the-cluster.qmd) picks the same simulation up unchanged.
 
 ```{r}
 #| label: facts
 #| include: false
-# One number in the closing summary is quoted from facts/measurements.yml
-# rather than typed. Reads a local file and opens no connection.
+# Reads a local file and opens no connection.
 source(here::here("R/facts.R"))
 ```
 
@@ -36,7 +35,37 @@ One independent unit per site, per polygon, per resample or per replicate.
 
 The test: if replicate 200 does not need anything replicate 199 produced, the work is this shape, and everything below applies. Almost all simulation, bootstrapping and resampling is. If your replicates do depend on each other, in a Markov chain for instance, none of this applies and the page stops being useful to you.
 
+That property has a name, **embarrassingly parallel**, and it is worth knowing because it is the term every parallel-computing document you meet next will use for it, including the vendor's. It is also the reason the escalation on this page works at all: independent units can be handed out in any order, to anything, without coordination.
+
 Recognising the shape matters more than matching your problem to an example. You will know your own problem faster than you will find it in a list.
+
+## The simulation this page runs
+
+A concrete one, because the shape is easier to see with a reason attached than without.
+
+The question is how many days a year a river's flow sits below a low-flow threshold, and how uncertain that figure is given a finite record. The threshold is the station's own tenth percentile, so it is a low flow for that river rather than a number carried in from a bigger one. A single fit gives the central figure; what it does not give is how much to trust it, because the mean and standard deviation behind it were themselves estimated from a limited record.
+
+So each draw perturbs the fitted parameters by their own sampling error and asks what fraction of a year falls below the threshold under the perturbed values. The spread across draws is the interval, and a station with three years of record gets a wider one than a station with ten.
+
+The unit of work is one station. That is the shape that matters here: a few hundred independent units, each cheap, which is what most of this work actually looks like.
+
+```{r}
+#| label: units
+set.seed(1)
+
+n_stations <- 400
+
+stations <- tibble(
+  station_id = sprintf("S%04d", seq_len(n_stations)),
+  n_days = sample(1000:3650, n_stations, replace = TRUE),
+  meanlog = rnorm(n_stations, 0.5, 0.4),
+  sdlog = runif(n_stations, 0.6, 1.1)
+)
+
+head(stations, 3)
+```
+
+The parameters are simulated here so the page stands alone and needs no connection. In your own work they would come from a server-side summary, which is what [Work with a table that will not fit](big-table.qmd) is about: the table shrinks to one row per station before any of this starts.
 
 ## Running them serially
 
@@ -44,17 +73,36 @@ Start here and keep it. The serial version is the one you can debug, and it is w
 
 ```{r}
 #| label: serial
-sim_one <- function(i) {
-  set.seed(i)
-  x <- rlnorm(200000, meanlog = 0, sdlog = 1)
-  b <- map_dbl(1:60, \(k) mean(sample(x, length(x), replace = TRUE)))
-  tibble(rep = i, boot_se = sd(b))
+simulate_station <- function(station) {
+  set.seed(station$n_days)
+
+  se_meanlog <- station$sdlog / sqrt(station$n_days)
+  se_sdlog <- station$sdlog / sqrt(2 * (station$n_days - 1))
+  threshold <- qlnorm(0.1, station$meanlog, station$sdlog)
+
+  draws <- map_dbl(1:1000, \(k) {
+    m <- rnorm(1, station$meanlog, se_meanlog)
+    s <- rnorm(1, station$sdlog, se_sdlog)
+    plnorm(threshold, m, s)
+  })
+
+  tibble(
+    station_id = station$station_id,
+    days_below = 365 * mean(draws),
+    lower = 365 * quantile(draws, 0.025, names = FALSE),
+    upper = 365 * quantile(draws, 0.975, names = FALSE)
+  )
 }
 
-results <- map(1:24, sim_one) |> list_rbind()
+results <- stations |>
+  split(seq_len(nrow(stations))) |>
+  map(simulate_station) |>
+  list_rbind()
 
 head(results, 3)
 ```
+
+The central figure is near 36.5 days for every station, which is arithmetic rather than a finding: the threshold is each station's own tenth percentile, so a tenth of a year is the answer by construction. The number carrying information is the width of the interval.
 
 ## Running them on your own cores
 
@@ -68,7 +116,9 @@ library(furrr)
 
 plan(multicore, workers = 2)
 
-results <- future_map(1:24, sim_one, .options = furrr_options(seed = TRUE)) |>
+results <- stations |>
+  split(seq_len(nrow(stations))) |>
+  future_map(simulate_station, .options = furrr_options(seed = TRUE)) |>
   list_rbind()
 
 head(results, 3)
@@ -76,7 +126,7 @@ head(results, 3)
 
 That is the whole argument for trying your own cores first: `map()` becomes `future_map()`, you add a plan, and nothing else about the code moves. Given how little it costs to try, try it before you consider anything involving the cluster.
 
-What it buys you depends on how many cores you actually have, which is the next section but one, and on how much work each replicate does. Time your own serial run and multiply: that arithmetic is more use than any figure this page could quote, because the machine building this page is not yours.
+What it buys you depends on how many cores you actually have, which is [Choosing a worker count](#choosing-a-worker-count) below, and on how much work each unit does. This page states no timing, because the machine that builds it has one core and any number from it would describe this container rather than your session. Time your own serial run and multiply: that arithmetic is worth more than a figure from someone else's machine.
 
 `furrr_options(seed = TRUE)` is not optional decoration. Without it the workers do not get independent, reproducible streams, and `furrr` will warn you about exactly that.
 
@@ -93,11 +143,13 @@ peak_mb <- function(expr) {
   round(sum(g[, "max used"] * c(56, 8)) / 1e6, 1)
 }
 
+first_8 <- stations |> head(8) |> split(1:8)
+
 tibble(
   run = c("serial", "forked, 2 workers"),
   peak_mb = c(
-    peak_mb(map(1:8, sim_one) |> list_rbind()),
-    peak_mb(mclapply(1:8, sim_one, mc.cores = 2) |> list_rbind())
+    peak_mb(map(first_8, simulate_station) |> list_rbind()),
+    peak_mb(mclapply(first_8, simulate_station, mc.cores = 2) |> list_rbind())
   )
 )
 ```
@@ -146,28 +198,14 @@ The arithmetic is usually enough to decide. Time one replicate, multiply by how 
 
 Sometimes the honest answer is that your laptop is the right machine. If the data fits and nobody dictates where the computation happens, local R is faster to set up and better for your science.
 
-## Using `spark_apply()`
+## What changes on the cluster
 
-Last, and only once your own cores have been ruled out. That ordering is the recommendation, not a rhetorical device.
+Only the signature, and it is worth knowing before you decide.
 
-### On a single node
+`spark_apply()` hands your function a data frame holding many rows and expects a data frame back, so `simulate_station()` above becomes the body of a loop rather than the thing that is called. The simulation inside it does not change. What also changes is that a forked worker inherits your loaded packages and a cluster worker does not, and that the partition count replaces `workers =` as the dial.
 
-It was slower than forked workers, because it pays serialisation for no distribution benefit. On a single-node cluster there is nowhere for the work to go, so you buy the cost of shipping functions and data to a worker without buying any parallelism you did not already have.
+[Run the same simulation on cluster compute](simulate-on-the-cluster.qmd) does that reshaping on this page's own simulation, and confirms the work left your session.
 
-### Across several machines
+## Next
 
-It does distribute: on a two-worker cluster the work ran on both, counted by distinct machine names. That answers whether it distributes at all and nothing about how it scales, so do not read it as a claim about forty machines or about what a shuffle costs.
-
-### Count machines, not processes
-
-Two machines can report the same process id, so a process count cannot tell a single-node cluster from a distributed one. If you want to know whether your work is actually spreading, have the worker return `Sys.info()[["nodename"]]` and count the distinct values.
-
-### Naming the output columns
-
-`spark_apply(columns = )` takes a Spark type string from a client connection and a plain character vector on the cluster's own R session. Neither form is rejected by the other path with a useful message, and the failure never names the argument: it surfaces as a complaint about a column, which reads as though your worker function returned the wrong thing.
-
-Leaving the argument out works on both paths, which is what an example should do unless it needs to fix the types. [Write and run R against the cluster, without leaving your editor](interactive.qmd) shows both forms and the error the wrong one produces.
-
-### The grouped path
-
-`spark_apply(group_by = )` fails outright on `rpy2` 3.6.x. Where it did run, it used one R process where the default partitioning used four, and was slower on identical work for the same answer. The mechanism behind that is unexplained, so treat the grouped path as unavailable rather than as a slower alternative.
+If a package is missing where the repeats run, [Packages](../ref/packages.qmd). If something broke, [When it breaks](../ref/when-it-breaks.qmd) is organised by what you saw.

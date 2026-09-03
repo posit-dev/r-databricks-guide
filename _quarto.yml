@@ -56,12 +56,14 @@ website:
             text: Join and transform polygons
           - href: howdoi/terra.qmd
             text: Work with rasters
-      - text: Simulation
-        menu:
-          - href: howdoi/monte-carlo.qmd
-            text: Run a simulation
           - href: howdoi/check-the-answer.qmd
             text: Check I get the same answer
+      - text: Simulation
+        menu:
+          - href: howdoi/simulate-locally.qmd
+            text: Simulate on the cores I have
+          - href: howdoi/simulate-on-the-cluster.qmd
+            text: Run it on cluster compute
       - text: Worked example
         menu:
           - href: example/index.qmd
@@ -122,11 +124,12 @@ website:
       contents:
         - howdoi/polygons.qmd
         - howdoi/terra.qmd
+        - howdoi/check-the-answer.qmd
     - title: "Simulation"
       style: floating
       contents:
-        - howdoi/monte-carlo.qmd
-        - howdoi/check-the-answer.qmd
+        - howdoi/simulate-locally.qmd
+        - howdoi/simulate-on-the-cluster.qmd
     - title: "Worked example"
       style: floating
       contents:
