@@ -72,9 +72,11 @@ The last two open with a **fact about the domain**, not a task. What all of them
 
 Wickham additionally states scope as concrete items, which is worth adopting even though it is not universal: "we'll keep things concrete by focusing on three common tasks: modifying multiple columns, reading multiple files, and saving multiple objects."
 
-## The seven rules
+## The eight rules
 
-Each rule states its test and what it must not flag. Rules 1-3 are largely countable; 4-7 need judgement.
+Each rule states its test and what it must not flag. Rules 1-3 are largely countable; 4-8 need judgement.
+
+Rule 5 was added on 2026-09-03, after the first two review passes; the section below records what prompted it.
 
 **1. Opening.** The opening establishes something about her world or her task, and pivots within two paragraphs to what the page does about it. A domain fact, a task statement or a problem she recognises all qualify.
 
@@ -91,19 +93,27 @@ A verdict heading is only navigable to someone who already knows the question, w
 
 **4. Order.** Is the running order her path through the work? Specifically: does any reassurance, caveat or negation arrive before the thing it qualifies? Does the page tell her what it covers before its first code block?
 
-Deliberately narrow. Order is a check on a permutation, so it is blind by construction to a section that is missing, and it will find a good position for a section that should not exist at all. Those are rules 5 and 6.
+Deliberately narrow. Order is a check on a permutation, so it is blind by construction to a section that is missing, and it will find a good position for a section that should not exist at all. Those are rules 6 and 7.
 
-**5. Completeness.** Walk the page as a task rather than as a document. At each step, can she do the next thing with what she has been given, or must she leave?
+**5. Enumeration.** Where prose names N things and then treats each in turn, the N belong in a list or in subheadings rather than in a sentence she has to hold while reading four paragraphs.
+
+*Test*: count the treatments. A paragraph per item, or paragraphs opening "It uses... It returns... And the seed is...", means the list is already there and only the markup is missing. Also check that the treatment order matches the naming order: where it does not, the prose reconciles two sequences by hand and every paragraph pays for it.
+
+Three or more items, each with its own paragraph. Two is not an enumeration.
+
+*Evidence*: four instances found on 2026-09-03, none of them created by this review's own heading pass. `howdoi/check-the-answer.qmd:16` names four causes of disagreement and treats each in a paragraph, while simultaneously ranking them by severity, so "the smallest", "the next", "the first one that produces a difference you can see" and "the fourth is the largest" run a second ordering across the first. `howdoi/interactive.qmd:18` packs three things into one paragraph after announcing them. `howdoi/simulate-on-the-cluster.qmd:122` gives three details three paragraphs that already open in parallel.
+
+**6. Completeness.** Walk the page as a task rather than as a document. At each step, can she do the next thing with what she has been given, or must she leave?
 
 *Reference*: the page's own title and subtitle, read as a contract, plus her task. **Not** comparator coverage. Report a gap only by naming the step she cannot take; "could say more about X" is not a finding.
 
-**6. Necessity.** For each section, whose question does it answer?
+**7. Necessity.** For each section, whose question does it answer?
 
 *Test*: if she skipped this section entirely, what would go wrong? Nothing but missing an interesting fact means it is ours. An error, a bad choice or a wasted day means it is hers.
 
 Three verdicts: keep, misplaced (hers, but later or on another page), removable (ours). The named-harm requirement is what stops the reviewer becoming a deletionist: it cannot remove a section for being long, only for being unnecessary.
 
-**7. Register.** Flag sentences whose audience is someone **judging the guide** rather than someone using it. Three kinds:
+**8. Register.** Flag sentences whose audience is someone **judging the guide** rather than someone using it. Three kinds:
 
 - provenance about our own testing: "observed on a two-worker cluster", "single run in a Workbench session, not a benchmark"
 - research vocabulary: "the memory finding", which refers to an earlier section as a research artefact
@@ -147,7 +157,7 @@ The numbers accumulate across runs. If a threshold emerges, it gets promoted to 
 
 **Phase A, measurement, in the main session.** A script counts what is countable: heading lengths and grammar, opening shape, register sentences, the four length columns. Deterministic, cheap, and it cannot drift between runs because a model felt differently. This is what makes an eval tractable later.
 
-**Phase B, judgement, in an isolated subagent.** Reads the pages against the persona, the comparator standard and the seven rules, and reports on order, completeness, necessity and register, which no script can count.
+**Phase B, judgement, in an isolated subagent.** Reads the pages against the persona, the comparator standard and the eight rules, and reports on order, enumeration, completeness, necessity and register, which no script can count.
 
 The main session merges both into one report.
 
@@ -236,4 +246,4 @@ What it does not give is agreement with a human. A golden set, two or three page
 
 ## What this does not solve
 
-Deciding what a page says. This reviews structure and register on the assumption that the facts are settled and correct, which is what `context/`, the upstream changelog and the honesty constraints in `CLAUDE.md` exist for. A page can pass all seven rules and be wrong.
+Deciding what a page says. This reviews structure and register on the assumption that the facts are settled and correct, which is what `context/`, the upstream changelog and the honesty constraints in `CLAUDE.md` exist for. A page can pass all eight rules and be wrong.

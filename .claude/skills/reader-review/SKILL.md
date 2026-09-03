@@ -1,6 +1,6 @@
 ---
 name: reader-review
-description: 'Reviews whether this site''s pages are structured for the reader rather than for the people who researched them: opening, scope, heading form, running order, completeness, necessity and register. Judged against five R-community books and an isolated reading of the pages. Use when asked to review the reading experience, page structure, or whether a page is fit for its audience. Not for facts, code correctness or house style.'
+description: 'Reviews whether this site''s pages are structured for the reader rather than for the people who researched them: opening, scope, heading form, running order, enumeration, completeness, necessity and register. Judged against five R-community books and an isolated reading of the pages. Use when asked to review the reading experience, page structure, or whether a page is fit for its audience. Not for facts, code correctness or house style.'
 user-invocable: true
 allowed-tools: Read, Grep, Glob, Bash, Agent
 ---
@@ -76,16 +76,16 @@ Tell each subagent, in the brief itself:
 
 - It is reading a documentation site whose conventions it does not know, and there is **no project documentation to consult**. The pages are all there is.
 - The persona and the comparator standard, in full.
-- The seven rules below, and the two exclusions.
+- The eight rules below, and the two exclusions.
 - The confidence bar, in full.
 - That `` `r wq_fact("key")` `` in the source is a value inserted at render time, not a defect.
 - Which pages are its own, and that it must not report on any other.
 
 Remove the worktree when the review is written: `git worktree remove /tmp/reader-review-wt`.
 
-## The seven rules
+## The eight rules
 
-Rules 1 to 3 are largely countable and Phase A pre-computes them. Rules 4 to 7 are the reason Phase B exists.
+Rules 1 to 3 are largely countable and Phase A pre-computes them. Rules 4 to 8 are the reason Phase B exists.
 
 **1. Opening.** The opening establishes something about her world or her task, and pivots within two paragraphs to what the page does about it. A domain fact, a task statement, or a problem she recognises all qualify.
 
@@ -104,21 +104,31 @@ A verdict heading is only navigable to someone who already knows the question, w
 
 **4. Order.** Is the running order her path through the work? Specifically: does any reassurance, caveat or negation arrive **before** the thing it qualifies? Does the page say what it covers before its first code block?
 
-Deliberately narrow. Order is a check on a permutation, so it cannot see a missing section and it will find a good position for a section that should not exist. Those are rules 5 and 6.
+Deliberately narrow. Order is a check on a permutation, so it cannot see a missing section and it will find a good position for a section that should not exist. Those are rules 6 and 7.
 
-**5. Completeness.** Walk the page as a task, not as a document. At each step, can she do the next thing with what she has been given, or must she leave?
+**5. Enumeration.** A section that enumerates should show the enumeration.
+
+Where prose names N things and then treats each in turn, the N belong in a list or in subheadings, not in a sentence she has to hold in her head while she reads four paragraphs. She is scanning for her item, and a sentence gives her nothing to scan.
+
+*Test*: count the treatments. If a paragraph exists per item, or the paragraphs open with "It uses... It returns... And the seed is...", the list is already there and only the markup is missing.
+
+Also check that **the treatment order matches the naming order.** Where it does not, the prose ends up reconciling two sequences by hand, and every paragraph pays for it: "Floating point is the smallest", "Aggregation order is the next", "The fourth is the largest" is a severity ranking running across a list order, so a reader tracking either one is tripped by the other. One of the two orderings is wrong; usually the naming order should be changed to match the treatment.
+
+Two items is not an enumeration, and a list whose items get a sentence each is fine as prose. This is for three or more, each with its own paragraph.
+
+**6. Completeness.** Walk the page as a task, not as a document. At each step, can she do the next thing with what she has been given, or must she leave?
 
 *Reference*: the page's own title and subtitle, read as a contract, plus her task. **Not** comparator coverage.
 
 Report a gap only by naming the step she cannot take. "Could say more about X" is not a finding.
 
-**6. Necessity.** For each section, whose question does it answer?
+**7. Necessity.** For each section, whose question does it answer?
 
 *Test*: if she skipped this section entirely, what would go wrong? Nothing but missing an interesting fact means it is the author's. An error, a bad choice, or a wasted day means it is hers.
 
 Three verdicts: **keep**, **misplaced** (hers, but later or on another page), **removable** (the author's). A removable finding must name the harm of skipping, which is what stops this rule turning into deletion for its own sake.
 
-**7. Register.** Flag sentences whose audience is someone **judging the guide** rather than someone using it:
+**8. Register.** Flag sentences whose audience is someone **judging the guide** rather than someone using it:
 
 - provenance about our own testing: "observed on a two-worker cluster", "single run in a Workbench session, not a benchmark"
 - research vocabulary: "the memory finding", which refers to an earlier section as a research artefact
@@ -134,6 +144,7 @@ Not research register in general. "Missing data are not rare in real data sets" 
 
 - **Accuracy, code correctness, or platform behaviour.** You have no cluster and cannot check. Structure and register only.
 - **House style**: UK English, em-dashes, sentence case, base pipe versus magrittr. Other checks own these, and duplicating them buries the structural findings in spelling noise.
+- **Sentence-level prose quality**: a clumsy sentence, a passive, a paragraph that takes sixty words to say twenty. The `writing-voice` skill owns those, including the stripped bold lead-in, which is a paragraph opening that labels rather than says. Rule 5 is the one place the two meet, and it is here because a hidden enumeration is a *structural* failure: she cannot scan for her item. If the fix is rewording rather than adding a list or subheadings, it belongs to `writing-voice`.
 
 ## Confidence bar
 
