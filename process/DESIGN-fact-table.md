@@ -90,7 +90,6 @@ readings_rows:
   used_by:
     - ref/data.qmd
     - howdoi/big-table.qmd
-    - howdoi/monte-carlo.qmd
     - example/index.qmd
     - example/ingest.qmd
     - example/reducing.qmd
@@ -140,7 +139,6 @@ The first draft of this design assumed that mattered little, because "most of th
 | `howdoi/polygons.qmd` | yes | `97`, `93`, `4,080` |
 | `howdoi/big-table.qmd` | yes | readings count, `9,536` |
 | `example/ingest.qmd`, `reducing.qmd`, `connecting.qmd` | yes | readings count, `4,080` |
-| `howdoi/monte-carlo.qmd` | yes | readings count |
 | **`ref/spatial-functions.qmd`** | **no** | `97`, `93`, the definition of the count |
 | **`ref/data.qmd`** | **no** | **all nine row counts** |
 | `example/index.qmd` | no | `9,536`, `32,443`, `14,190`, `4,080` |

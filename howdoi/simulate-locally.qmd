@@ -14,13 +14,6 @@ The expensive part of this work is not getting the data out. A large table shrin
 This page runs the repeats serially first, then across the cores in your own session, and ends at the arithmetic that tells you whether you need anything more. Most of the time you do not. Where you do, [Run the same simulation on cluster compute](simulate-on-the-cluster.qmd) picks the same simulation up unchanged.
 
 ```{r}
-#| label: facts
-#| include: false
-# Reads a local file and opens no connection.
-source(here::here("R/facts.R"))
-```
-
-```{r}
 #| label: setup
 #| message: false
 library(purrr)

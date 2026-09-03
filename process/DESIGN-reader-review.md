@@ -4,15 +4,15 @@
 
 The site is written by the people who established what it says, and the research shows through in the structure. Not in the facts, which are careful, and not obviously in the prose, which reads well sentence by sentence. It shows in the **order the material arrives in, and in what the headings are for**.
 
-`howdoi/monte-carlo.qmd` is the clearest case, and it was the page that prompted this design. Its title and subtitle are good. Then the first paragraph opens:
+`howdoi/monte-carlo.qmd` was the clearest case, and it was the page that prompted this design. **Everything quoted from it below describes the page as it stood in August 2026**, before the September 2026 review acted on it: the page was since renamed `howdoi/simulate-locally.qmd`, restricted to local cores, and its cluster material moved to `howdoi/simulate-on-the-cluster.qmd`. The quotes are kept because they are the evidence this design rests on, not a description of the site today. Its title and subtitle were good. Then the first paragraph opened:
 
 > The expensive part of this work is not getting the data out. A large table shrinks server-side to a small one, and only then does the real cost start.
 
-That answers a question she never asked, and it answers it by correcting an expectation she does not hold. The second paragraph is about the *previous* page. The second section, before she has seen a line of simulation code, is "Memory is not the constraint here", a negation of a worry she has not yet formed. Her actual task does not start until line 70 of 201.
+That answered a question she never asked, and it answered it by correcting an expectation she does not hold. The second paragraph was about the *previous* page. The second section, before she had seen a line of simulation code, was "Memory is not the constraint here", a negation of a worry she has not yet formed. Her actual task did not start until line 70 of 201.
 
-That ordering is the order in which the findings were surprising **to the person who established them**: the crossing turned out to be cheap, memory turned out to go down rather than up, `spark_apply()` turned out to be slower than forking. Each is interesting if you held the opposite prior. She holds no prior. She has a simulation to run.
+That ordering was the order in which the findings were surprising **to the person who established them**: the crossing turned out to be cheap, memory turned out to go down rather than up, `spark_apply()` turned out to be slower than forking. Each is interesting if you held the opposite prior. She holds no prior. She has a simulation to run.
 
-The mechanism has a visible tell: `sim_one()` is defined twice, at lines 42 and 84, with a comment at line 40 explaining why. That duplication exists only because the memory section was placed before the section that introduces the function. The structure is fighting itself.
+The mechanism had a visible tell: `sim_one()` was defined twice, at lines 42 and 84, with a comment at line 40 explaining why. That duplication existed only because the memory section was placed before the section that introduced the function. The structure was fighting itself.
 
 **This is not a prose problem and the existing checks cannot see it.** `check-public.sh` looks for identifiers, `check-freeze.sh` for stale output, `check-facts.R` for drifted numbers, and the `writing-voice` skill for house style. All four pass on a page whose sections are in the author's order rather than the reader's.
 
@@ -87,7 +87,7 @@ Each rule states its test and what it must not flag. Rules 1-3 are largely count
 - *Length*: target 2-4 words, flag over 6, fail over 8. The ceiling is empirical, from 245 comparator headings. Questions may run to 7 and should be rare.
 - *Grammar*: a heading is a noun phrase or an imperative. A heading whose main verb asserts something ("is", "does not", "was") is a verdict and fails.
 
-A verdict heading is only navigable to someone who already knows the question, which is the author. She scans for "how do I use my cores" and finds "Memory is not the constraint here". Six of monte-carlo's twelve headings fail this test.
+A verdict heading is only navigable to someone who already knows the question, which is the author. She scans for "how do I use my cores" and finds "Memory is not the constraint here". Six of the twelve headings on the page then called `monte-carlo.qmd` failed this test.
 
 **4. Order.** Is the running order her path through the work? Specifically: does any reassurance, caveat or negation arrive before the thing it qualifies? Does the page tell her what it covers before its first code block?
 
@@ -133,9 +133,9 @@ Measured on 2026-09-02, prose words excluding YAML, code blocks, headings and th
 | `example/` (9) | 920 | 649-1,585 |
 | `ref/` (7) | 1,055 | 580-1,702 |
 
-Two things the internal numbers show without any external reference. The spread within `howdoi/` is 3:1 for pages with the same job and the same reader. And **words per section** varies 4:1, from `ref/when-it-breaks.qmd` at 284 and `check-the-answer.qmd` at 255 down to `monte-carlo.qmd` at 76 and `ref/sending-things.qmd` at 73. That second number is the better proxy for scannability: 284 words under one heading means reading paragraphs to find out whether a section is the one she wants.
+Two things the internal numbers show without any external reference. The spread within `howdoi/` is 3:1 for pages with the same job and the same reader. And **words per section** varies 4:1, from `ref/when-it-breaks.qmd` at 284 and `check-the-answer.qmd` at 255 down to `monte-carlo.qmd` (now `simulate-locally.qmd`) at 76 and `ref/sending-things.qmd` at 73. That second number is the better proxy for scannability: 284 words under one heading means reading paragraphs to find out whether a section is the one she wants.
 
-Note that `monte-carlo.qmd` is mid-pack on total length at 1,292 words. Its problem is 17 headings across those words, so it is fragmented rather than bloated. The reviewer must be able to tell those apart.
+Note that `monte-carlo.qmd` was mid-pack on total length at 1,292 words. Its problem was 17 headings across those words, so it was fragmented rather than bloated. The reviewer must be able to tell those apart.
 
 **So the rule is that there is no rule.** Report prose words, code lines, heading count and words per section, plus each page's position against the site's own median. Length never generates a finding on its own. It may only sharpen a finding that has already cleared the bar for another reason: *possibly too long* when it coincides with a rule 6 removable section, *possibly too thin* when it coincides with a rule 5 gap.
 
@@ -222,7 +222,7 @@ Project-local, tracked, alongside the existing `.claude/skills/site-diagrams`. *
 
 ```
 /reader-review                          all pages
-/reader-review howdoi/monte-carlo.qmd   one page
+/reader-review howdoi/simulate-locally.qmd   one page
 /reader-review howdoi/                  one section
 ```
 

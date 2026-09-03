@@ -24,7 +24,7 @@ Read these two before anything else:
 
 ```
 /reader-review                          every page
-/reader-review howdoi/monte-carlo.qmd   one page
+/reader-review howdoi/simulate-locally.qmd   one page
 /reader-review howdoi/                  one section
 ```
 
