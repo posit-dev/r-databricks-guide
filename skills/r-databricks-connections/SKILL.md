@@ -101,6 +101,12 @@ Two reasons the REST check misleads:
 - **The token may not carry REST authorisation at all.** A Workbench-injected OAuth JWT is audience-scoped, and the SQL/ODBC path and the REST API do not necessarily accept the same credential. A 401 can mean "not entitled to this API", not "expired".
 - **The message text is not stable.** The documented `"Token is expired"` is one possibility. The observed message on a *valid* token was `"Credential was not sent or was of an unsupported type for this API"`, so matching on either string decides nothing.
 
+**A REST 401 saying `Token is expired` is still worth having, as a signal rather than as proof.** Observed 2026-09-03 on a Workbench session whose credential had genuinely lapsed: `brickster::db_cluster_list()` returned `HTTP 401 Unauthorized` with `ℹ Token is expired`, while the ODBC path on the same credential gave only `[ThriftExtension] (14) Unexpected response from server during a HTTP connection`. The JWT confirmed it, `exp` four hours past. `[verified: ran it on 2026-09-03]`
+
+So the two paths differ in what they tell you, and the asymmetry is useful: **`brickster` names the failure, `odbc` does not.** When the opaque Thrift error appears, a `brickster` call is the cheapest way to see whether anything auth-shaped is being said at all.
+
+It remains a signal and not a verdict, for the reasons above: this observation is one where the REST error and the JWT agreed, and 2026-08-27 is one where they did not. Decode the token before concluding.
+
 If you do call REST, decode the JWT rather than trusting the status code. `exp` in the payload answers the expiry question directly:
 
 ```bash
