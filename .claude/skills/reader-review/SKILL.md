@@ -30,6 +30,24 @@ Read these two before anything else:
 
 Default to the whole site. The single-page form is the one to use while fixing.
 
+### What counts as unreviewed
+
+A page that has been **split, renamed, merged, or had its sections reordered is unreviewed**, whatever the site's last review said. Its score in an old run describes a page that no longer exists.
+
+This is not a formality. Both times a defect escaped this skill, it escaped this way: `howdoi/monte-carlo.qmd` was split into two pages after a review, and the halves inherited a clean bill of health they had never earned. Check `git log --oneline -15` for a rename or a split before trusting a previous run.
+
+## This runs before `writing-voice`, not after
+
+The two skills have an order, and it only runs one way.
+
+**Structure first.** Every heading this review renames orphans the prose beneath it: a pronoun whose antecedent was in the old heading, or a first sentence that only parsed as a continuation of it. Measured on 2026-09-03, a pass over 85 renames left nine sections defective that way. Fixing sentences before the structure moves means fixing them twice.
+
+**Then prose.** `writing-voice` catches what is left: fragments, stripped bold lead-ins, passives, sixty words doing twenty words' work.
+
+The reverse dependency does not exist, because fixing a fragment never invalidates a heading.
+
+So after acting on any finding here that **moves, renames, splits or merges a section**, run `writing-voice` over the sections you touched. Not the whole site: the sections you touched.
+
 ## Two phases
 
 **Phase A is deterministic.** A script counts what is countable. Run it yourself, in this repository.
@@ -93,7 +111,7 @@ Rules 1 to 3 are largely countable and Phase A pre-computes them. Rules 4 to 8 a
 
 **2. Scope.** The opening says what the page covers, as concrete items. Not a requirement that any particular phrase appears; a requirement that she can tell what she is about to get without reading the headings.
 
-**3. Headings.** Two independent tests.
+**3. Headings.** Three tests, two of form and one of fit.
 
 - *Length*: target 2 to 4 words, flag over 6, fail over 8. Questions may run to 7 and should be rare.
 - *Grammar*: a heading is a noun phrase or an imperative. A heading whose own main verb asserts something is a **verdict** and fails.
@@ -101,6 +119,14 @@ Rules 1 to 3 are largely countable and Phase A pre-computes them. Rules 4 to 8 a
 A verdict heading is only navigable to someone who already knows the question, which is the author. She scans for "how do I use my cores" and finds "Memory is not the constraint here".
 
 *Exception*: on a symptom-shaped page, the heading is the symptom she is matching against what she saw, so it has to carry enough to be recognised. `ref/when-it-breaks.qmd` is the one such page here, and "A spatial join or point-in-polygon count is off by a handful of rows" is right at thirteen words. Do not shorten a symptom into a label.
+
+**A third test, and it is not about form.** Does the section deliver what its heading names?
+
+*Test*: read the heading, then the section, and ask whether she got what she was promised. Both directions are findings. A heading that oversells sends her to the wrong section; one that undersells means she skips the section she needed.
+
+The tell for the first is a section that opens by taking the heading back. `## Whether it spread across machines` opening "Not answered here, and worth being straight about." is the case that prompted this test, and the section went on to answer it: `distinct_machines` counts the machines. What was genuinely unanswered was how it *scales*, which is a caveat in the last paragraph rather than the section's subject. The heading was describing the caveat.
+
+This is invisible to both tests above. That heading was five words and a clean noun phrase, so it passed on length and on grammar, and it was still pointing at the wrong thing.
 
 **4. Order.** Is the running order her path through the work? Specifically: does any reassurance, caveat or negation arrive **before** the thing it qualifies? Does the page say what it covers before its first code block?
 

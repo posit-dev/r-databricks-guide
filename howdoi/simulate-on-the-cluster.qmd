@@ -249,15 +249,13 @@ tibble(
 
 `ran_on_my_session` is `FALSE`, which is the thing to establish: the function executed somewhere other than the R session you typed it into. That is the client and server boundary from [Get started](../concepts/index.qmd) made concrete, and it holds however many machines the cluster has.
 
-## Whether it spread across machines
-
-Not answered here, and worth being straight about.
+## Counting machines
 
 `distinct_machines` above counts the machines this page's own run touched. On a single-node cluster it is one, because there is nowhere else for the work to go: the R processes are all on the same machine, and distribution has bought serialisation cost and nothing else. On a cluster with workers the same check returns more than one.
 
 Count machines rather than processes when you run this yourself. Two processes can report the same machine, so a process count cannot tell a single-node cluster from a distributed one.
 
-What this page does not establish is how the work behaves as machines are added. [When the simulation carries the geometry](../example/bootstrap.qmd) runs the same check on a two-worker cluster and finds the work on both, which answers whether it distributes at all and nothing about how it scales.
+What this page does not establish, and is worth being straight about, is how the work behaves as machines are added. [When the simulation carries the geometry](../example/bootstrap.qmd) runs the same check on a two-worker cluster and finds the work on both, which answers whether it distributes at all and nothing about how it scales.
 
 ## What not to reach for
 

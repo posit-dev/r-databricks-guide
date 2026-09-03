@@ -84,12 +84,14 @@ Rule 5 was added on 2026-09-03, after the first two review passes; the section b
 
 **2. Scope.** The opening says what the page covers, as concrete items. Not a requirement that the words "in this chapter" appear; a requirement that she can tell what she is about to get without reading the headings.
 
-**3. Headings.** Two independent tests.
+**3. Headings.** Three tests, two of form and one of fit.
 
 - *Length*: target 2-4 words, flag over 6, fail over 8. The ceiling is empirical, from 245 comparator headings. Questions may run to 7 and should be rare.
 - *Grammar*: a heading is a noun phrase or an imperative. A heading whose main verb asserts something ("is", "does not", "was") is a verdict and fails.
 
-A verdict heading is only navigable to someone who already knows the question, which is the author. She scans for "how do I use my cores" and finds "Memory is not the constraint here". Six of the twelve headings on the page then called `monte-carlo.qmd` failed this test.
+A verdict heading is only navigable to someone who already knows the question, which is the author. She scans for "how do I use my cores" and finds "Memory is not the constraint here".
+
+The third test asks whether the section delivers what its heading names, in either direction: a heading that oversells sends her to the wrong section, one that undersells means she skips the section she needed. Added 2026-09-03 after `howdoi/simulate-on-the-cluster.qmd` carried `## Whether it spread across machines` over a section that answered exactly that, with the genuinely unanswered part (how it scales) a caveat in the last paragraph. Five words, a clean noun phrase, and pointing at the wrong thing: invisible to both tests of form. Six of the twelve headings on the page then called `monte-carlo.qmd` failed this test.
 
 **4. Order.** Is the running order her path through the work? Specifically: does any reassurance, caveat or negation arrive before the thing it qualifies? Does the page tell her what it covers before its first code block?
 
@@ -150,6 +152,14 @@ Note that `monte-carlo.qmd` was mid-pack on total length at 1,292 words. Its pro
 **So the rule is that there is no rule.** Report prose words, code lines, heading count and words per section, plus each page's position against the site's own median. Length never generates a finding on its own. It may only sharpen a finding that has already cleared the bar for another reason: *possibly too long* when it coincides with a rule 6 removable section, *possibly too thin* when it coincides with a rule 5 gap.
 
 The numbers accumulate across runs. If a threshold emerges, it gets promoted to rule 8 with evidence behind it, exactly as heading length went from a hunch to "none of 245 exceeds eight".
+
+## Sequence, and what counts as unreviewed
+
+**This review runs before `writing-voice`, never after.** Renaming a heading orphans the prose beneath it, because an opening sentence often leans on the heading for a referent or a subject. A pass over 85 renames on 2026-09-02 left nine sections defective that way, found by diagnosis the following day. Prose fixed before the structure moves gets broken again by the move, and the dependency runs only in that direction: fixing a fragment never invalidates a heading.
+
+So acting on any finding that moves, renames, splits or merges a section re-opens the prose pass for those sections.
+
+**A page that has been split, renamed, merged or reordered is unreviewed**, whatever the last run said. Both times a defect escaped this skill it escaped that way: the heading pass created nine orphans and nothing was re-run, and `howdoi/monte-carlo.qmd` was later split into two pages that inherited a clean bill of health they had never earned.
 
 ## Design
 
