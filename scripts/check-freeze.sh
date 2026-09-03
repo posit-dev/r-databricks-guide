@@ -77,7 +77,10 @@ if [ "$fail" -eq 0 ]; then
 else
   printf '\nRe-render the affected pages locally and commit _freeze/ with the edit.\n'
   printf 'CI cannot refill the cache itself.\n\n'
-  printf '  prose changed:  quarto render <page>       (no credentials, nothing runs)\n'
+  printf '  prose changed:  quarto render <page>       (nothing runs, IF the page\n'
+  printf '                                             declares freeze: true itself;\n'
+  printf '                                             a single-doc render overrides\n'
+  printf '                                             the project-level setting)\n'
   printf '  code changed:   scripts/rerender.sh <page> (drops the cache so it runs)\n'
 fi
 

@@ -111,7 +111,9 @@ The site publishes from a committed `_freeze/` cache, and every executable page 
 
 **So the two cases are different, and only one is expensive.**
 
-*Editing prose.* Run `quarto render <page>`. No credentials, nothing executes, the new prose reaches the page and the existing output stays. Commit the `.qmd` and the refreshed `_freeze/` together. Verified by test on 2026-09-02: a prose-only edit to `example/reducing.qmd` rendered at exit 0 with no execution, the edit reached `_site/`, and `execute-results` was untouched.
+*Editing prose.* Run `quarto render <page>`. Nothing executes, the new prose reaches the page, and the existing output stays. Commit the `.qmd` and the refreshed `_freeze/` together. Verified on 2026-09-02 and again on 2026-09-03: exit 0, zero chunks executed, the edit in `_site/`, `execute-results` untouched.
+
+**One catch, and it decides whether you need credentials.** A single-document render overrides a project-level `freeze`, so this works only where the page declares `freeze: true` in its own front matter. Every `example/` page does. Most `howdoi/` pages do not, and rely on the project setting, so `quarto render howdoi/<page>.qmd` will try to execute and will fail without a live session. Either add the declaration to the page, or render with a session available.
 
 *Editing code.* Use `scripts/rerender.sh`, which drops the cache so the chunk actually runs. `quarto render` alone will publish the old output beneath your new code, silently.
 
