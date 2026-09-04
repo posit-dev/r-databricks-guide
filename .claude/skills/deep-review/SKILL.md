@@ -17,12 +17,13 @@ The line is the one `reader-review` already draws between its two phases.
 
 - heading length and grammar, against the 245-heading comparator standard
 - broken internal links and anchors
-- stripped and surviving bold lead-ins
+- the lead-in family: surviving `**Bold.**` lead-ins, stripped ones, and openings orphaned by a rename
 - freeze caches left stale by an edit
 
 **Reported for you to decide**, because each needs taste or removes something:
 
 - running order, completeness, necessity, register, enumeration
+- prose quality beyond the lead-in family: passives, a paragraph that buries its point, sixty words doing twenty words' work
 - anything that deletes a section
 - anything that changes what a page claims
 
@@ -60,7 +61,29 @@ Two exceptions the skill records and this pass must respect: `ref/when-it-breaks
 
 Invoke the `writing-voice` skill in check mode, over **the sections step 2 touched** plus any page it reports as changed. Not the whole site unless nothing was touched.
 
-Act on: stripped bold lead-ins, surviving `**Bold.**` lead-ins, fragments left by a rename. Report the rest.
+**Fix the lead-in family yourself. Report everything else.**
+
+That family is three shapes of one defect, and the fix is a known move in each case, which is why this step acts rather than reports. Everything else `writing-voice` finds, passives, sixty words doing twenty words' work, a paragraph that buries its point, needs a rewrite with taste in it and goes in the report.
+
+**A surviving `**Bold.**` lead-in.** Fold the bold phrase into the sentence, or promote it to a heading if several in a row are really a list.
+
+> `**The geometry has to get there, and the closure will not take it.** This is the part most examples get wrong.`
+> becomes: `The geometry has to get there and the closure will not take it, which is the part most examples get wrong.`
+
+**A stripped lead-in**: a short opening sentence that labels the paragraph rather than saying anything, often verbless. Fold it into the sentence after it, keeping whatever fact it carried.
+
+> `The contract, stated once, because every failure below is a violation of it.` followed by the contract
+> becomes: the contract first, then `That is the whole contract, and every failure later on this page is a violation of it.`
+
+**An orphaned opening**: a pronoun or definite reference whose antecedent was in a heading that step 2 renamed. Restore the noun, in the prose or in the heading.
+
+> `## Running them serially` opening `Start here and keep it.`
+> becomes: `## Running the repeats serially` opening `Write the serial version first and keep it.`
+
+Two cautions, both learned by getting them wrong:
+
+- **A verb list will not find these.** A script flagged `parallelises` and `inherits` as verbless while missing real cases. Read the opening sentence of each section in the pages you touched; there are rarely more than a few.
+- **Not every short opening is a defect.** `Often not.` under `## Is the cluster worth it?` answers its heading and the next sentence completes it. The test is whether the sentence stands without the heading, not whether it is short.
 
 ### 4. Links
 
@@ -91,6 +114,8 @@ scripts/start-cluster.R              # idempotent start; ~7 minutes cold
 ```
 
 **Never stop a cluster.** Both auto-terminate at 90 idle minutes.
+
+**A Spark Connect page can fail on a token the ODBC path still accepts.** Observed 2026-09-04: `howdoi/simulate-on-the-cluster.qmd` failed with `PERMISSION_DENIED: Token is expiring within 30 seconds` while the config file's token had 72 minutes left, because the Spark session had been minted from an earlier one. Retry once before treating it as a code failure; the retry picks up the current token.
 
 ### 6. Check
 
