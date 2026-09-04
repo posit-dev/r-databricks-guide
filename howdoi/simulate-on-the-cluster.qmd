@@ -45,7 +45,7 @@ What changes is the *signature*. Locally you wrote a function of one station, an
 
 ## The connection
 
-A client connection, the same one used everywhere else on this site.
+This uses a client connection, the same one every other page on this site opens.
 
 ```{r}
 #| label: connect
@@ -83,9 +83,9 @@ units_remote |> head(3)
 
 ## The worker function
 
-The contract, stated once, because every failure below is a violation of it.
+Your function receives a data frame and must return a data frame. It is called once per partition, with the rows of that partition, and what it returns is stacked with the returns from every other partition to make the result.
 
-Your function receives a data frame and must return a data frame. It is called once per partition, with the rows of that partition. What it returns is stacked with the returns from every other partition to make the result.
+That is the whole contract, and every failure later on this page is a violation of it.
 
 ```{r}
 #| label: worker

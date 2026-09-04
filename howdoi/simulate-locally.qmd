@@ -60,9 +60,9 @@ head(stations, 3)
 
 The parameters are simulated here so the page stands alone and needs no connection. In your own work they would come from a server-side summary, which is what [Work with a table that will not fit](big-table.qmd) is about: the table shrinks to one row per station before any of this starts.
 
-## Running them serially
+## Running the repeats serially
 
-Start here and keep it. The serial version is the one you can debug, and it is what every faster version has to agree with.
+Write the serial version first and keep it. It is the one you can debug, and it is what every faster version has to agree with.
 
 ```{r}
 #| label: serial
@@ -97,9 +97,9 @@ head(results, 3)
 
 The central figure is near 36.5 days for every station, which is arithmetic rather than a finding: the threshold is each station's own tenth percentile, so a tenth of a year is the answer by construction. The number carrying information is the width of the interval.
 
-## Running them on your own cores
+## Running them across your cores
 
-One line changes:
+One line changes: `map()` becomes `future_map()`, and you set a plan.
 
 ```{r}
 #| label: parallel
