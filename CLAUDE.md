@@ -78,8 +78,9 @@ These are not stylistic. Getting one wrong makes the guide untrustworthy to this
 Rscript check-databricks-access.R    # smoke test: run this FIRST, and before blaming a document
 scripts/check-public.sh              # publication safety. Run before any push, and after adding any file
 scripts/check-freeze.sh              # freeze cache matches source. Run after editing anything in example/
+scripts/check-links.py --nav         # every internal link and anchor resolves. Run after renaming a heading
 scripts/check-facts.R                # fact table: staleness, orphans, used_by drift, literals left in prose
-scripts/install-hooks.sh             # once per clone: pre-push runs both checks
+scripts/install-hooks.sh             # once per clone: pre-push runs freeze, links and public
 quarto render                        # whole site -> _site/
 quarto preview                       # live preview
 R -e 'renv::restore()'               # restore the package environment

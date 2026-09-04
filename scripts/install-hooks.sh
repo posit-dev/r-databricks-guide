@@ -23,6 +23,7 @@ set -uo pipefail
 
 fail=0
 scripts/check-freeze.sh || fail=1
+python3 scripts/check-links.py --nav || fail=1
 scripts/check-public.sh >/dev/null 2>&1 || {
   printf '\n'
   scripts/check-public.sh 2>&1 | grep -A2 '^FAIL'
@@ -39,4 +40,4 @@ HOOK
 
 chmod +x .git/hooks/pre-push
 printf 'Installed .git/hooks/pre-push\n'
-printf 'It runs scripts/check-freeze.sh and scripts/check-public.sh before every push.\n'
+printf 'It runs check-freeze.sh, check-links.py and check-public.sh before every push.\n'
