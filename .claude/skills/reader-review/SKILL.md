@@ -48,6 +48,8 @@ The reverse dependency does not exist, because fixing a fragment never invalidat
 
 So after acting on any finding here that **moves, renames, splits or merges a section**, run `writing-voice` over the sections you touched. Not the whole site: the sections you touched.
 
+`deep-review` runs that whole sequence, adds the link check and the rebuild, and is the thing to invoke when you want the pass rather than the report.
+
 ## Two phases
 
 **Phase A is deterministic.** A script counts what is countable. Run it yourself, in this repository.
